@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-HK">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="description" content="Critical Illness life support reserve planning">
+    <link rel="manifest" href="./manifest.json">
+    <title>生活支援預備金｜AVA Critical Illness</title>
+    <link rel="stylesheet" href="./src/styles.css">
+  </head>
+  <body>
+    <div class="ava-shell" id="app">
+      <header class="app-header">
+        <a class="brand" href="#/" aria-label="AVA Critical Illness 首頁">
+          <span class="brand-mark" aria-hidden="true">CI</span>
+          <span><strong>生活支援預備金</strong><small>AVA Critical Illness</small></span>
+        </a>
+        <nav class="top-nav" aria-label="主要導航">
+          <a class="return-ava" href="../avaplatform/" aria-label="返回 AVA">← 返回 AVA</a>
+          <a href="#/flow">開始了解</a>
+          <a href="#/plans">查看方案</a>
+        </nav>
+      </header>
+      <main id="main-content" tabindex="-1"></main>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </div>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

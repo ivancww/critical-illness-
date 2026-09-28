@@ -1,0 +1,11 @@
+{
+  "name": "AVA Critical Illness",
+  "short_name": "AVA CI",
+  "description": "生活支援預備金規劃",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#1e3a8a"
+}
