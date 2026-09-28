@@ -26,8 +26,8 @@ export function togglePlanSelection(selectedPlanIds, planId) {
   return selectedPlanIds.includes(planId) ? selectedPlanIds.filter(id => id !== planId) : [...selectedPlanIds, planId];
 }
 
-export function calculateSupportReserve({ months, monthlyNeed }) {
-  const safeMonths = Number(months);
+export function calculateSupportReserve({ desiredMonths, months, monthlyNeed }) {
+  const safeMonths = Number(desiredMonths ?? months);
   const safeMonthlyNeed = Number(monthlyNeed);
   if (!(safeMonths > 0) || !(safeMonthlyNeed > 0)) return 0;
   return safeMonths * safeMonthlyNeed;
