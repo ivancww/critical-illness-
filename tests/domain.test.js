@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from '../src/domain/claim-engine.js';
+import { calculateDementiaParkinsonClaim, createCancerState, firstTenYearEnhancement, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from '../src/domain/claim-engine.js';
 import { getActivePlans, resolvePlan } from '../src/domain/product-engine.js';
 
 test('cancer initial claim is separate from the continuing pool', () => {
@@ -36,4 +36,9 @@ test('inactive products remain resolvable but are excluded from active plan acce
   const records = [{ plan_id: 'sce', active: true }, { plan_id: 'old', active: false }];
   assert.deepEqual(getActivePlans(records).map(item => item.plan_id), ['sce']);
   assert.equal(resolvePlan(records, 'old').active, false);
+});
+
+
+test('unverified first-ten-year enhancement cannot be calculated as official', () => {
+  assert.throws(() => firstTenYearEnhancement(), error => error.code === 'FIRST_TEN_YEAR_ENHANCEMENT_VERIFY_REQUIRED');
 });
