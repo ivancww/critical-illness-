@@ -1,5 +1,5 @@
 const CACHE = 'ava-ci-shell-v1';
-const SHELL = ['./', './index.html', './manifest.json', './src/app.js', './src/styles.css', './src/domain/product-engine.js', './src/domain/claim-engine.js', './src/domain/premium-engine.js', './src/data/data-api.js', './src/data/storage.js', './src/data/content.js'];
+const SHELL = ['./', './index.html', './manifest.json', './src/app.js', './src/styles.css', './src/domain/product-engine.js', './src/domain/claim-engine.js', './src/domain/premium-engine.js', './src/data/data-api.js', './src/data/storage.js', './src/data/content.js', './src/integration/return-context.js'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {
