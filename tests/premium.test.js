@@ -13,7 +13,7 @@ test('premium engine preserves raw rate and does not silently round', () => {
   }});
   const result = engine.calculate({ planKey: 'sce', sumAssured: 780000, age: 30, gender: 'M' });
   assert.equal(result.rawRate, 2.03);
-  assert.equal(result.annualBeforeProgram, 203);
+  assert.ok(Math.abs(result.annualBeforeProgram - 203) < Number.EPSILON * 203);
   assert.equal(result.status, 'VERIFY_ROUNDING_AND_MONTHLY_ORDER');
 });
 
