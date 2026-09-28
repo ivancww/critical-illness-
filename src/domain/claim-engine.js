@@ -34,15 +34,11 @@ export function calculateMajorClaim({ sumAssured, remainingPercent = 100, enhanc
   return { payout: basePayout + enhancement, basePayout, enhancement, remainingPercent, enhancementPercent };
 }
 
-export function firstTenYearEnhancement({ startAge, claimAge, child = false }) {
-  const difference = number(claimAge) - number(startAge);
-  const withinBoundary = difference <= 10;
-  if (!withinBoundary) return { withinBoundary: false, percent: 0, boundary: 'claimAge - startAge <= 10' };
-  return {
-    withinBoundary: true,
-    percent: child ? 50 : (number(startAge) <= 30 ? 50 : 35),
-    boundary: 'claimAge - startAge <= 10'
-  };
+export function firstTenYearEnhancement() {
+  throw new ClaimRuleError(
+    '首10年升級保障的資格及邊界尚待官方核實。',
+    'FIRST_TEN_YEAR_ENHANCEMENT_VERIFY_REQUIRED'
+  );
 }
 
 export function createCancerState(sumAssured, rules = {}) {
