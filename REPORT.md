@@ -107,3 +107,19 @@ Current repository status is clean on the PR preparation branch. AVA Platform wo
 ## PR readiness
 
 **Ready for PR creation with documented limitations.** Node/npm test execution and physical/device/PWA checks remain unavailable. No merge was performed.
+
+
+## PR #1 final review addendum — 2026-09-28
+
+- Reviewed PR #1 against the current AVA Platform `main` Mother Rules and Root `AGENTS.md`.
+- Fixed the Guided Flow reserve calculation so `desiredMonths × monthlyNeed` is used by the actual app.
+- Fixed User Override rendering for the intro visibility setting.
+- Implemented an actual unsaved Edit → Preview draft path before Save Local.
+- Corrected product rendering to support the current Google Sheet field names and `single` / `continuing` protection-style values.
+- Corrected Benefit and Product Content field handling for the current structured schema.
+- Removed the incorrect app-wide Image/Video Page count restriction; per-page media limits remain enforced by normalized page data.
+- Gated the unverified first-10-year enhancement calculation instead of exposing legacy +50%/+35% logic as confirmed official logic.
+- Added GitHub Actions Node 22 CI so the Node test suite is no longer blocked by the Cloud Shell environment.
+- Final GitHub Actions push run and pull-request run for head `3c2217c` both completed successfully.
+- Remaining VERIFY items require authoritative product/source evidence and are intentionally fail-safe; they are not silently fabricated.
+- Cloud Storage provider, official Firebase resource links, physical-device installed-PWA certification, and AVA Platform registry integration remain later environment/integration work. Per Mother Rules, Platform registration and live integration verification follow Independent App review/merge.
