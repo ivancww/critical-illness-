@@ -34,6 +34,7 @@ test('plan selection is shared by direct and guided routes', () => {
 });
 
 test('support reserve and coverage months use the customer inputs', () => {
+  assert.equal(calculateSupportReserve({ desiredMonths: 12, monthlyNeed: 30000 }), 360000);
   assert.equal(calculateSupportReserve({ months: 12, monthlyNeed: 30000 }), 360000);
   assert.equal(translateProtectionToMonths({ existingProtection: 180000, monthlyNeed: 30000 }), 6);
 });
