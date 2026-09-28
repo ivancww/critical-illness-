@@ -36,6 +36,7 @@
 - `docs/MOTHER-COMPLIANCE.md`
 - `REPORT.md`
 - `index.html`, `src/app.js`
+- `src/integration/return-context.js`
 - `tests/integration-readiness.test.js`
 
 The repository began as an uncommitted worktree, so the other listed app files are existing supplied implementation files rather than changes made during this pass.
@@ -55,7 +56,7 @@ The repository began as an uncommitted worktree, so the other listed app files a
 | Backup/Restore | Code complete for structured local scope | Media binaries excluded; references preserved. |
 | QR Restore | Safe architecture only | Pointer validation only; no production backend or auth fabricated. |
 | Front/User/Admin | Front/User implemented; Admin unsupported | Admin fails safely and points to AVA Studio. |
-| Return to AVA | Implemented | Persistent `../avaplatform/` destination used by current deployment convention. |
+| Return to AVA | Implemented | Caller-provided return context validated against the Mother-supported surface contract; no fixed deployment URL. |
 | Responsive/PWA | Static/browser checks pass | Manifest/service worker retained; physical device/PWA chrome not certified. |
 
 ## Tests run and exact results
@@ -69,6 +70,7 @@ The repository began as an uncommitted worktree, so the other listed app files a
 - Browser domain-focused checks — **PASS** for support reserve, coverage-month translation, cancer shared pool/A→B/B→A, lifetime dementia/Parkinson model, unverified premium refusal, media-binary exclusion, and QR pointer validation.
 - Physical iPhone, HONOR Magic V5, iPadOS Safari, and installed-PWA checks — **BLOCKED / NOT EXECUTED**; only Chromium viewport emulation was available.
 - AVA Design System `validate.py` — **PASS** for canonical fixture validation: CSS parsing/variables/responsive boundaries plus Chromium 11 responsive viewports and interaction checks. This validates the Platform fixture, not physical-device Safari or the independent app’s cloud integrations.
+- Integration readiness contract test — **BLOCKED locally** because `npm`/Node is unavailable; GitHub Actions is the required Node execution environment for PR #2.
 
 ## Remaining incomplete work
 
@@ -112,7 +114,7 @@ Current repository status is clean on the integration-readiness branch after aud
 - `?avaEntry=user` renders that same Frontstage with direct User/Edit capability; Preview now includes Save Local.
 - Unsupported non-empty `avaEntry` values fail safely without exposing Frontstage or Admin controls.
 - User Overrides remain Local-first and survive reload/reopen through the existing storage layer.
-- Return to AVA uses the caller-provided browser return context and preserves its AVA surface query context; no guessed Platform deployment URL is used. Direct or standalone opens without a valid caller context show a safe unavailable-context status.
+- Return to AVA uses the caller-provided browser return context and validates Mother-supported `avaSurface` values (`user`, `admin`, or absent for Frontstage); valid same-origin AVA paths are accepted. No guessed Platform deployment URL is used. Direct or standalone opens without a valid caller context show a safe unavailable-context status.
 - PWA scope and service-worker ownership remain independent; installed-PWA browser-chrome behavior remains environment-dependent and requires physical validation.
 - Official product, calculation, premium, benefit, claim, health, content, and flow business logic was not changed by this audit.
 

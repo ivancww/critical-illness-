@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { resolveAvaReturnContext } from '../src/integration/return-context.js';
 
 const html = fs.readFileSync('index.html', 'utf8');
 const app = fs.readFileSync('src/app.js', 'utf8');
@@ -22,6 +23,12 @@ test('User flow includes Frontstage edit, Preview, and Save Local', () => {
 });
 
 test('Return to AVA uses caller context and no guessed deployment URL', () => {
+  const currentUrl = 'https://ava.example/critical-illness/?avaEntry=user';
+  assert.equal(resolveAvaReturnContext({ referrer: 'https://ava.example/platform/', currentUrl }), 'https://ava.example/platform/');
+  assert.equal(resolveAvaReturnContext({ referrer: 'https://ava.example/platform/?avaSurface=user', currentUrl }), 'https://ava.example/platform/?avaSurface=user');
+  assert.equal(resolveAvaReturnContext({ referrer: '', currentUrl }), null);
+  assert.equal(resolveAvaReturnContext({ referrer: 'javascript:alert(1)', currentUrl }), null);
+  assert.equal(resolveAvaReturnContext({ referrer: 'https://ava.example/platform/?avaSurface=unknown', currentUrl }), null);
   assert.match(app, /function returnContext\(\)/);
   assert.match(app, /document\.referrer/);
   assert.match(app, /function returnToAva\(event\)/);

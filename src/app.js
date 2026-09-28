@@ -3,6 +3,7 @@ import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState,
 import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, togglePlanSelection, translateProtectionToMonths } from './domain/flow-state.js';
 import { getActivePlans, resolveBenefits, resolveClaimRules } from './domain/product-engine.js';
 import { verificationState } from './domain/verification.js';
+import { resolveAvaReturnContext } from './integration/return-context.js';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -80,7 +81,7 @@ function presentation() { const s = supportSummary(); const chosen = plans().fil
 
 function editDraft() { return { introTitle: document.querySelector('#intro-title').value.trim(), introSubtitle: document.querySelector('#intro-subtitle').value.trim(), introSupport: document.querySelector('#intro-support').value.trim(), showIntro: document.querySelector('#show-intro').checked }; }
 function saveEditDraft() { state.user.pagePreferences = editDraft(); persistUser(); }
-function returnContext() { const referrer = document.referrer; if (!referrer) return null; try { const context = new URL(referrer); if (context.origin === location.origin || !['http:', 'https:'].includes(context.protocol)) return null; return context.href; } catch { return null; } }
+function returnContext() { return resolveAvaReturnContext({ referrer: document.referrer, currentUrl: location.href }); }
 function returnToAva(event) { event?.preventDefault(); const context = returnContext(); if (context) { window.location.assign(context); return; } setStatus('AVA return context unavailable; please reopen this App from AVA.', true); }
 
 function editPage() { if (!canEdit) return home(); const p = state.user.pagePreferences || {}; render(`<section class="hero" data-ava-mode="edit"><span class="eyebrow">User Editing</span><h1>編輯 Frontstage</h1><p class="support">只保存 User/Local Layer；官方產品、計算、保費、理賠規則保持受保護。</p><article class="card"><div class="field"><label for="intro-title">主訊息</label><input id="intro-title" value="${escapeHtml(p.introTitle || '')}"></div><div class="field"><label for="intro-subtitle">標題</label><input id="intro-subtitle" value="${escapeHtml(p.introSubtitle || '')}"></div><div class="field"><label for="intro-support">Supporting text</label><textarea id="intro-support">${escapeHtml(p.introSupport || '')}</textarea></div><label><input id="show-intro" type="checkbox" ${p.showIntro !== false ? 'checked' : ''}> 顯示首頁介紹</label><div class="actions"><button class="primary" id="preview-edit">Preview</button><button class="secondary" id="save-edit">Save Local</button><a class="button subtle" href="#/">取消</a><button class="subtle" id="backup-user">下載結構化 Backup</button><label class="button subtle file-button" for="restore-user">還原 Backup</label><input id="restore-user" type="file" accept="application/json" hidden></div></article>${pagesEditorMarkup()}</section>`, 'edit'); bindEdit(); }
