@@ -1,9 +1,10 @@
-import { loadOfficialData, normalizeStructuredData, validateOfficialData } from './data/data-api.js';
+import { GAS_DATA_API_URL, loadOfficialData, normalizeStructuredData, validateOfficialData } from './data/data-api.js';
 import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js';
 import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, togglePlanSelection, translateProtectionToMonths } from './domain/flow-state.js';
 import { getActivePlans, resolveBenefits, resolveClaimRules } from './domain/product-engine.js';
 import { verificationState } from './domain/verification.js';
 import { resolveAvaReturnContext } from './integration/return-context.js';
+import { ADMIN_SECTION_DEFINITIONS, adminPersistenceStatus, composeOfficialAndUser, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -32,14 +33,15 @@ const state = { official: loadOfficialCache(), user: normalizeUserState(loadUser
 state.user.flow = createFlowState(state.user.flow);
 const requestedEntry = new URLSearchParams(location.search).get('avaEntry') || '';
 const appEntry = requestedEntry || 'frontend';
-const unsupportedEntry = Boolean(requestedEntry) && !['frontend', 'user'].includes(requestedEntry);
+const unsupportedEntry = Boolean(requestedEntry) && !['frontend', 'user', 'admin'].includes(requestedEntry);
 const canEdit = appEntry === 'user' && !unsupportedEntry;
+const canAdmin = appEntry === 'admin' && !unsupportedEntry;
 
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function money(value) { return Number(value || 0).toLocaleString('en-HK', { maximumFractionDigits: 0 }); }
 function setStatus(message, error = false) { status.textContent = message; status.className = `status is-visible${error ? ' is-error' : ''}`; window.clearTimeout(setStatus.timer); setStatus.timer = window.setTimeout(() => { status.className = 'status'; }, 4000); }
 function persistUser() { state.user = saveUserState(state.user); }
-function render(html, mode = 'use') { document.body.classList.toggle('presentation-active', mode === 'presentation'); main.innerHTML = `<div class="page" data-ava-mode="${mode}">${html}</div>`; main.focus(); }
+function render(html, mode = 'use') { document.body.classList.toggle('presentation-active', mode === 'presentation'); document.body.classList.toggle('admin-active', mode === 'admin'); main.innerHTML = `<div class="page" data-ava-mode="${mode}">${html}</div>`; main.focus(); }
 function flow() { return state.user.flow; }
 function supportSummary() { const f = flow(); const desired = calculateSupportReserve(f); const existing = Number(f.existingProtection) || 0; return { desired, existing, months: translateProtectionToMonths({ existingProtection: existing, monthlyNeed: f.monthlyNeed }) }; }
 function datasets() { return normalizeStructuredData(state.official?.structured || {}); }
@@ -48,7 +50,7 @@ function userPagesMarkup() { return state.user.pages.filter(p => p.visible).map(
 function mediaMarkup(page) { if (!page.media?.length) return '<p class="media-fallback" role="status">媒體暫時無法使用。<br>Cloud Storage 未配置。</p>'; if (page.type === 'video') return `<div class="media-frame"><video controls preload="metadata" src="${escapeHtml(page.media[0].cloudFileRef)}"></video></div>`; return `<div class="media-grid">${page.media.slice(0, 6).map(m => `<div class="media-frame"><img loading="lazy" src="${escapeHtml(m.cloudFileRef)}" alt="${escapeHtml(m.name || page.title)}"></div>`).join('')}</div>`; }
 
 function home() {
-  const p = state.user.pagePreferences || {};
+  const p = composeOfficialAndUser(state.official || {}, state.user).presentation;
   const intro = p.showIntro === false ? '' : `<section class="hero ava-concept"><span class="eyebrow">AVA Critical Illness</span><h1>${escapeHtml(p.introSubtitle || '生活支援預備金')}</h1><p class="support">${escapeHtml(p.introTitle || '一場大病，需要面對嘅往往唔只係醫療費。')}</p><div class="concept-flow"><span>治療</span><b>＋</b><span>需要時間休養</span><b>＋</b><span>生活仍然繼續</span><b>→</b><strong>一筆可以靈活運用嘅生活支援預備金</strong></div><p class="support">${escapeHtml(p.introSupport || '由你希望保留的時間開始，慢慢理解保障。')}</p><div class="actions"><a class="button primary" href="#/flow">開始了解</a><a class="button secondary" href="#/plans">直接查看方案</a>${canEdit ? '<a class="button subtle" href="#/edit">編輯／預覽</a>' : ''}</div></section>`;
   render(`${intro}${userPagesMarkup()}`);
 }
@@ -91,8 +93,31 @@ function createPage() { const type = document.querySelector('#page-type').value;
 function movePage(id, direction) { const i = state.user.pages.findIndex(p => p.id === id); const j = i + direction; if (i < 0 || j < 0 || j >= state.user.pages.length) return; [state.user.pages[i], state.user.pages[j]] = [state.user.pages[j], state.user.pages[i]]; state.user.pages.forEach((p, n) => { p.sortOrder = n; p.flowPosition = n; p.updatedAt = new Date().toISOString(); }); persistUser(); editPage(); }
 function downloadBackup() { const blob = new Blob([JSON.stringify(createUserBackup(state.user), null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'ava-critical-illness-user-backup.json'; link.click(); URL.revokeObjectURL(link.href); }
 async function restoreBackup(event) { try { const file = event.target.files?.[0]; if (!file) return; state.user = restoreUserBackup(JSON.parse(await file.text())); state.user.flow = createFlowState(state.user.flow); persistUser(); setStatus('Backup 已還原；媒體只保留 Cloud references。'); editPage(); } catch (e) { setStatus(`Backup 還原失敗：${e.message}`, true); } }
+
+function adminValue(value) { const safe = redactOfficialValue(value); if (safe === null || safe === undefined || safe === '') return '—'; if (typeof safe === 'object') return JSON.stringify(safe); return String(safe); }
+function adminRecordMarkup(record) { const safe = redactOfficialValue(record); const entries = Object.entries(safe || {}).filter(([, value]) => value !== null && value !== undefined && value !== ''); return `<article class="admin-record">${entries.length ? entries.map(([key, value]) => `<div class="admin-field"><span>${escapeHtml(key)}</span><strong>${escapeHtml(adminValue(value))}</strong></div>`).join('') : '<p class="muted">No official fields available.</p>'}</article>`; }
+function adminDatasetSection(id, title, description, records) { return `<section class="admin-section" id="admin-${id}"><div class="admin-section-heading"><div><span class="eyebrow">Official Layer</span><h2>${title}</h2><p class="muted">${description}</p></div><span class="tag">${records.length} records · READ ONLY</span></div><div class="admin-record-list">${records.length ? records.map(adminRecordMarkup).join('') : '<p class="empty">Official dataset is unavailable or not configured. No fallback business rule is fabricated here.</p>'}</div></section>`; }
+function adminPage() {
+  if (!canAdmin) return home();
+  const d = datasets();
+  const premium = premiumSheetStatus(state.official?.premium || {});
+  const content = officialRecords(d, 'Product_Content');
+  const resources = resourceStatus(content);
+  const versions = officialRecords(d, 'Settings_Versions');
+  const fetchedAt = state.official?.fetchedAt || state.official?.cachedAt || 'Not available';
+  const sourceRows = [
+    ['GAS endpoint', GAS_DATA_API_URL],
+    ['Structured data', state.official?.structured ? 'AVAILABLE' : 'NOT AVAILABLE'],
+    ['Premium sheets', state.official?.premium ? 'AVAILABLE · VERIFY REQUIRED' : 'NOT AVAILABLE'],
+    ['Firebase resources', `${resources.linked} linked · ${resources.unlinked} unlinked / not configured`],
+    ['Dataset versions', versions.length ? `${versions.length} records` : 'NOT AVAILABLE'],
+    ['Last successful refresh', fetchedAt]
+  ];
+  const sectionLinks = ADMIN_SECTION_DEFINITIONS.map(([title]) => `<a class="button subtle" href="#admin-${title.toLowerCase().replace(/[^a-z]+/g, '-')}">${title}</a>`).join('');
+  const persistence = adminPersistenceStatus();
+  render(`<section class="admin-shell" data-ava-mode="admin"><section class="hero admin-hero"><span class="eyebrow">AVA Studio · Critical Illness Admin</span><h1>Official Config</h1><p class="support">管理 Critical Illness Official Layer。這裡不會修改 User Overrides、Customer Flow 或受保護計算邏輯。</p><div class="admin-status-banner"><strong>${persistence.status}</strong><span>${persistence.reason}</span><span>${persistence.authentication}</span><small>Admin URL alone does not grant authentication or write permission.</small></div></section><nav class="admin-section-nav" aria-label="Official Config sections">${sectionLinks}</nav>${adminDatasetSection('products', 'Products', 'Official product records remain data-driven. Discontinued records stay visible with active=false for historical references.', officialRecords(d, 'Plans'))}${adminDatasetSection('benefits', 'Benefits', 'Official benefit fields are rendered as supplied; contractual terms that require verification remain data-owned.', officialRecords(d, 'Benefits'))}${adminDatasetSection('claim-rules', 'Claim Rules', 'Structured claim records are displayed without creating a second calculation engine. VERIFY fields remain unconfirmed.', officialRecords(d, 'Claim_Rules'))}${adminDatasetSection('health-program', 'Health Program', 'Premium effects and coverage / payout effects remain distinct official fields.', officialRecords(d, 'Health_Program'))}${adminDatasetSection('product-content', 'Product Content', `Official content references only. Linked resources: ${resources.linked}; unlinked / not configured: ${resources.unlinked}.`, content)}<section class="admin-section" id="admin-premium-data"><div class="admin-section-heading"><div><span class="eyebrow">Official Layer</span><h2>Premium Data</h2><p class="muted">Matrix structures are inspectable only. No row, column, smoker, pay-term, precision, rounding, or conversion mapping is inferred.</p></div><span class="tag">VERIFY REQUIRED</span></div><div class="admin-record-list">${premium.length ? premium.map(sheet => adminRecordMarkup(sheet)).join('') : '<p class="empty">Premium sheets are unavailable.</p>'}</div></section><section class="admin-section" id="admin-data-sources"><div class="admin-section-heading"><div><span class="eyebrow">Official Layer</span><h2>Data Sources</h2><p class="muted">Source availability is visible; credentials and write-back controls are not exposed.</p></div><span class="tag">STATUS</span></div><div class="admin-record-list">${sourceRows.map(([key, value]) => adminRecordMarkup({ key, value })).join('')}</div></section>${adminDatasetSection('versions-status', 'Versions / Status', 'Settings_Versions is shown read-only. Protected calculation parameters are not made editable by presence alone.', versions)}<section class="admin-footer-note"><strong>Safe Admin boundary</strong><p>Official write-back is an external configuration requirement: the current GAS contract exposes read actions only. A future authenticated endpoint must use the allowlisted dataset/field/version contract; no Admin save success is claimed here.</p></section></section>`, 'admin'); }
 function unsupportedEntryPage() { render('<section class="hero"><span class="eyebrow">AVA Entry unavailable</span><h1>此入口未配置</h1><p class="support">這個 avaEntry 尚未由 AVA Platform 啟用。請從 AVA 以 Frontstage 或 User 入口重新開啟。</p></section>'); }
-function route() { const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean); if (unsupportedEntry) return unsupportedEntryPage(); if (!parts.length) return home(); if (parts[0] === 'flow') return flowPage(); if (parts[0] === 'plans' && parts[1]) return planDetail(parts[1]); if (parts[0] === 'plans') return plansPage(); if (parts[0] === 'presentation') return presentation(); if (parts[0] === 'edit') return editPage(); return home(); }
+function route() { const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean); if (unsupportedEntry) return unsupportedEntryPage(); if (canAdmin) return adminPage(); if (!parts.length) return home(); if (parts[0] === 'flow') return flowPage(); if (parts[0] === 'plans' && parts[1]) return planDetail(parts[1]); if (parts[0] === 'plans') return plansPage(); if (parts[0] === 'presentation') return presentation(); if (parts[0] === 'edit') return editPage(); return home(); }
 async function refreshOfficial() { try { const data = await loadOfficialData(); const normalized = { ...data, structured: normalizeStructuredData(data.structured) }; validateOfficialData(normalized); state.official = normalized; saveOfficialCache(normalized); setStatus('官方資料已更新。'); route(); } catch (e) { setStatus(`官方資料暫時未能更新：${e.message}`, true); } }
 
 document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); window.addEventListener('hashchange', route); route(); if (!state.official) setStatus('官方資料正在載入；未配置資料會安全顯示 pending。'); refreshOfficial(); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setStatus('離線外殼未能啟用。', true));

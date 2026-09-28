@@ -2,12 +2,11 @@
 
 ## Current branch
 
-`codex/ava-integration-readiness` (integration-readiness audit changes are in progress).
+`codex/critical-illness-admin` (Admin Official Config changes are in progress).
 
 ## Mother Standard studied
 
-- Local AVA Platform `origin/main`: `f5c7b3e` (`Merge pull request #34 from ivancww/codex/enable-medical-user-entry`).
-- Current local compliance checkout also studied: `fa5304a` (`docs: standardize independent app entry contract`) on `codex/standardize-independent-app-entry-contract-v2`.
+- Local AVA Platform `origin/main`: `dea0b8d` (latest merged Mother Standard).
 - Mother `main` was refreshed before this audit; the Platform checkout was not modified.
 - Read: `AGENTS.md`, `docs/MOTHER-RULES.md`, `design-system/DESIGN-SYSTEM.md`, `docs/ciapp-module-integration.md`, `docs/single-home-screen-pwa-architecture.md`, `docs/homepage-architecture-v1.13.md`, and `docs/homepage-cloud-integration.md`.
 
@@ -25,11 +24,15 @@
 - Restricted User editing to `?avaEntry=user`; Frontstage `?avaEntry=frontend` does not expose editing controls.
 - Added User Edit / Preview / Save Local flow, user-created content/image/video pages, ordering, visibility, page limits, structured backup/restore, media-reference-only persistence, and safe media failure handling.
 - Added version-aware official cache metadata and QR restore-pointer validation without credentials or full user data.
-- Did not implement or fabricate CRM, Firebase, Cloud Storage, production QR restore, Admin capability, or unsupported premium calculations.
+- Added a separate `?avaEntry=admin` Official Config surface for Products, Benefits, Claim Rules, Health Program, Product Content, Premium Data, Data Sources, and Versions / Status.
+- Implemented the official Admin ownership boundary and a versioned, allowlisted write-request contract; the current GAS deployment exposes read actions only, so production write-back remains external configuration and no save success is fabricated.
+- Did not implement or fabricate CRM, Cloud Storage, production QR restore, or unsupported premium calculations.
 
 ## Files changed in this worktree
 
 - `src/app.js`, `src/styles.css`
+- `src/admin/official-config.js`, `tests/admin.test.js`
+- `sw.js`, `tests/integration-readiness.test.js`
 - `src/domain/flow-state.js`, `src/domain/verification.js`
 - `src/data/storage.js`
 - `tests/domain.test.js`, `tests/state.test.js`
@@ -55,7 +58,7 @@ The repository began as an uncommitted worktree, so the other listed app files a
 | Media | Safe incomplete | Cloud provider not configured; no binary stored locally. |
 | Backup/Restore | Code complete for structured local scope | Media binaries excluded; references preserved. |
 | QR Restore | Safe architecture only | Pointer validation only; no production backend or auth fabricated. |
-| Front/User/Admin | Front/User implemented; Admin unsupported | Admin fails safely and points to AVA Studio. |
+| Front/User/Admin | Front/User/Admin implemented; Admin read-only | Admin exposes Official Config data without User-state writes; auth/write-back remain platform-dependent. |
 | Return to AVA | Implemented | Caller-provided return context validated against the Mother-supported surface contract; no fixed deployment URL. |
 | Responsive/PWA | Static/browser checks pass | Manifest/service worker retained; physical device/PWA chrome not certified. |
 
@@ -70,7 +73,7 @@ The repository began as an uncommitted worktree, so the other listed app files a
 - Browser domain-focused checks — **PASS** for support reserve, coverage-month translation, cancer shared pool/A→B/B→A, lifetime dementia/Parkinson model, unverified premium refusal, media-binary exclusion, and QR pointer validation.
 - Physical iPhone, HONOR Magic V5, iPadOS Safari, and installed-PWA checks — **BLOCKED / NOT EXECUTED**; only Chromium viewport emulation was available.
 - AVA Design System `validate.py` — **PASS** for canonical fixture validation: CSS parsing/variables/responsive boundaries plus Chromium 11 responsive viewports and interaction checks. This validates the Platform fixture, not physical-device Safari or the independent app’s cloud integrations.
-- Integration readiness contract test — **BLOCKED locally** because `npm`/Node is unavailable; GitHub Actions is the required Node execution environment for PR #2.
+- Integration readiness and Admin contract tests — **BLOCKED locally** because `npm`/Node is unavailable; GitHub Actions is the required Node execution environment for this PR.
 
 ## Remaining incomplete work
 
@@ -78,6 +81,7 @@ The repository began as an uncommitted worktree, so the other listed app files a
 - Verify exact premium sheet row/column, smoker, precision, rounding, conversion, 1.06, and Vitality ordering against authoritative source data before displaying a premium.
 - Configure the approved Cloud Storage provider and production authorization/reconnect flow.
 - Connect official Firebase/Google metadata resources when real references exist.
+- Configure app-specific official write-back and authenticated Admin access through the approved AVA Platform / AVA Studio boundary; the current app intentionally remains read-only.
 - Integrate the App through AVA Platform registry/gateway after independent deployment readiness and live entry-contract verification.
 - Complete physical-device and installed-PWA validation.
 
@@ -106,21 +110,23 @@ The repository began as an uncommitted worktree, so the other listed app files a
 
 ## Git status
 
-Current repository status is clean on the integration-readiness branch after audit changes. AVA Platform working tree remains unchanged.
+Current repository status is on the Admin development branch after scoped Admin changes. AVA Platform working tree remains unchanged.
 
 ## Integration Readiness Audit
 
 - `?avaEntry=frontend` renders the actual customer Frontstage without User editing controls.
 - `?avaEntry=user` renders that same Frontstage with direct User/Edit capability; Preview now includes Save Local.
+- `?avaEntry=admin` renders the separate read-only Official Config capability; it does not write User Overrides or protected official data.
 - Unsupported non-empty `avaEntry` values fail safely without exposing Frontstage or Admin controls.
 - User Overrides remain Local-first and survive reload/reopen through the existing storage layer.
 - Return to AVA uses the caller-provided browser return context and validates Mother-supported `avaSurface` values (`user`, `admin`, or absent for Frontstage); valid same-origin AVA paths are accepted. No guessed Platform deployment URL is used. Direct or standalone opens without a valid caller context show a safe unavailable-context status.
 - PWA scope and service-worker ownership remain independent; installed-PWA browser-chrome behavior remains environment-dependent and requires physical validation.
 - Official product, calculation, premium, benefit, claim, health, content, and flow business logic was not changed by this audit.
+- Admin data is rendered from the existing structured datasets and premium-sheet status; unlinked Firebase resources and unverified premium mappings remain explicitly surfaced rather than fabricated.
 
 ## PR readiness
 
-**Integration changes require PR review with documented limitations.** Node/npm test execution and physical/device/PWA checks remain unavailable. No merge was performed.
+**Admin Official Config is ready for PR review with documented limitations.** Node/npm execution and physical/device/PWA checks remain environment-dependent; Admin authentication and official write-back remain platform-dependent. No merge was performed.
 
 
 ## PR #1 final review addendum — 2026-09-28
