@@ -2,13 +2,13 @@
 
 ## Current branch
 
-`codex/critical-illness-pr` (implementation and report changes are committed for PR preparation).
+`codex/ava-integration-readiness` (integration-readiness audit changes are in progress).
 
 ## Mother Standard studied
 
-- Local AVA Platform `origin/main`: `3f7b430` (`Merge pull request #31 from ivancww/fix/medical-homepage-navigation`).
+- Local AVA Platform `origin/main`: `f5c7b3e` (`Merge pull request #34 from ivancww/codex/enable-medical-user-entry`).
 - Current local compliance checkout also studied: `fa5304a` (`docs: standardize independent app entry contract`) on `codex/standardize-independent-app-entry-contract-v2`.
-- A network refresh was attempted but the Platform checkout is read-only in this environment, so `FETCH_HEAD` could not be updated. The Platform checkout was not modified.
+- Mother `main` was refreshed before this audit; the Platform checkout was not modified.
 - Read: `AGENTS.md`, `docs/MOTHER-RULES.md`, `design-system/DESIGN-SYSTEM.md`, `docs/ciapp-module-integration.md`, `docs/single-home-screen-pwa-architecture.md`, `docs/homepage-architecture-v1.13.md`, and `docs/homepage-cloud-integration.md`.
 
 ## Work completed
@@ -35,6 +35,8 @@
 - `tests/domain.test.js`, `tests/state.test.js`
 - `docs/MOTHER-COMPLIANCE.md`
 - `REPORT.md`
+- `index.html`, `src/app.js`
+- `tests/integration-readiness.test.js`
 
 The repository began as an uncommitted worktree, so the other listed app files are existing supplied implementation files rather than changes made during this pass.
 
@@ -102,11 +104,21 @@ The repository began as an uncommitted worktree, so the other listed app files a
 
 ## Git status
 
-Current repository status is clean on the PR preparation branch. AVA Platform working tree remains unchanged and clean on `codex/standardize-independent-app-entry-contract-v2`.
+Current repository status is clean on the integration-readiness branch after audit changes. AVA Platform working tree remains unchanged.
+
+## Integration Readiness Audit
+
+- `?avaEntry=frontend` renders the actual customer Frontstage without User editing controls.
+- `?avaEntry=user` renders that same Frontstage with direct User/Edit capability; Preview now includes Save Local.
+- Unsupported non-empty `avaEntry` values fail safely without exposing Frontstage or Admin controls.
+- User Overrides remain Local-first and survive reload/reopen through the existing storage layer.
+- Return to AVA uses the caller-provided browser return context and preserves its AVA surface query context; no guessed Platform deployment URL is used. Direct or standalone opens without a valid caller context show a safe unavailable-context status.
+- PWA scope and service-worker ownership remain independent; installed-PWA browser-chrome behavior remains environment-dependent and requires physical validation.
+- Official product, calculation, premium, benefit, claim, health, content, and flow business logic was not changed by this audit.
 
 ## PR readiness
 
-**Ready for PR creation with documented limitations.** Node/npm test execution and physical/device/PWA checks remain unavailable. No merge was performed.
+**Integration changes require PR review with documented limitations.** Node/npm test execution and physical/device/PWA checks remain unavailable. No merge was performed.
 
 
 ## PR #1 final review addendum — 2026-09-28
