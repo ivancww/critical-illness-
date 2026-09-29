@@ -25,7 +25,7 @@
 - Added User Edit / Preview / Save Local flow, user-created content/image/video pages, ordering, visibility, page limits, structured backup/restore, media-reference-only persistence, and safe media failure handling.
 - Added version-aware official cache metadata and QR restore-pointer validation without credentials or full user data.
 - Added a separate `?avaEntry=admin` Official Config surface for Products, Benefits, Claim Rules, Health Program, Product Content, Premium Data, Data Sources, and Versions / Status.
-- Added Admin Edit → Validate → authenticated GAS POST → confirmed refresh/cache update. The request is dataset/record/version/field allowlisted; failures leave Official cache and User Overrides unchanged.
+- Updated Admin to consume AVA Platform Unified Admin Auth: AVA Studio issues a one-time App-bound launch ticket, Critical Illness exchanges it server-side for an opaque App grant, and every Official write requires Platform verification.
 - Documented the complete deployment-ready GAS `adminUpdate` implementation and external configuration steps in `docs/GAS-ADMIN-WRITE-CONTRACT.md`; the deployed endpoint has not been changed by this repository PR.
 - Did not implement or fabricate CRM, Cloud Storage, production QR restore, or unsupported premium calculations.
 
@@ -60,7 +60,7 @@ The repository began as an uncommitted worktree, so the other listed app files a
 | Media | Safe incomplete | Cloud provider not configured; no binary stored locally. |
 | Backup/Restore | Code complete for structured local scope | Media binaries excluded; references preserved. |
 | QR Restore | Safe architecture only | Pointer validation only; no production backend or auth fabricated. |
-| Front/User/Admin | Front/User/Admin implemented; Admin read/write boundary implemented | Admin edits allowlisted Official fields and requires authenticated GAS confirmation; protected fields, premium mappings, and User state remain isolated. |
+| Front/User/Admin | Front/User implemented; Platform-authorized Admin boundary implemented | Admin edits allowlisted Official fields only; the App backend must verify the `critical-illness` App grant before each write. |
 | Return to AVA | Implemented | Caller-provided return context validated against the Mother-supported surface contract; no fixed deployment URL. |
 | Responsive/PWA | Static/browser checks pass | Manifest/service worker retained; physical device/PWA chrome not certified. |
 
@@ -83,7 +83,7 @@ The repository began as an uncommitted worktree, so the other listed app files a
 - Verify exact premium sheet row/column, smoker, precision, rounding, conversion, 1.06, and Vitality ordering against authoritative source data before displaying a premium.
 - Configure the approved Cloud Storage provider and production authorization/reconnect flow.
 - Connect official Firebase/Google metadata resources when real references exist.
-- Deploy the documented authenticated GAS `adminUpdate` action and configure the official spreadsheet ID / Admin allowlist outside this repository; the repository-side write path is ready but production write-back is not yet deployed.
+- Update the existing canonical GAS deployment with `exchangeAppLaunch`, server-to-server `verifyAppGrant`, and grant-gated `adminUpdate`; no second deployment is required. This remains a manual deployment requirement.
 - Integrate the App through AVA Platform registry/gateway after independent deployment readiness and live entry-contract verification.
 - Complete physical-device and installed-PWA validation.
 
@@ -118,7 +118,7 @@ Current repository status is on the Admin development branch after scoped Admin 
 
 - `?avaEntry=frontend` renders the actual customer Frontstage without User editing controls.
 - `?avaEntry=user` renders that same Frontstage with direct User/Edit capability; Preview now includes Save Local.
-- `?avaEntry=admin` renders the separate Official Config capability with allowlisted Edit/Save controls; it never writes User Overrides or protected official data.
+- `?avaEntry=admin` is routing only. Without a successful one-time Platform launch exchange it fails closed and does not render Official data or edit controls.
 - Unsupported non-empty `avaEntry` values fail safely without exposing Frontstage or Admin controls.
 - User Overrides remain Local-first and survive reload/reopen through the existing storage layer.
 - Return to AVA uses the caller-provided browser return context and validates Mother-supported `avaSurface` values (`user`, `admin`, or absent for Frontstage); valid same-origin AVA paths are accepted. No guessed Platform deployment URL is used. Direct or standalone opens without a valid caller context show a safe unavailable-context status.
