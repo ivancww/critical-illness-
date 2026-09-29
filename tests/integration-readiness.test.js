@@ -9,7 +9,8 @@ const compliance = fs.readFileSync('docs/MOTHER-COMPLIANCE.md', 'utf8');
 
 test('entry contract exposes frontend and user modes and rejects unsupported entries', () => {
   assert.match(app, /const appEntry = requestedEntry \|\| 'frontend'/);
-  assert.match(app, /const unsupportedEntry = Boolean\(requestedEntry\)/);
+  assert.match(app, /!\['frontend', 'user', 'admin'\]\.includes\(requestedEntry\)/);
+  assert.match(app, /const canAdmin = appEntry === 'admin'/);
   assert.match(app, /function unsupportedEntryPage\(\)/);
   assert.match(html, /data-return-to-ava/);
 });
