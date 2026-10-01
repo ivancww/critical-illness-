@@ -4,7 +4,7 @@ export function createFlowState(initial = {}) {
   return {
     currentStep: Math.min(Math.max(Number(initial.currentStep) || 0, 0), FLOW_STEP_COUNT - 1),
     desiredMonths: Number(initial.desiredMonths) > 0 ? Number(initial.desiredMonths) : 12,
-    monthlyNeed: Number(initial.monthlyNeed) > 0 ? Number(initial.monthlyNeed) : 30000,
+    monthlyNeed: initial.monthlyNeed !== undefined && Number.isFinite(Number(initial.monthlyNeed)) && Number(initial.monthlyNeed) >= 0 ? Number(initial.monthlyNeed) : 30000,
     existingProtection: Number(initial.existingProtection) >= 0 ? Number(initial.existingProtection) : 0,
     existingProtectionSource: initial.existingProtectionSource || 'Manual',
     existingPolicyReferences: Array.isArray(initial.existingPolicyReferences) ? initial.existingPolicyReferences : [],
