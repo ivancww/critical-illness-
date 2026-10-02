@@ -73,6 +73,7 @@ export function normalizeUserState(value = {}) {
     schemaVersion: USER_DATA_SCHEMA_VERSION,
     flow: input.flow && typeof input.flow === 'object' ? { ...input.flow } : {},
     selectedPlanIds: Array.isArray(input.selectedPlanIds) ? input.selectedPlanIds.filter(item => typeof item === 'string') : [],
+    frontstage: input.frontstage && typeof input.frontstage === 'object' ? structured(input.frontstage) : {},
     pagePreferences: input.pagePreferences && typeof input.pagePreferences === 'object' ? { ...input.pagePreferences } : { introTitle: '', introSubtitle: '', introSupport: '', showIntro: true },
     overrides: input.overrides && typeof input.overrides === 'object' ? structured(input.overrides) : {},
     pages
