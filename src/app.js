@@ -1,3 +1,4 @@
+import packageMetadata from '../package.json' with { type: 'json' };
 import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js';
 import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js';
 import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, togglePlanSelection, translateProtectionToMonths } from './domain/flow-state.js';
@@ -9,6 +10,8 @@ import { ADMIN_SECTION_DEFINITIONS, adminEditableFields, adminPersistenceStatus,
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
+const APP_VERSION = packageMetadata.version;
+document.querySelector('#app-version').textContent = `v${APP_VERSION}`;
 const FALLBACK_PLANS = [
   { plan_id: 'sce', plan_key: 'sce', name_zh: '簡護危疾保', display_name: 'SCE', badge: '純保障', protection_style: 'single_claim', active: true },
   { plan_id: 'oys2', plan_key: 'oys2', name_zh: '愛伴航2', display_name: 'OYS2', badge: '延續保障', protection_style: 'continuing_multiple_claim', active: true, payment_terms: [10, 18, 25] }
