@@ -205,5 +205,22 @@ async function establishAdminAuthorization() {
   }
   route();
 }
-document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); window.addEventListener('hashchange', route); route(); if (!state.official) setStatus('官方資料正在載入；未配置資料會安全顯示 pending。'); refreshOfficial(); establishAdminAuthorization(); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setStatus('離線外殼未能啟用。', true));
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  const reloadKey = 'ci-sw-reload-pending';
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  sessionStorage.removeItem(reloadKey);
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading || sessionStorage.getItem(reloadKey) === '1') return;
+    reloading = true;
+    sessionStorage.setItem(reloadKey, '1');
+    window.location.reload();
+  });
+  navigator.serviceWorker.register('./sw.js').then(registration => {
+    return registration.update();
+  }).catch(() => setStatus('離線外殼未能啟用。', true));
+}
+
+document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); window.addEventListener('hashchange', route); route(); if (!state.official) setStatus('官方資料正在載入；未配置資料會安全顯示 pending。'); refreshOfficial(); establishAdminAuthorization(); registerServiceWorker();
 export { supportSummary, state, verificationState };

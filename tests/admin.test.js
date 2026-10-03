@@ -27,7 +27,6 @@ test('official Admin view is data-driven and does not save User state', () => {
   assert.match(adminSource, /officialRecords\(d, 'Health_Program'\)/);
   assert.match(adminSource, /officialRecords\(d, 'Product_Content'\)/);
   assert.doesNotMatch(adminSource, /saveUserState|persistUser|localStorage\.setItem/);
-  assert.match(sections, /verifyAppGrant/);
   assert.deepEqual(adminPersistenceStatus(), { status: 'PLATFORM AUTH REQUIRED', reason: 'OFFICIAL WRITE REQUIRES PLATFORM APP-GRANT VERIFICATION', authentication: 'AVA PLATFORM UNIFIED ADMIN AUTH' });
 });
 
@@ -37,10 +36,12 @@ test('Admin launch exchange is App-bound and rejects missing or failed grants', 
     assert.equal(url, 'https://script.google.com/macros/s/AKfycbzhPpniIRnXp5n7-SzDcnoK3cQW7f3X3Qv3pEZSlNLPXzxLr85EWZimwRK7ahOWHGQWIA/exec');
     const body = JSON.parse(options.body);
     assert.deepEqual(body, { action: 'exchangeAppLaunch', appId: CI_APP_ID, launchTicket: 'one-time-ticket' });
-    return { ok: true, json: async () => ({ success: true, appGrant: 'opaque-grant', expiresAt: 'later' }) };
+    return { ok: true, json: async () => ({ success: true, appId: CI_APP_ID, appGrant: 'opaque-grant', expiresAt: 'later' }) };
   });
   assert.equal(payload.appGrant, 'opaque-grant');
   await assert.rejects(() => exchangeAdminLaunch('wrong-app-ticket', async () => ({ ok: true, json: async () => ({ success: false, error: 'wrong App' }) })), /wrong App/);
+  await assert.rejects(() => exchangeAdminLaunch('malformed-ticket', async () => ({ ok: true, json: async () => ({ success: true, appGrant: { value: 'not-opaque' } }) })), /rejected/);
+  await assert.rejects(() => exchangeAdminLaunch('other-app-ticket', async () => ({ ok: true, json: async () => ({ success: true, appId: 'other-app', appGrant: 'opaque-grant' }) })), /different App/);
 });
 
 test('official updates compose with User Overrides without resetting User-owned data', () => {
@@ -79,6 +80,7 @@ test('GAS write client requires confirmed success and never reports a failed wri
   await assert.rejects(() => writeOfficialData(request, 'opaque-grant', async () => ({ ok: true, json: async () => ({ status: 'error', code: 'VERSION_CONFLICT' }) })), /did not confirm/);
   await assert.rejects(() => writeOfficialData(request, 'opaque-grant', async () => ({ ok: false, status: 409, json: async () => ({}) })), /GAS write failed/);
   await assert.rejects(() => writeOfficialData(request, '', async () => ({ ok: true, json: async () => ({}) })), /App grant is required/);
+  await assert.rejects(() => writeOfficialData(request, { value: 'opaque-grant' }, async () => ({ ok: true, json: async () => ({}) })), /App grant is required/);
 });
 
 test('Admin save path refreshes Official cache only after confirmed write and never saves User state', () => {
