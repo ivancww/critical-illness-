@@ -40,12 +40,13 @@ export async function exchangeAdminLaunch(launchTicket, fetchImpl = fetch) {
   });
   if (!response.ok) throw new DataApiError(`Admin authorization exchange failed (${response.status}).`, 'ADMIN_EXCHANGE_HTTP_ERROR');
   const envelope = await response.json();
-  if (!envelope || envelope.success !== true || !envelope.appGrant) throw new DataApiError(envelope?.error || 'Admin authorization was rejected.', 'ADMIN_UNAUTHORIZED');
+  if (!envelope || envelope.success !== true || typeof envelope.appGrant !== 'string' || !envelope.appGrant.trim()) throw new DataApiError(envelope?.error || 'Admin authorization was rejected.', 'ADMIN_UNAUTHORIZED');
+  if (envelope.appId !== undefined && envelope.appId !== CI_APP_ID) throw new DataApiError('Admin authorization was issued for a different App.', 'ADMIN_UNAUTHORIZED');
   return envelope;
 }
 
 export async function writeOfficialData(request, appGrant, fetchImpl = fetch) {
-  if (!appGrant) throw new DataApiError('A valid Platform App grant is required.', 'ADMIN_GRANT_REQUIRED');
+  if (typeof appGrant !== 'string' || !appGrant.trim()) throw new DataApiError('A valid Platform App grant is required.', 'ADMIN_GRANT_REQUIRED');
   const response = await fetchImpl(GAS_DATA_API_URL, {
     method: 'POST',
     credentials: 'include',
