@@ -13,17 +13,16 @@ test('service worker uses deployment-independent owned cache and retires only CI
   assert.match(sw, /request\.mode === 'navigate'/);
   assert.match(sw, /self\.skipWaiting\(\)/);
   assert.match(sw, /self\.clients\.claim\(\)/);
+  assert.doesNotMatch(sw, /SKIP_WAITING/);
   assert.doesNotMatch(sw, /localStorage|indexedDB|deleteDatabase/);
 });
 
-test('registration performs an explicit update lifecycle with bounded reload', () => {
+test('registration checks for updates and bounds controllerchange reload', () => {
   assert.match(app, /registration\.update\(\)/);
-  assert.match(app, /registration\.addEventListener\('updatefound'/);
-  assert.match(app, /worker\.addEventListener\('statechange'/);
-  assert.match(app, /registration\.waiting\.postMessage/);
   assert.match(app, /navigator\.serviceWorker\.addEventListener\('controllerchange'/);
   assert.match(app, /ci-sw-reload-pending/);
   assert.match(app, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(app, /updatefound|SKIP_WAITING/);
 });
 
 test('Pages workflow publishes the shell and source tree from main', () => {

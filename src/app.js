@@ -205,10 +205,6 @@ async function establishAdminAuthorization() {
   }
   route();
 }
-function activateWaitingWorker(registration) {
-  if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-}
-
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   const reloadKey = 'ci-sw-reload-pending';
@@ -222,14 +218,6 @@ function registerServiceWorker() {
     window.location.reload();
   });
   navigator.serviceWorker.register('./sw.js').then(registration => {
-    activateWaitingWorker(registration);
-    registration.addEventListener('updatefound', () => {
-      const worker = registration.installing;
-      if (!worker) return;
-      worker.addEventListener('statechange', () => {
-        if (worker.state === 'installed') activateWaitingWorker(registration);
-      });
-    });
     return registration.update();
   }).catch(() => setStatus('離線外殼未能啟用。', true));
 }
