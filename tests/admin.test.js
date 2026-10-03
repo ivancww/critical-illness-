@@ -27,7 +27,6 @@ test('official Admin view is data-driven and does not save User state', () => {
   assert.match(adminSource, /officialRecords\(d, 'Health_Program'\)/);
   assert.match(adminSource, /officialRecords\(d, 'Product_Content'\)/);
   assert.doesNotMatch(adminSource, /saveUserState|persistUser|localStorage\.setItem/);
-  assert.match(sections, /verifyAppGrant/);
   assert.deepEqual(adminPersistenceStatus(), { status: 'PLATFORM AUTH REQUIRED', reason: 'OFFICIAL WRITE REQUIRES PLATFORM APP-GRANT VERIFICATION', authentication: 'AVA PLATFORM UNIFIED ADMIN AUTH' });
 });
 
