@@ -2,7 +2,7 @@
 // deployment; releases must not depend on a manually edited cache version.
 const CACHE = 'ava-ci-shell';
 const LEGACY_CACHE_PREFIX = 'ava-ci-shell-';
-const SHELL = ['./', './index.html', './manifest.json', './src/app.js', './src/styles.css', './src/domain/product-engine.js', './src/domain/claim-engine.js', './src/domain/premium-engine.js', './src/data/data-api.js', './src/data/storage.js', './src/data/content.js', './src/integration/return-context.js', './src/admin/official-config.js'];
+const SHELL = ['./', './index.html', './manifest.json', './package.json', './src/app.js', './src/styles.css', './src/domain/product-engine.js', './src/domain/claim-engine.js', './src/domain/premium-engine.js', './src/data/data-api.js', './src/data/storage.js', './src/data/content.js', './src/integration/return-context.js', './src/admin/official-config.js'];
 
 function isOwnedCache(name) {
   return name === CACHE || name.startsWith(LEGACY_CACHE_PREFIX);

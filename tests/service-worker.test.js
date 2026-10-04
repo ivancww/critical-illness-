@@ -28,6 +28,6 @@ test('registration checks for updates and bounds controllerchange reload', () =>
 test('Pages workflow publishes the shell and source tree from main', () => {
   const workflow = fs.readFileSync(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8');
   assert.match(workflow, /branches:\s*\n\s*- main/);
-  assert.match(workflow, /cp index\.html manifest\.json sw\.js _site\//);
+  assert.match(workflow, /cp index\.html manifest\.json package\.json sw\.js _site\//);
   assert.match(workflow, /cp -R src _site\/src/);
 });

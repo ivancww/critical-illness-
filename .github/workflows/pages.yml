@@ -51,6 +51,7 @@ jobs:
           assert "register('./sw.js')" in app or 'register("./sw.js")' in app
           assert './index.html' in service_worker
           assert './manifest.json' in service_worker
+          assert './package.json' in service_worker
           assert './src/app.js' in service_worker
           assert './src/integration/return-context.js' in service_worker
           assert not re.search(r'(?:href|src)=["\']/[^/]', html)
@@ -75,7 +76,7 @@ jobs:
       - name: Assemble Critical Illness site
         run: |
           mkdir -p _site
-          cp index.html manifest.json sw.js _site/
+          cp index.html manifest.json package.json sw.js _site/
           cp -R src _site/src
 
       - name: Upload Pages artifact

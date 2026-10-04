@@ -47,6 +47,9 @@ h3 { margin: 0; font-size: 17px; }
 .metric strong { font-size: clamp(28px, 5vw, 42px); line-height: 1.2; }
 .metric small, .muted { color: var(--ava-color-muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.actions--end { justify-content: flex-end; }
+.page-control { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; margin-bottom: 12px; }
+.page-control-spacer { min-width: 92px; }
 .primary { background: var(--ava-color-primary); color: #fff; font-weight: 700; }
 .secondary { background: #fff; color: var(--ava-color-primary); border: 1px solid var(--ava-color-primary); font-weight: 700; }
 .subtle { background: var(--ava-color-selected); color: var(--ava-color-primary); font-weight: 700; }
@@ -82,9 +85,7 @@ h3 { margin: 0; font-size: 17px; }
 .verify { color: var(--ava-color-warning); font-weight: 700; }
 .claim-example { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; padding: 24px; border-radius: var(--ava-radius-card); background: #fff; border: 1px solid var(--ava-color-border); }
 .claim-example strong { width: 100%; font-size: 20px; text-align: center; }
-.presentation-active .top-nav a:not(.return-ava) { display: none; }
-.presentation-active .app-header { justify-content: flex-end; }
-.admin-active .top-nav a:not(.return-ava) { display: none; }
+.presentation-active .top-nav a:not(.return-ava), .admin-active .top-nav a:not(.return-ava) { display: none; }
 .admin-hero { padding-bottom: 18px; }
 .admin-status-banner { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: baseline; padding: 16px; border: 1px solid #f59e0b; border-radius: var(--ava-radius-card); background: #fffbeb; color: #78350f; }
 .admin-status-banner strong { font-size: 18px; }
