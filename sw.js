@@ -2,7 +2,7 @@
 // deployment; releases must not depend on a manually edited cache version.
 const CACHE = 'ava-ci-shell';
 const LEGACY_CACHE_PREFIX = 'ava-ci-shell-';
-const SHELL = ['./', './index.html', './manifest.json', './package.json', './src/app.js', './src/styles.css', './src/domain/product-engine.js', './src/domain/claim-engine.js', './src/domain/premium-engine.js', './src/data/data-api.js', './src/data/storage.js', './src/data/content.js', './src/integration/return-context.js', './src/admin/official-config.js'];
+const SHELL = ['./', './index.html', './manifest.json', './src/app.js', './src/version.js', './src/styles.css', './src/domain/product-engine.js', './src/domain/claim-engine.js', './src/domain/premium-engine.js', './src/domain/flow-state.js', './src/domain/verification.js', './src/domain/frontstage-experience.js', './src/data/data-api.js', './src/data/storage.js', './src/data/content.js', './src/integration/return-context.js', './src/admin/official-config.js'];
 
 function isOwnedCache(name) {
   return name === CACHE || name.startsWith(LEGACY_CACHE_PREFIX);
@@ -18,11 +18,12 @@ function isUpdateSensitive(request) {
 
 function cacheResponse(request, response) {
   if (!response.ok || response.type !== 'basic') return Promise.resolve(response);
-  return caches.open(CACHE).then(cache => cache.put(request, response.clone())).then(() => response);
+  const cacheKey = request.mode === 'navigate' ? './index.html' : request;
+  return caches.open(CACHE).then(cache => cache.put(cacheKey, response.clone())).then(() => response);
 }
 
 function cachedFallback(request) {
-  return caches.match(request).then(response => response || (request.mode === 'navigate' ? caches.match('./index.html') : Response.error())).then(response => response || Response.error());
+  return (request.mode === 'navigate' ? caches.match('./index.html') : caches.match(request)).then(response => response || Response.error());
 }
 
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())));

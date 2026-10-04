@@ -1,4 +1,3 @@
-import packageMetadata from '../package.json' with { type: 'json' };
 import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js';
 import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js';
 import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, togglePlanSelection, translateProtectionToMonths } from './domain/flow-state.js';
@@ -7,10 +6,10 @@ import { verificationState } from './domain/verification.js';
 import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js';
 import { resolveAvaReturnContext } from './integration/return-context.js';
 import { ADMIN_SECTION_DEFINITIONS, adminEditableFields, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js';
+import { APP_VERSION } from './version.js';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
-const APP_VERSION = packageMetadata.version;
 document.querySelector('#app-version').textContent = `v${APP_VERSION}`;
 const FALLBACK_PLANS = [
   { plan_id: 'sce', plan_key: 'sce', name_zh: '簡護危疾保', display_name: 'SCE', badge: '純保障', protection_style: 'single_claim', active: true },
@@ -209,15 +208,34 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   const reloadKey = 'ci-sw-reload-pending';
   const hadController = Boolean(navigator.serviceWorker.controller);
-  sessionStorage.removeItem(reloadKey);
+  const controllerUrl = navigator.serviceWorker.controller?.scriptURL || '';
+  let reloadConsumed = false;
+  try {
+    const marker = JSON.parse(sessionStorage.getItem(reloadKey) || 'null');
+    if (marker?.fromController && marker.fromController !== controllerUrl) {
+      // The guarded reload completed with a different controller. This page
+      // must not reload again for the same transition, but later page boots
+      // may establish a fresh guard for a later worker update.
+      reloadConsumed = true;
+      sessionStorage.removeItem(reloadKey);
+    } else if (marker) {
+      // Preserve the guard when a reload did not yet produce a new controller.
+      reloadConsumed = true;
+    }
+  } catch {
+    reloadConsumed = Boolean(sessionStorage.getItem(reloadKey));
+  }
   let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || reloading || sessionStorage.getItem(reloadKey) === '1') return;
+    if (!hadController || reloading || reloadConsumed) return;
     reloading = true;
-    sessionStorage.setItem(reloadKey, '1');
+    reloadConsumed = true;
+    try { sessionStorage.setItem(reloadKey, JSON.stringify({ fromController: controllerUrl, at: Date.now() })); } catch { /* reload remains bounded by in-memory state */ }
     window.location.reload();
   });
-  navigator.serviceWorker.register('./sw.js').then(registration => {
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(registration => {
+    // Platform may have requested the same update immediately before launch;
+    // update() is safe to repeat and never gates the initial render.
     return registration.update();
   }).catch(() => setStatus('離線外殼未能啟用。', true));
 }
