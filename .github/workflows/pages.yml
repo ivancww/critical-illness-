@@ -51,8 +51,8 @@ jobs:
           assert "register('./sw.js')" in app or 'register("./sw.js")' in app
           assert './index.html' in service_worker
           assert './manifest.json' in service_worker
-          assert './package.json' in service_worker
           assert './src/app.js' in service_worker
+          assert './src/version.js' in service_worker
           assert './src/integration/return-context.js' in service_worker
           assert not re.search(r'(?:href|src)=["\']/[^/]', html)
           print('Critical Illness Pages deployment contract PASS')
