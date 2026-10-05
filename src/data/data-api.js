@@ -1,4 +1,4 @@
-export const GAS_DATA_API_URL = 'https://script.google.com/macros/s/AKfycbzhPpniIRnXp5n7-SzDcnoK3cQW7f3X3Qv3pEZSlNLPXzxLr85EWZimwRK7ahOWHGQWIA/exec';
+export const GAS_DATA_API_URL = 'https://script.google.com/macros/s/AKfycbyWEzPJm1q0QG0ZXFAqGQv6WxTGj8B3EVUgnSP28ML1Y0wbPu7ZaaqUdmARG6teYYjclA/exec';
 export const CI_APP_ID = 'critical-illness';
 
 export class DataApiError extends Error {
