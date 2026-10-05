@@ -48,7 +48,7 @@ jobs:
           assert 'href="./manifest.json"' in html
           assert 'src="./src/app.js"' in html
           assert 'href="./src/styles.css"' in html
-          assert "register('./sw.js')" in app or 'register("./sw.js")' in app
+          assert "register('./sw.js'" in app or 'register("./sw.js"' in app
           assert './index.html' in service_worker
           assert './manifest.json' in service_worker
           assert './src/app.js' in service_worker
