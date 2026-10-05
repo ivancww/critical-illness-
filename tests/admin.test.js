@@ -33,7 +33,7 @@ test('official Admin view is data-driven and does not save User state', () => {
 test('Admin launch exchange is App-bound and rejects missing or failed grants', async () => {
   await assert.rejects(() => exchangeAdminLaunch('', async () => ({})), /launch ticket is required/);
   const payload = await exchangeAdminLaunch('one-time-ticket', async (url, options) => {
-    assert.equal(url, 'https://script.google.com/macros/s/AKfycbzhPpniIRnXp5n7-SzDcnoK3cQW7f3X3Qv3pEZSlNLPXzxLr85EWZimwRK7ahOWHGQWIA/exec');
+    assert.equal(url, 'https://script.google.com/macros/s/AKfycbyWEzPJm1q0QG0ZXFAqGQv6WxTGj8B3EVUgnSP28ML1Y0wbPu7ZaaqUdmARG6teYYjclA/exec');
     const body = JSON.parse(options.body);
     assert.deepEqual(body, { action: 'exchangeAppLaunch', appId: CI_APP_ID, launchTicket: 'one-time-ticket' });
     return { ok: true, json: async () => ({ success: true, appId: CI_APP_ID, appGrant: 'opaque-grant', expiresAt: 'later' }) };
