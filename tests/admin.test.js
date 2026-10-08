@@ -10,7 +10,7 @@ const sections = fs.readFileSync('src/admin/official-config.js', 'utf8');
 test('admin entry is explicit, Platform-authorized, and separate from Front/User routes', () => {
   assert.match(app, /!\['frontend', 'user', 'admin'\]\.includes\(requestedEntry\)/);
   assert.match(app, /const canAdmin = appEntry === 'admin'/);
-  assert.match(app, /exchangeAdminLaunch\(adminLaunch\)/);
+  assert.match(app, /exchangeAdminLaunch\(\{ launchTicket, launchNonce \}\)/);
   assert.match(app, /if \(!canAdmin \|\| !adminSessionProof\) return adminDeniedPage\(\)/);
   assert.match(app, /function adminPage\(\)/);
   assert.match(app, /if \(canAdmin\) return adminPage\(\)/);
