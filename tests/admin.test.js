@@ -33,7 +33,7 @@ test('official Admin view is data-driven and does not save User state', () => {
 test('Admin launch exchange requires browser-bound ava-admin-session-v1', async () => {
   await assert.rejects(() => exchangeAdminLaunch({ launchTicket: '', launchNonce: '' }, async () => ({})), /complete Platform Admin launch/);
   const listeners = [];
-  const opener = { postMessage(message) { listeners[0]?.({ source: opener, origin: 'https://ivancww.github.io', data: { type: 'ava-admin-session-response', appId: CI_APP_ID, launchTicket: message.launchTicket, launchNonce: message.launchNonce, browserProof: 'browser-proof', contract: 'ava-admin-session-v1', expiresAt: new Date(Date.now() + 60000).toISOString() } }); } };
+  const opener = { postMessage(message) { listeners.at(-1)?.({ source: opener, origin: 'https://ivancww.github.io', data: { type: 'ava-admin-session-response', appId: CI_APP_ID, launchTicket: message.launchTicket, launchNonce: message.launchNonce, browserProof: 'browser-proof', contract: 'ava-admin-session-v1', expiresAt: new Date(Date.now() + 60000).toISOString() } }); } };
   global.window = { opener, addEventListener: (_type, fn) => listeners.push(fn), removeEventListener: () => {} };
   const payload = await exchangeAdminLaunch({ launchTicket: 'one-time-ticket', launchNonce: 'launch-nonce' }, async (url, options) => {
     assert.equal(url, 'https://script.google.com/macros/s/AKfycbyWEzPJm1q0QG0ZXFAqGQv6WxTGj8B3EVUgnSP28ML1Y0wbPu7ZaaqUdmARG6teYYjclA/exec');
