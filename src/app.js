@@ -39,7 +39,7 @@ const appEntry = requestedEntry || 'frontend';
 const unsupportedEntry = Boolean(requestedEntry) && !['frontend', 'user', 'admin'].includes(requestedEntry);
 const canEdit = appEntry === 'user' && !unsupportedEntry;
 const adminLaunch = new URLSearchParams(location.search).get('avaAdminLaunch') || '';
-let adminGrant = null;
+let adminSessionProof = null;
 let adminAuthorizationError = adminLaunch ? '正在向 AVA Platform 驗證 Admin 授權…' : '必須由 AVA Studio 啟動並授權此 Admin 入口。';
 const canAdmin = appEntry === 'admin' && !unsupportedEntry;
 
@@ -169,9 +169,9 @@ function adminValue(value) { const safe = redactOfficialValue(value); if (safe =
 function adminRecordMarkup(record, dataset = '') { const safe = redactOfficialValue(record); const entries = Object.entries(safe || {}).filter(([, value]) => value !== null && value !== undefined && value !== ''); const id = adminRecordId(dataset, record); const version = adminRecordVersion(record); const editable = id && version ? adminEditableFields(dataset, record) : []; return `<article class="admin-record" data-admin-record="${escapeHtml(id)}" data-admin-dataset="${escapeHtml(dataset)}">${entries.length ? entries.map(([key, value]) => `<div class="admin-field"><span>${escapeHtml(key)}</span><strong>${escapeHtml(adminValue(value))}</strong></div>`).join('') : '<p class="muted">No official fields available.</p>'}${editable.length ? `<button class="button subtle" type="button" data-admin-edit>Edit official fields</button><form class="admin-edit-form" data-admin-form hidden><p class="muted">Expected version: ${escapeHtml(version)}</p>${editable.map(key => `<label class="field"><span>${escapeHtml(key)}</span><input name="${escapeHtml(key)}" value="${escapeHtml(record[key])}" data-original-type="${typeof record[key]}"></label>`).join('')}<div class="actions"><button class="primary" type="submit">Save Official Data</button><button class="subtle" type="button" data-admin-cancel>Cancel</button></div></form>` : ''}</article>`; }
 function adminDatasetSection(id, dataset, title, description, records) { return `<section class="admin-section" id="admin-${id}"><div class="admin-section-heading"><div><span class="eyebrow">Official Layer</span><h2>${title}</h2><p class="muted">${description}</p></div><span class="tag">${records.length} records · EDITABLE OFFICIAL FIELDS</span></div><div class="admin-record-list">${records.length ? records.map(record => adminRecordMarkup(record, dataset)).join('') : '<p class="empty">Official dataset is unavailable or not configured. No fallback business rule is fabricated here.</p>'}</div></section>`; }
 function adminInputValue(input) { if (input.dataset.originalType === 'number') return input.value === '' ? '' : Number(input.value); if (input.dataset.originalType === 'boolean') return input.value === 'true'; return input.value; }
-function bindAdmin() { document.querySelectorAll('[data-admin-edit]').forEach(button => button.addEventListener('click', () => { const form = button.closest('[data-admin-record]')?.querySelector('[data-admin-form]'); if (form) { form.hidden = false; button.hidden = true; } })); document.querySelectorAll('[data-admin-cancel]').forEach(button => button.addEventListener('click', () => { const form = button.closest('[data-admin-form]'); const edit = button.closest('[data-admin-record]')?.querySelector('[data-admin-edit]'); if (form) form.hidden = true; if (edit) edit.hidden = false; })); document.querySelectorAll('[data-admin-form]').forEach(form => form.addEventListener('submit', async event => { event.preventDefault(); const record = form.closest('[data-admin-record]'); const fields = Object.fromEntries([...form.elements].filter(input => input.name).map(input => [input.name, adminInputValue(input)])); try { const request = createAdminWriteRequest({ dataset: record.dataset.adminDataset, recordId: record.dataset.adminRecord, expectedVersion: form.querySelector('p')?.textContent.replace('Expected version: ', '').trim(), fields }); await writeOfficialData(request, adminGrant); const latest = await loadOfficialData(); const normalized = { ...latest, structured: normalizeStructuredData(latest.structured) }; validateOfficialData(normalized); state.official = normalized; saveOfficialCache(normalized); setStatus('Official Data 已保存並同步。'); route(); } catch (error) { setStatus(`Official Data 未保存：${error.message}`, true); } })); }
+function bindAdmin() { document.querySelectorAll('[data-admin-edit]').forEach(button => button.addEventListener('click', () => { const form = button.closest('[data-admin-record]')?.querySelector('[data-admin-form]'); if (form) { form.hidden = false; button.hidden = true; } })); document.querySelectorAll('[data-admin-cancel]').forEach(button => button.addEventListener('click', () => { const form = button.closest('[data-admin-form]'); const edit = button.closest('[data-admin-record]')?.querySelector('[data-admin-edit]'); if (form) form.hidden = true; if (edit) edit.hidden = false; })); document.querySelectorAll('[data-admin-form]').forEach(form => form.addEventListener('submit', async event => { event.preventDefault(); const record = form.closest('[data-admin-record]'); const fields = Object.fromEntries([...form.elements].filter(input => input.name).map(input => [input.name, adminInputValue(input)])); try { const request = createAdminWriteRequest({ dataset: record.dataset.adminDataset, recordId: record.dataset.adminRecord, expectedVersion: form.querySelector('p')?.textContent.replace('Expected version: ', '').trim(), fields }); await writeOfficialData(request, adminSessionProof); const latest = await loadOfficialData(); const normalized = { ...latest, structured: normalizeStructuredData(latest.structured) }; validateOfficialData(normalized); state.official = normalized; saveOfficialCache(normalized); setStatus('Official Data 已保存並同步。'); route(); } catch (error) { setStatus(`Official Data 未保存：${error.message}`, true); } })); }
 function adminPage() {
-  if (!canAdmin || !adminGrant) return adminDeniedPage();
+  if (!canAdmin || !adminSessionProof) return adminDeniedPage();
   const d = datasets();
   const premium = premiumSheetStatus(state.official?.premium || {});
   const content = officialRecords(d, 'Product_Content');
@@ -187,20 +187,20 @@ function adminPage() {
 function adminDeniedPage() { render(`<section class="hero" data-ava-mode="admin"><span class="eyebrow">AVA Studio · Critical Illness Admin</span><h1>Admin 未授權</h1><p class="support">${escapeHtml(adminAuthorizationError)}</p><p class="muted">此網址只是 Admin routing；沒有 AVA Platform 的一次性 App 授權，Official 資料和寫入功能不會顯示。</p><div class="actions"><a class="button secondary return-ava" href="#return-to-ava" data-return-to-ava>返回 AVA</a></div></section>`, 'admin'); document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); }
 function unsupportedEntryPage() { render('<section class="hero"><span class="eyebrow">AVA Entry unavailable</span><h1>此入口未配置</h1><p class="support">這個 avaEntry 尚未由 AVA Platform 啟用。請從 AVA 以 Frontstage 或 User 入口重新開啟。</p></section>'); }
 function route() { const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean); if (unsupportedEntry) return unsupportedEntryPage(); if (canAdmin) return adminPage(); if (!parts.length) return home(); if (parts[0] === 'flow') return flowPage(); if (parts[0] === 'plans' && parts[1]) return planDetail(parts[1]); if (parts[0] === 'plans') return plansPage(); if (parts[0] === 'comparison') return comparisonPage(); if (parts[0] === 'claims') return claimPage(); if (parts[0] === 'premiums') return premiumPage(); if (parts[0] === 'presentation') return presentation(); if (parts[0] === 'edit') return editPage(); return home(); }
-async function refreshOfficial() { try { const data = await loadOfficialData(); const normalized = { ...data, structured: normalizeStructuredData(data.structured) }; validateOfficialData(normalized); state.official = normalized; saveOfficialCache(normalized); setStatus('官方資料已更新。'); route(); } catch (e) { setStatus(`官方資料暫時未能更新：${e.message}`, true); } }
-
-async function establishAdminAuthorization() {
+async function refreshOfficial() { try { const data = await loadOfficialData(); const normalized = { ...data, structured: normalizeStructuredData(data.structured) }; validateOfficialData(normalized); state.official = normalized; saveOfficialCache(normalized); setStatus('官方資料已更新。'); route(); } catch (e) { setStatus(`官方資料暫時未能更新：${e.measync function establishAdminAuthorization() {
   if (!canAdmin) return;
-  if (!adminLaunch) { route(); return; }
+  const params = new URLSearchParams(location.search);
+  const launchTicket = params.get('avaAdminLaunch');
+  const launchNonce = params.get('avaAdminLaunchNonce');
+  if (!launchTicket || !launchNonce) { route(); return; }
   try {
-    const payload = await exchangeAdminLaunch(adminLaunch);
-    adminGrant = payload.appGrant;
+    const payload = await exchangeAdminLaunch({ launchTicket, launchNonce });
+    adminSessionProof = payload.adminSessionProof;
     adminAuthorizationError = '';
-    const clean = new URL(location.href);
-    clean.searchParams.delete('avaAdminLaunch');
-    history.replaceState(null, '', clean.href);
-  } catch (error) {
-    adminAuthorizationError = error.message;
+    const clean = new URL(location.href); clean.searchParams.delete('avaAdminLaunch'); clean.searchParams.delete('avaAdminLaunchNonce'); history.replaceState(null, '', clean.href);
+  } catch (error) { adminSessionProof = null; adminAuthorizationError = error.message; }
+  route();
+}age;
   }
   route();
 }
