@@ -31,31 +31,43 @@ export async function loadOfficialData(fetchImpl = fetch) {
   return { structured, premium, fetchedAt: new Date().toISOString() };
 }
 
-export async function exchangeAdminLaunch(launchTicket, fetchImpl = fetch) {
-  if (!launchTicket) throw new DataApiError('A Platform Admin launch ticket is required.', 'ADMIN_LAUNCH_REQUIRED');
-  const response = await fetchImpl(GAS_DATA_API_URL, {
-    method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'exchangeAppLaunch', appId: CI_APP_ID, launchTicket })
+const PLATFORM_ORIGIN = 'https://ivancww.github.io';
+
+function requestBrowserProof(launchTicket, launchNonce) {
+  if (!launchTicket || !launchNonce || !globalThis.window?.opener) throw new DataApiError('Admin launch must originate from AVA Studio.', 'ADMIN_BROWSER_BINDING_REQUIRED');
+  return new Promise((resolve, reject) => {
+    const opener = globalThis.window.opener; let settled = false;
+    const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); window.removeEventListener('message', onMessage); error ? reject(error) : resolve(value); };
+    const timer = setTimeout(() => finish(new DataApiError('AVA browser binding expired.', 'ADMIN_BROWSER_BINDING_EXPIRED')), 15000);
+    const onMessage = event => {
+      if (event.source !== opener || event.origin !== PLATFORM_ORIGIN) return;
+      const data = event.data || {};
+      if (data.type !== 'ava-admin-session-response' || data.appId !== CI_APP_ID || data.launchTicket !== launchTicket || data.launchNonce !== launchNonce) return;
+      if (!data.browserProof || data.contract !== 'ava-admin-session-v1') return finish(new DataApiError('Invalid AVA browser proof.', 'ADMIN_BROWSER_BINDING_INVALID'));
+      finish(null, data);
+    };
+    window.addEventListener('message', onMessage);
+    opener.postMessage({ type: 'ava-admin-session-request', appId: CI_APP_ID, launchTicket, launchNonce }, PLATFORM_ORIGIN);
   });
-  if (!response.ok) throw new DataApiError(`Admin authorization exchange failed (${response.status}).`, 'ADMIN_EXCHANGE_HTTP_ERROR');
-  const envelope = await response.json();
-  if (!envelope || envelope.success !== true || typeof envelope.appGrant !== 'string' || !envelope.appGrant.trim()) throw new DataApiError(envelope?.error || 'Admin authorization was rejected.', 'ADMIN_UNAUTHORIZED');
-  if (envelope.appId !== undefined && envelope.appId !== CI_APP_ID) throw new DataApiError('Admin authorization was issued for a different App.', 'ADMIN_UNAUTHORIZED');
-  return envelope;
 }
 
-export async function writeOfficialData(request, appGrant, fetchImpl = fetch) {
-  if (typeof appGrant !== 'string' || !appGrant.trim()) throw new DataApiError('A valid Platform App grant is required.', 'ADMIN_GRANT_REQUIRED');
-  const response = await fetchImpl(GAS_DATA_API_URL, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...request, appGrant })
-  });
-  if (!response.ok) throw new DataApiError(`GAS write failed (${response.status}).`, 'WRITE_HTTP_ERROR');
+export async function exchangeAdminLaunch({ launchTicket, launchNonce }, fetchImpl = fetch) {
+  if (!launchTicket || !launchNonce) throw new DataApiError('A complete Platform Admin launch is required.', 'ADMIN_LAUNCH_REQUIRED');
+  const browser = await requestBrowserProof(launchTicket, launchNonce);
+  const response = await fetchImpl(GAS_DATA_API_URL, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'exchangeAdminSession', appId: CI_APP_ID, launchTicket, launchNonce, browserProof: browser.browserProof }) });
+  if (!response.ok) throw new DataApiError('Admin authorization exchange failed (' + response.status + ').', 'ADMIN_EXCHANGE_HTTP_ERROR');
+  const envelope = await response.json(); const expiry = Date.parse(envelope?.expiresAt || '');
+  if (!envelope || envelope.success !== true || envelope.appId !== CI_APP_ID || envelope.contract !== 'ava-admin-session-v1' || typeof envelope.adminSessionProof !== 'string' || !envelope.adminSessionProof.trim() || !Number.isFinite(expiry) || expiry <= Date.now()) throw new DataApiError(envelope?.error || 'Admin authorization was rejected.', 'ADMIN_UNAUTHORIZED');
+  return { adminSessionProof: envelope.adminSessionProof, expiresAt: envelope.expiresAt, contract: envelope.contract };
+}
+
+export async function writeOfficialData(request, adminSessionProof, fetchImpl = fetch) {
+  if (typeof adminSessionProof !== 'string' || !adminSessionProof.trim()) throw new DataApiError('A valid Platform Admin session proof is required.', 'ADMIN_PROOF_REQUIRED');
+  const dataset = String(request?.dataset || '').trim(); if (!dataset) throw new DataApiError('An Official dataset is required.', 'INVALID_DATASET');
+  const response = await fetchImpl(GAS_DATA_API_URL, { method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ ...request, adminSessionProof, appId: CI_APP_ID, operation: CI_APP_ID + ':official-write:' + dataset }) });
+  if (!response.ok) throw new DataApiError('GAS write failed (' + response.status + ').', 'WRITE_HTTP_ERROR');
   const envelope = await response.json();
-  if (!envelope || envelope.success !== true && envelope.status !== 'success') throw new DataApiError('GAS did not confirm the official update.', 'WRITE_NOT_CONFIRMED');
+  if (!envelope || envelope.success !== true && envelope.status !== 'success') throw new DataApiError(envelope?.error || 'GAS did not confirm the official update.', 'WRITE_NOT_CONFIRMED');
   return envelope.data && typeof envelope.data === 'object' ? envelope.data : envelope;
 }
 
