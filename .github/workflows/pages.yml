@@ -46,7 +46,7 @@ jobs:
           assert manifest['scope'] == './'
           assert manifest['display'] == 'standalone'
           assert 'href="./manifest.json"' in html
-          assert 'src="./src/app.js"' in html
+          assert 'src="./src/app.js?v=0.2.4"' in html
           assert 'href="./src/styles.css"' in html
           assert "register('./sw.js'" in app or 'register("./sw.js"' in app
           assert './index.html' in service_worker

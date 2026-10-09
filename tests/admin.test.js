@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CI_APP_ID, exchangeAdminLaunch, writeOfficialData } from '../src/data/data-api.js';
+import { CI_APP_ID, browserProofFromContext, exchangeAdminLaunch, writeOfficialData } from '../src/data/data-api.js';
 import { ADMIN_SECTION_DEFINITIONS, adminPersistenceStatus, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus, validateAdminWrite } from '../src/admin/official-config.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
@@ -43,6 +43,21 @@ test('Admin launch exchange requires browser-bound ava-admin-session-v1', async 
   });
   assert.equal(payload.adminSessionProof, 'opaque-proof');
   await assert.rejects(() => exchangeAdminLaunch({ launchTicket: 'wrong', launchNonce: 'nonce' }, async () => ({ ok: true, json: async () => ({ success: true, appId: 'other-app', adminSessionProof: 'proof', contract: 'ava-admin-session-v1', expiresAt: new Date(Date.now() + 60000).toISOString() }) })), /rejected/);
+});
+
+test('Android browsing-context proof is exact, expiring, one-time in memory, and copied URLs still fail', async () => {
+  const expiresAt = new Date(Date.now() + 60000).toISOString();
+  const browserWindow = { opener: null, name: 'ava-admin-session-v1:' + JSON.stringify({ type: 'ava-admin-session-context', appId: CI_APP_ID, launchTicket: 'ticket-context', launchNonce: 'nonce-context', browserProof: 'proof-context', expiresAt, contract: 'ava-admin-session-v1' }) };
+  global.window = browserWindow;
+  const result = await exchangeAdminLaunch({ launchTicket: 'ticket-context', launchNonce: 'nonce-context' }, async (_url, options) => {
+    assert.deepEqual(JSON.parse(options.body), { action: 'exchangeAdminSession', appId: CI_APP_ID, launchTicket: 'ticket-context', launchNonce: 'nonce-context', browserProof: 'proof-context' });
+    return { ok: true, json: async () => ({ success: true, appId: CI_APP_ID, adminSessionProof: 'session-context', contract: 'ava-admin-session-v1', expiresAt }) };
+  });
+  assert.equal(result.adminSessionProof, 'session-context');
+  assert.equal(browserWindow.name, '', 'proof is removed from the browsing context before network exchange');
+  assert.equal(browserProofFromContext('ticket-context', 'nonce-context', { name: '' }), null);
+  await assert.rejects(() => exchangeAdminLaunch({ launchTicket: 'copied-ticket', launchNonce: 'copied-nonce' }, async () => { throw new Error('must not fetch'); }), /originate from AVA Studio/);
+  assert.throws(() => browserProofFromContext('ticket-context', 'nonce-context', { name: 'ava-admin-session-v1:' + JSON.stringify({ type: 'ava-admin-session-context', appId: 'other-app', launchTicket: 'ticket-context', launchNonce: 'nonce-context', browserProof: 'x', expiresAt, contract: 'ava-admin-session-v1' }) }), /Invalid or expired/);
 });
 
 test('official updates compose with User Overrides without resetting User-owned data', () => {

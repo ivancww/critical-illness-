@@ -28,10 +28,12 @@
         const isAdmin = new URLSearchParams(location.search).get('avaEntry') === 'admin';
         if (!isAdmin) return;
         let settled = false;
+        const main = document.querySelector('#main-content');
+        if (main) main.innerHTML = '<section class="hero" data-admin-startup><span class="eyebrow">AVA Studio · Critical Illness Admin</span><h1>正在驗證 Admin</h1><p class="support">正在建立安全瀏覽器綁定及載入 Official Data。</p></section>';
         const renderFailure = (message) => {
           if (settled) return;
           const main = document.querySelector('#main-content');
-          if (!main || main.textContent.trim()) return;
+          if (!main || !main.querySelector('[data-admin-startup]')) return;
           settled = true;
           main.innerHTML = '<section class="hero" data-ava-mode="admin"><span class="eyebrow">AVA Studio · Critical Illness Admin</span><h1>Admin 啟動失敗</h1><p class="support">Admin 初始化未能完成，Official 資料及寫入功能已鎖定。</p><p class="muted">' + String(message || '請由 AVA Studio 重新開啟。').replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char]) ) + '</p><a class="button secondary" href="https://ivancww.github.io/avaplatform/?avaSurface=admin">返回 AVA</a></section>';
         };
@@ -40,6 +42,6 @@
         window.setTimeout(() => renderFailure('Admin 初始化逾時。'), 15000);
       })();
     </script>
-    <script type="module" src="./src/app.js"></script>
+    <script type="module" src="./src/app.js?v=0.2.4"></script>
   </body>
 </html>

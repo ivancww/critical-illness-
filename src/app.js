@@ -6,7 +6,7 @@ import { verificationState } from './domain/verification.js';
 import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js';
 import { resolveAvaReturnContext } from './integration/return-context.js';
 import { ADMIN_SECTION_DEFINITIONS, adminEditableFields, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js';
-import { APP_VERSION } from './version.js';
+import { APP_VERSION } from './version.js?v=0.2.4';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');

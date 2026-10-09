@@ -32,9 +32,25 @@ export async function loadOfficialData(fetchImpl = fetch) {
 }
 
 const PLATFORM_ORIGIN = 'https://ivancww.github.io';
+const BROWSER_CONTEXT_PREFIX = 'ava-admin-session-v1:';
+
+export function browserProofFromContext(launchTicket, launchNonce, browserWindow = globalThis.window) {
+  let raw = '';
+  try { raw = String(browserWindow?.name || ''); browserWindow.name = ''; } catch (_) { return null; }
+  if (!raw.startsWith(BROWSER_CONTEXT_PREFIX)) return null;
+  let data;
+  try { data = JSON.parse(raw.slice(BROWSER_CONTEXT_PREFIX.length)); }
+  catch (_) { throw new DataApiError('Invalid AVA browser proof.', 'ADMIN_BROWSER_BINDING_INVALID'); }
+  const expiry = Date.parse(data?.expiresAt || '');
+  if (data?.type !== 'ava-admin-session-context' || data.appId !== CI_APP_ID || data.launchTicket !== launchTicket || data.launchNonce !== launchNonce || !data.browserProof || data.contract !== 'ava-admin-session-v1' || !Number.isFinite(expiry) || expiry <= Date.now()) throw new DataApiError('Invalid or expired AVA browser proof.', 'ADMIN_BROWSER_BINDING_INVALID');
+  return data;
+}
 
 function requestBrowserProof(launchTicket, launchNonce) {
-  if (!launchTicket || !launchNonce || !globalThis.window?.opener) throw new DataApiError('Admin launch must originate from AVA Studio.', 'ADMIN_BROWSER_BINDING_REQUIRED');
+  if (!launchTicket || !launchNonce) throw new DataApiError('Admin launch must originate from AVA Studio.', 'ADMIN_BROWSER_BINDING_REQUIRED');
+  const contextProof = browserProofFromContext(launchTicket, launchNonce);
+  if (contextProof) return Promise.resolve(contextProof);
+  if (!globalThis.window?.opener) throw new DataApiError('Admin launch must originate from AVA Studio.', 'ADMIN_BROWSER_BINDING_REQUIRED');
   return new Promise((resolve, reject) => {
     const opener = globalThis.window.opener; let settled = false;
     const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); window.removeEventListener('message', onMessage); error ? reject(error) : resolve(value); };
