@@ -6,11 +6,11 @@ authentication and authorization. This repository does not implement a
 Critical Illness password, email allowlist, Google-account gate, or second
 login.
 
-The existing Critical Illness GAS deployment must add these backend actions.
+The existing Critical Illness GAS deployment implements these backend actions.
 
-## `exchangeAppLaunch`
+## `exchangeAdminSession`
 
-The browser sends `{ action: "exchangeAppLaunch", appId: "critical-illness", launchTicket }` to this App's existing GAS endpoint. The GAS backend calls the Platform endpoint with the same action, App ID, and ticket, checks the successful response, and returns the opaque `appGrant` and `expiresAt` to the browser. Platform consumes the launch ticket once. The browser keeps the grant in memory only and never places it in LocalStorage, IndexedDB, backup, QR, or a durable URL.
+The browser sends the exact App ID, one-time `launchTicket`, `launchNonce`, and browser-bound `browserProof` with `action: "exchangeAdminSession"` to this App's existing GAS endpoint. The GAS backend forwards that contract to Platform and returns the opaque `adminSessionProof`, expiry, and `ava-admin-session-v1` contract only after exact validation. Platform consumes the launch and browser proof once. The browser keeps the proof in memory only.
 
 ## `adminUpdate`
 
@@ -18,21 +18,23 @@ For every write, the existing backend must first validate the dataset, record, v
 
 ```json
 {
-  "action": "verifyAppGrant",
-  "appGrant": "<opaque grant>",
+  "action": "verifyAdminSession",
+  "adminSessionProof": "<opaque proof>",
   "appId": "critical-illness",
-  "operation": "official-write"
+  "operation": "critical-illness:official-write:Plans"
 }
 ```
 
-Only a successful response with `appId === "critical-illness"` permits the allowlisted, version-checked Official Sheet update. Missing, malformed, expired, revoked, or wrong-App grants reject before any write. The backend must not trust `avaEntry`, URL presence, referrer, frontend state, or Sheet access as authorization.
+Only a successful, unexpired response with the exact App ID, operation and contract permits the allowlisted, version-checked Official Sheet update. Missing, malformed, expired, replayed, cross-App, or wrong-operation proofs reject before any write.
 
 The existing endpoint must accept the client request shape below, plus the short-lived in-memory grant:
 
 ```json
 {
   "action": "adminUpdate",
-  "appGrant": "<opaque grant>",
+  "appId": "critical-illness",
+  "adminSessionProof": "<opaque proof>",
+  "operation": "critical-illness:official-write:Plans",
   "dataset": "Plans",
   "recordId": "OYS2",
   "expectedVersion": "1",
@@ -46,4 +48,4 @@ It must return success only after the Sheet write, record version update, and da
 
 The deployment owner must update the existing GAS project, configure the Platform verification URL and App-specific Script Properties there, and deploy a new version with authenticated server-to-server access. Platform Admin passwords, session tokens, `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`, Platform Script Properties, and verification credentials must never enter this repository or frontend source.
 
-Until that existing deployment is updated and tested, Admin launch/write live verification is blocked. Read actions and all Front/User behavior remain available through the existing deployment.
+Production authorization remains blocked until this source is published as a new immutable version of the existing GAS deployment and the Android PWA flow is retested. Read actions and all Front/User behavior remain available throughout the deployment.
