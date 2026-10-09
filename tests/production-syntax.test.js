@@ -20,3 +20,7 @@ test('Critical Illness production app parses as JavaScript', () => {
   assert.match(source, /function establishAdminAuthorization\(\)/);
   assert.match(source, /exchangeAdminLaunch\(\{ launchTicket, launchNonce \}\)/);
 });
+
+assert.match(source, /Admin 啟動失敗/);
+assert.match(source, /unhandledrejection/);
+assert.match(source, /Admin 初始化逾時/);
