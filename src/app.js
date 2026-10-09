@@ -202,6 +202,7 @@ async function establishAdminAuthorization() {
     const clean = new URL(location.href); clean.searchParams.delete('avaAdminLaunch'); clean.searchParams.delete('avaAdminLaunchNonce'); history.replaceState(null, '', clean.href);
   } catch (error) { adminSessionProof = null; adminAuthorizationError = error.message; }
   route();
+}
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   const reloadKey = 'ci-sw-reload-pending';
