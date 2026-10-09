@@ -6,6 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const source = fs.readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 test('Critical Illness production app parses as JavaScript', () => {
   assert.doesNotMatch(source, /\}age;/, 'residual truncated refreshOfficial fragment must not ship');
@@ -20,3 +21,7 @@ test('Critical Illness production app parses as JavaScript', () => {
   assert.match(source, /function establishAdminAuthorization\(\)/);
   assert.match(source, /exchangeAdminLaunch\(\{ launchTicket, launchNonce \}\)/);
 });
+
+assert.match(index, /Admin 啟動失敗/);
+assert.match(index, /unhandledrejection/);
+assert.match(index, /Admin 初始化逾時/);
