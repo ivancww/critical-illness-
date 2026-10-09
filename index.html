@@ -23,6 +23,23 @@
       <main id="main-content" tabindex="-1"></main>
       <div id="status" class="status" role="status" aria-live="polite"></div>
     </div>
+    <script>
+      (() => {
+        const isAdmin = new URLSearchParams(location.search).get('avaEntry') === 'admin';
+        if (!isAdmin) return;
+        let settled = false;
+        const renderFailure = (message) => {
+          if (settled) return;
+          const main = document.querySelector('#main-content');
+          if (!main || main.textContent.trim()) return;
+          settled = true;
+          main.innerHTML = '<section class="hero" data-ava-mode="admin"><span class="eyebrow">AVA Studio · Critical Illness Admin</span><h1>Admin 啟動失敗</h1><p class="support">Admin 初始化未能完成，Official 資料及寫入功能已鎖定。</p><p class="muted">' + String(message || '請由 AVA Studio 重新開啟。').replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char]) ) + '</p><a class="button secondary" href="https://ivancww.github.io/avaplatform/?avaSurface=admin">返回 AVA</a></section>';
+        };
+        window.addEventListener('error', event => renderFailure(event.error?.message || '前端初始化錯誤。'));
+        window.addEventListener('unhandledrejection', event => renderFailure(event.reason?.message || String(event.reason || '前端初始化錯誤。')));
+        window.setTimeout(() => renderFailure('Admin 初始化逾時。'), 15000);
+      })();
+    </script>
     <script type="module" src="./src/app.js"></script>
   </body>
 </html>
