@@ -4,9 +4,8 @@
  */
 
 const CONFIG = {
-  API_VERSION: '1.1.0',
+  API_VERSION: '1.2.0',
   APP_ID: 'critical-illness',
-  WRITE_OPERATION: 'official-write',
   PLATFORM_VERIFY_ENDPOINT: 'https://script.google.com/macros/s/AKfycbzVf1fuxcq8GPSOzS8WvcAtubqaawFj0rbVjxe0LOLKfwbYkRZf7Vs61Q0T73UG6dznww/exec',
   DATA_SHEETS: ['Plans', 'Benefits', 'Claim_Rules', 'Health_Program', 'Product_Content', 'Settings_Versions'],
   PREMIUM_SHEETS: {
@@ -304,7 +303,7 @@ function platformRequest_(payload) {
     CONFIG.PLATFORM_VERIFY_ENDPOINT,
     {
       method: 'post',
-      contentType: 'application/json',
+      contentType: 'text/plain;charset=utf-8',
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     }
@@ -331,57 +330,49 @@ function platformRequest_(payload) {
   return result;
 }
 
-function exchangeAppLaunch_(request) {
+function exchangeAdminSession_(request) {
   const launchTicket = String(request.launchTicket || '').trim();
+  const launchNonce = String(request.launchNonce || '').trim();
+  const browserProof = String(request.browserProof || '').trim();
 
-  if (!launchTicket) {
-    throw new Error('launchTicket is required');
+  if (String(request.appId || '') !== CONFIG.APP_ID || !launchTicket || !launchNonce || !browserProof) {
+    throw new Error('Invalid browser-bound Admin launch');
   }
 
   const result = platformRequest_({
-    action: 'exchangeAppLaunch',
+    action: 'exchangeAdminSession',
     appId: CONFIG.APP_ID,
-    launchTicket: launchTicket
+    launchTicket: launchTicket,
+    launchNonce: launchNonce,
+    browserProof: browserProof
   });
+  const expiry = Date.parse(result.expiresAt || '');
 
-  if (
-    typeof result.appGrant !== 'string' ||
-    !result.appGrant.trim()
-  ) {
-    throw new Error('Platform did not return appGrant');
+  if (String(result.appId || '') !== CONFIG.APP_ID || result.contract !== 'ava-admin-session-v1' || typeof result.adminSessionProof !== 'string' || !result.adminSessionProof.trim() || !Number.isFinite(expiry) || expiry <= Date.now()) {
+    throw new Error('Platform did not return a valid Admin session proof');
   }
 
   return {
     success: true,
     apiVersion: CONFIG.API_VERSION,
     appId: CONFIG.APP_ID,
-    appGrant: result.appGrant,
-    expiresAt: result.expiresAt || null
+    adminSessionProof: result.adminSessionProof,
+    expiresAt: result.expiresAt,
+    contract: result.contract
   };
 }
 
-function verifyAppGrant_(grant) {
-  grant = String(grant || '').trim();
+function verifyAdminSession_(proof, operation) {
+  proof = String(proof || '').trim();
+  operation = String(operation || '').trim();
+  if (!proof) throw new Error('adminSessionProof is required');
+  if (!/^critical-illness:official-write:[A-Za-z0-9_]+$/.test(operation)) throw new Error('Invalid Official operation');
 
-  if (!grant) {
-    throw new Error('appGrant is required');
+  const result = platformRequest_({ action: 'verifyAdminSession', appId: CONFIG.APP_ID, operation: operation, adminSessionProof: proof });
+  const expiry = Date.parse(result.expiresAt || '');
+  if (String(result.appId || '') !== CONFIG.APP_ID || String(result.operation || '') !== operation || result.contract !== 'ava-admin-session-v1' || !Number.isFinite(expiry) || expiry <= Date.now()) {
+    throw new Error('Invalid or expired Admin session');
   }
-
-  const result = platformRequest_({
-    action: 'verifyAppGrant',
-    appId: CONFIG.APP_ID,
-    operation: CONFIG.WRITE_OPERATION,
-    appGrant: grant
-  });
-
-  if (String(result.appId || '') !== CONFIG.APP_ID) {
-    throw new Error('Wrong app grant');
-  }
-
-  if (String(result.operation || '') !== CONFIG.WRITE_OPERATION) {
-    throw new Error('Wrong grant operation');
-  }
-
   return result;
 }
 
@@ -509,14 +500,17 @@ function bumpDatasetSemanticVersion_(dataset) {
 }
 
 function adminUpdate_(request) {
-  verifyAppGrant_(request.appGrant);
-
   const dataset = String(request.dataset || '').trim();
   const config = ADMIN_DATASETS[dataset];
 
   if (!config) {
     throw new Error('Dataset is not Admin-editable');
   }
+
+  if (String(request.appId || '') !== CONFIG.APP_ID) throw new Error('Wrong App ID');
+  const operation = CONFIG.APP_ID + ':official-write:' + dataset;
+  if (String(request.operation || '') !== operation) throw new Error('Wrong Official operation');
+  verifyAdminSession_(request.adminSessionProof, operation);
 
   const recordId = String(request.recordId || '').trim();
 
@@ -616,8 +610,8 @@ function doPost(e) {
   try {
     const action = String(request.action || '').trim();
 
-    if (action === 'exchangeAppLaunch') {
-      return json_(exchangeAppLaunch_(request));
+    if (action === 'exchangeAdminSession') {
+      return json_(exchangeAdminSession_(request));
     }
 
     if (action === 'adminUpdate') {
@@ -631,7 +625,7 @@ function doPost(e) {
   } catch (error) {
     const message = String(error && error.message || error);
 
-    if (/grant|authorization|platform/i.test(message)) {
+    if (/session|proof|authorization|platform/i.test(message)) {
       return failure_('ADMIN_UNAUTHORIZED', message);
     }
 
