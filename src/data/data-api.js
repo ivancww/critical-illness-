@@ -70,7 +70,7 @@ function requestBrowserProof(launchTicket, launchNonce) {
 export async function exchangeAdminLaunch({ launchTicket, launchNonce }, fetchImpl = fetch) {
   if (!launchTicket || !launchNonce) throw new DataApiError('A complete Platform Admin launch is required.', 'ADMIN_LAUNCH_REQUIRED');
   const browser = await requestBrowserProof(launchTicket, launchNonce);
-  const response = await fetchImpl(GAS_DATA_API_URL, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'exchangeAdminSession', appId: CI_APP_ID, launchTicket, launchNonce, browserProof: browser.browserProof }) });
+  const response = await fetchImpl(GAS_DATA_API_URL, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'exchangeAdminSession', appId: CI_APP_ID, launchTicket, launchNonce, browserProof: browser.browserProof }) });
   if (!response.ok) throw new DataApiError('Admin authorization exchange failed (' + response.status + ').', 'ADMIN_EXCHANGE_HTTP_ERROR');
   const envelope = await response.json(); const expiry = Date.parse(envelope?.expiresAt || '');
   if (!envelope || envelope.success !== true || envelope.appId !== CI_APP_ID || envelope.contract !== 'ava-admin-session-v1' || typeof envelope.adminSessionProof !== 'string' || !envelope.adminSessionProof.trim() || !Number.isFinite(expiry) || expiry <= Date.now()) throw new DataApiError(envelope?.error || 'Admin authorization was rejected.', 'ADMIN_UNAUTHORIZED');
@@ -80,7 +80,7 @@ export async function exchangeAdminLaunch({ launchTicket, launchNonce }, fetchIm
 export async function writeOfficialData(request, adminSessionProof, fetchImpl = fetch) {
   if (typeof adminSessionProof !== 'string' || !adminSessionProof.trim()) throw new DataApiError('A valid Platform Admin session proof is required.', 'ADMIN_PROOF_REQUIRED');
   const dataset = String(request?.dataset || '').trim(); if (!dataset) throw new DataApiError('An Official dataset is required.', 'INVALID_DATASET');
-  const response = await fetchImpl(GAS_DATA_API_URL, { method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ ...request, adminSessionProof, appId: CI_APP_ID, operation: CI_APP_ID + ':official-write:' + dataset }) });
+  const response = await fetchImpl(GAS_DATA_API_URL, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...request, adminSessionProof, appId: CI_APP_ID, operation: CI_APP_ID + ':official-write:' + dataset }) });
   if (!response.ok) throw new DataApiError('GAS write failed (' + response.status + ').', 'WRITE_HTTP_ERROR');
   const envelope = await response.json();
   if (!envelope || envelope.success !== true && envelope.status !== 'success') throw new DataApiError(envelope?.error || 'GAS did not confirm the official update.', 'WRITE_NOT_CONFIRMED');

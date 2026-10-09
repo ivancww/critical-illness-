@@ -6,6 +6,7 @@ import { ADMIN_SECTION_DEFINITIONS, adminPersistenceStatus, composeOfficialAndUs
 
 const app = fs.readFileSync('src/app.js', 'utf8');
 const sections = fs.readFileSync('src/admin/official-config.js', 'utf8');
+const gas = fs.readFileSync('gas/Code.gs', 'utf8');
 
 test('admin entry is explicit, Platform-authorized, and separate from Front/User routes', () => {
   assert.match(app, /!\['frontend', 'user', 'admin'\]\.includes\(requestedEntry\)/);
@@ -37,6 +38,7 @@ test('Admin launch exchange requires browser-bound ava-admin-session-v1', async 
   global.window = { opener, addEventListener: (_type, fn) => listeners.push(fn), removeEventListener: () => {} };
   const payload = await exchangeAdminLaunch({ launchTicket: 'one-time-ticket', launchNonce: 'launch-nonce' }, async (url, options) => {
     assert.equal(url, 'https://script.google.com/macros/s/AKfycbyWEzPJm1q0QG0ZXFAqGQv6WxTGj8B3EVUgnSP28ML1Y0wbPu7ZaaqUdmARG6teYYjclA/exec');
+    assert.equal(options.headers['Content-Type'], 'text/plain;charset=utf-8');
     const body = JSON.parse(options.body);
     assert.deepEqual(body, { action: 'exchangeAdminSession', appId: CI_APP_ID, launchTicket: 'one-time-ticket', launchNonce: 'launch-nonce', browserProof: 'browser-proof' });
     return { ok: true, json: async () => ({ success: true, appId: CI_APP_ID, adminSessionProof: 'opaque-proof', contract: 'ava-admin-session-v1', expiresAt: new Date(Date.now() + 60000).toISOString() }) };
@@ -88,7 +90,8 @@ test('GAS write client requires confirmed success and never reports a failed wri
   const request = createAdminWriteRequest({ dataset: 'Plans', recordId: 'p1', expectedVersion: '1', fields: { plan_name: 'Updated' } });
   const success = await writeOfficialData(request, 'opaque-proof', async (url, options) => {
     assert.equal(options.method, 'POST');
-    assert.equal(options.credentials, 'include');
+    assert.equal(options.credentials, undefined);
+    assert.equal(options.headers['Content-Type'], 'text/plain;charset=utf-8');
     assert.deepEqual(JSON.parse(options.body), { ...request, adminSessionProof: 'opaque-proof', appId: CI_APP_ID, operation: 'critical-illness:official-write:Plans' });
     return { ok: true, json: async () => ({ status: 'success', data: { dataset: 'Plans', recordId: 'p1', recordVersion: '2', datasetVersion: '1.0.1' } }) };
   });
@@ -97,6 +100,16 @@ test('GAS write client requires confirmed success and never reports a failed wri
   await assert.rejects(() => writeOfficialData(request, 'opaque-proof', async () => ({ ok: false, status: 409, json: async () => ({}) })), /GAS write failed/);
   await assert.rejects(() => writeOfficialData(request, '', async () => ({ ok: true, json: async () => ({}) })), /Admin session proof is required/);
   await assert.rejects(() => writeOfficialData(request, { value: 'opaque-proof' }, async () => ({ ok: true, json: async () => ({}) })), /Admin session proof is required/);
+});
+
+test('deployed GAS source implements only the browser-bound unified Admin session contract', () => {
+  assert.match(gas, /action === 'exchangeAdminSession'/);
+  assert.match(gas, /action: 'exchangeAdminSession'/);
+  assert.match(gas, /action: 'verifyAdminSession'/);
+  assert.match(gas, /adminSessionProof/);
+  assert.match(gas, /ava-admin-session-v1/);
+  assert.doesNotMatch(gas, /action === 'exchangeAppLaunch'/);
+  assert.doesNotMatch(gas, /action: 'verifyAppGrant'/);
 });
 
 test('Admin save path refreshes Official cache only after confirmed write and never saves User state', () => {
