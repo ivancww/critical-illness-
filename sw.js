@@ -1,7 +1,7 @@
 // Keep this name stable. Service-worker script updates discover a new
 // deployment; releases must not depend on a manually edited cache version.
 const CACHE = 'ava-ci-shell';
-const RELEASE = '0.2.4';
+const RELEASE = '0.2.5';
 const LEGACY_CACHE_PREFIX = 'ava-ci-shell-';
 const SHELL = ['./', './index.html', './manifest.json', `./src/app.js?v=${RELEASE}`, `./src/version.js?v=${RELEASE}`, './src/styles.css', './src/domain/product-engine.js', './src/domain/claim-engine.js', './src/domain/premium-engine.js', './src/domain/flow-state.js', './src/domain/verification.js', './src/domain/frontstage-experience.js', './src/data/data-api.js', './src/data/storage.js', './src/data/content.js', './src/integration/return-context.js', './src/admin/official-config.js'];
 
