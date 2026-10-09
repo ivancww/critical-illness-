@@ -9,7 +9,7 @@ const packageMetadata = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 test('visible CI release keeps one version source and a lightweight persistent header', () => {
   assert.equal(packageMetadata.version, '0.2.3');
-  assert.match(version, /export const APP_VERSION = '0\.2\.2'/);
+  assert.match(version, /export const APP_VERSION = '0\.2\.3'/);
   assert.match(app, /import \{ APP_VERSION \} from '\.\/version\.js'/);
   assert.doesNotMatch(app, /package\.json.*type:\s*'json'/);
   assert.match(app, /document\.querySelector\('#app-version'\)\.textContent = `v\$\{APP_VERSION\}`/);
