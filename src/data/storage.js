@@ -8,7 +8,8 @@ export function loadOfficialCache(storage = localStorage) {
 }
 
 export function saveOfficialCache(data, storage = localStorage) {
-  storage.setItem(CACHE_KEY, JSON.stringify({ ...data, cacheVersion: data.cacheVersion ?? data.structured?.Settings_Versions?.[0]?.ci_version ?? null, cachedAt: new Date().toISOString() }));
+  const revision = data.revision ?? data.structured?._meta?.revision ?? data.structured?._meta?.versions ?? null;
+  storage.setItem(CACHE_KEY, JSON.stringify({ ...data, revision, cacheVersion: data.cacheVersion ?? data.structured?.Settings_Versions?.[0]?.ci_version ?? null, cachedAt: new Date().toISOString() }));
 }
 
 export function officialCacheIsCurrent(cache, version) {

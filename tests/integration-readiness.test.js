@@ -25,11 +25,12 @@ test('User flow includes Frontstage edit, Preview, and Save Local', () => {
 
 test('Return to AVA uses caller context and no guessed deployment URL', () => {
   const currentUrl = 'https://ava.example/critical-illness/?avaEntry=user';
-  assert.equal(resolveAvaReturnContext({ referrer: 'https://ava.example/platform/', currentUrl }), 'https://ava.example/platform/');
-  assert.equal(resolveAvaReturnContext({ referrer: 'https://ava.example/platform/?avaSurface=user', currentUrl }), 'https://ava.example/platform/?avaSurface=user');
+  assert.equal(resolveAvaReturnContext({ referrer: 'https://ivancww.github.io/avaplatform/', currentUrl }), 'https://ivancww.github.io/avaplatform/');
+  assert.equal(resolveAvaReturnContext({ referrer: 'https://ivancww.github.io/avaplatform/?avaSurface=user', currentUrl }), 'https://ivancww.github.io/avaplatform/?avaSurface=user');
   assert.equal(resolveAvaReturnContext({ referrer: '', currentUrl }), null);
   assert.equal(resolveAvaReturnContext({ referrer: 'javascript:alert(1)', currentUrl }), null);
-  assert.equal(resolveAvaReturnContext({ referrer: 'https://ava.example/platform/?avaSurface=unknown', currentUrl }), null);
+  assert.equal(resolveAvaReturnContext({ referrer: 'https://ivancww.github.io/avaplatform/?avaSurface=unknown', currentUrl }), null);
+  assert.equal(resolveAvaReturnContext({ referrer: 'https://evil.example/avaplatform/?avaSurface=user', currentUrl }), null);
   assert.match(app, /function returnContext\(\)/);
   assert.match(app, /document\.referrer/);
   assert.match(app, /function returnToAva\(event\)/);

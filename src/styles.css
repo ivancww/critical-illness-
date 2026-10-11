@@ -86,13 +86,15 @@ h3 { margin: 0; font-size: 17px; }
 .claim-example { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; padding: 24px; border-radius: var(--ava-radius-card); background: #fff; border: 1px solid var(--ava-color-border); }
 .claim-example strong { width: 100%; font-size: 20px; text-align: center; }
 .presentation-active .top-nav a:not(.return-ava), .admin-active .top-nav a:not(.return-ava) { display: none; }
-.admin-hero { padding-bottom: 18px; }
+.admin-hero { padding-block: 18px; }
 .admin-status-banner { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: baseline; padding: 16px; border: 1px solid #f59e0b; border-radius: var(--ava-radius-card); background: #fffbeb; color: #78350f; }
 .admin-status-banner strong { font-size: 18px; }
 .admin-status-banner small { flex-basis: 100%; }
 .admin-section-nav { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0 24px; }
 .admin-section-nav a { min-height: 44px; }
+.admin-tab[aria-selected="true"] { color: var(--ava-color-primary); background: var(--ava-color-selected); font-weight: 800; }
 .admin-section { display: grid; gap: 16px; scroll-margin-top: 20px; padding: 24px 0; border-top: 1px solid var(--ava-color-border); }
+.admin-section[hidden] { display: none !important; }
 .admin-section-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .admin-section-heading > div { min-width: 0; }
 .admin-record-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
@@ -101,6 +103,7 @@ h3 { margin: 0; font-size: 17px; }
 .admin-field span { color: var(--ava-color-muted); overflow-wrap: anywhere; }
 .admin-field strong { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; font-weight: 600; }
 .admin-footer-note { margin: 24px 0; padding: 16px; border: 1px dashed var(--ava-color-border); border-radius: var(--ava-radius-card); background: #fff; }
+.admin-system-info { margin: 24px 0; padding: 12px 16px; border: 1px dashed var(--ava-color-border); border-radius: var(--ava-radius-card); background: #fff; }
 .file-button { display: inline-flex; align-items: center; }
 .user-page-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--ava-color-border); }
 .media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }

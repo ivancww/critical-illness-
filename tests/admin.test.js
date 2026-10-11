@@ -15,7 +15,7 @@ test('admin entry is explicit, Platform-authorized, and separate from Front/User
   assert.match(app, /if \(!canAdmin \|\| !adminSessionProof\) return adminDeniedPage\(\)/);
   assert.match(app, /function adminPage\(\)/);
   assert.match(app, /if \(canAdmin\) return adminPage\(\)/);
-  assert.deepEqual(ADMIN_SECTION_DEFINITIONS.map(([label]) => label), ['Products', 'Benefits', 'Claim Rules', 'Health Program', 'Product Content', 'Premium Data', 'Data Sources', 'Versions / Status']);
+  assert.deepEqual(ADMIN_SECTION_DEFINITIONS.map(([, , label]) => label), ['產品方案', '保障項目', '理賠規則', '健康計劃', '產品內容', '保費資料', '資料來源', '版本／狀態']);
 });
 
 test('official Admin view is data-driven and does not save User state', () => {
@@ -93,10 +93,11 @@ test('GAS write client requires confirmed success and never reports a failed wri
     assert.equal(options.credentials, undefined);
     assert.equal(options.headers['Content-Type'], 'text/plain;charset=utf-8');
     assert.deepEqual(JSON.parse(options.body), { ...request, adminSessionProof: 'opaque-proof', appId: CI_APP_ID, operation: 'critical-illness:official-write:Plans' });
-    return { ok: true, json: async () => ({ status: 'success', data: { dataset: 'Plans', recordId: 'p1', recordVersion: '2', datasetVersion: '1.0.1' } }) };
+    return { ok: true, json: async () => ({ status: 'success', data: { dataset: 'Plans', record: { plan_id: 'p1', plan_name: 'Updated', active: false }, recordVersion: '2', datasetVersion: '1.0.1', authoritative: true, readAfterWrite: true } }) };
   });
   assert.equal(success.datasetVersion, '1.0.1');
-  await assert.rejects(() => writeOfficialData(request, 'opaque-proof', async () => ({ ok: true, json: async () => ({ status: 'error', code: 'VERSION_CONFLICT' }) })), /did not confirm/);
+  await assert.rejects(() => writeOfficialData(request, 'opaque-proof', async () => ({ ok: true, json: async () => ({ success: true, data: { dataset: 'Plans', recordVersion: '2' } }) })), /complete persisted Official evidence/);
+  await assert.rejects(() => writeOfficialData(request, 'opaque-proof', async () => ({ ok: true, json: async () => ({ status: 'error', code: 'VERSION_CONFLICT' }) })), /complete persisted Official evidence/);
   await assert.rejects(() => writeOfficialData(request, 'opaque-proof', async () => ({ ok: false, status: 409, json: async () => ({}) })), /GAS write failed/);
   await assert.rejects(() => writeOfficialData(request, '', async () => ({ ok: true, json: async () => ({}) })), /Admin session proof is required/);
   await assert.rejects(() => writeOfficialData(request, { value: 'opaque-proof' }, async () => ({ ok: true, json: async () => ({}) })), /Admin session proof is required/);
@@ -116,6 +117,23 @@ test('Admin save path refreshes Official cache only after confirmed write and ne
   assert.match(app, /await writeOfficialData\(request, adminSessionProof\)/);
   assert.match(app, /validateOfficialData\(normalized\); state\.official = normalized; saveOfficialCache\(normalized\)/);
   assert.doesNotMatch(app.slice(app.indexOf('function bindAdmin()'), app.indexOf('function adminPage()')), /saveUserState|persistUser/);
+});
+
+test('Admin uses true tab state, structured Traditional Chinese labels, and protects dirty drafts', () => {
+  const adminStart = app.indexOf('function adminPage()');
+  const adminEnd = app.indexOf('function adminDeniedPage()', adminStart);
+  const adminSource = app.slice(adminStart, adminEnd);
+  assert.match(adminSource, /role="tablist"/);
+  assert.match(adminSource, /role="tab"/);
+  assert.match(app, /role="tabpanel"/);
+  assert.match(app, /panel\.hidden = panel\.id !==/);
+  assert.match(app, /adminHasDirtyDraft/);
+  assert.match(app, /未保存的編輯/);
+  assert.match(adminSource, /系統資訊/);
+  assert.match(app, /驗證並儲存官方資料/);
+  assert.match(sections, /adminFieldLabel/);
+  assert.match(sections, /ADMIN_FIELD_LABELS/);
+  assert.match(fs.readFileSync('src/styles.css', 'utf8'), /\.admin-section\[hidden\]\s*\{\s*display:\s*none\s*!important/);
 });
 
 test('official records retain product history, verify premium mappings, and protect secrets', () => {
