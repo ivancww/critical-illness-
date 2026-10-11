@@ -42,7 +42,30 @@ The existing endpoint must accept the client request shape below, plus the short
 }
 ```
 
-It must return success only after the Sheet write, record version update, and dataset-version update succeed. The endpoint remains the existing canonical Critical Illness GAS deployment; no second backend or deployment is created.
+It must return success only after the Sheet write, record version update, dataset-version update, `SpreadsheetApp.flush()`, and a complete persisted read-back succeed. The read-back must match every submitted field, the target record ID, the incremented record version, and the persisted dataset semantic version. A successful response includes:
+
+```json
+{
+  "success": true,
+  "data": {
+    "dataset": "Plans",
+    "record": { "plan_id": "OYS2", "plan_name": "愛伴航2", "version": "2" },
+    "recordVersion": "2",
+    "datasetVersion": "1.0.1",
+    "authoritative": true,
+    "readAfterWrite": true,
+    "persisted": true,
+    "verifiedFields": ["plan_name"],
+    "rollback": { "attempted": false, "success": true }
+  }
+}
+```
+
+Before mutation, the backend holds the Script Lock, rechecks the stable record version, validates the destination schema and dataset-version setting, and snapshots only the cells it may change. If any mutation, flush, semantic-version update, or persisted read-back fails, it attempts to restore those snapshots and verifies the restored cells. It returns `WRITE_ROLLED_BACK` only when rollback verification succeeds, and `ROLLBACK_FAILED` when rollback cannot be verified. Neither response claims a successful write.
+
+This is a best-effort application-level rollback over the touched Google Sheet cells; Google Sheets does not provide a native multi-sheet ACID transaction through this endpoint. Unrelated rows, columns, formulas, and technical metadata remain outside the mutation set.
+
+The endpoint remains the existing canonical Critical Illness GAS deployment; no second backend or deployment is created.
 
 ## Deployment and secrets
 
