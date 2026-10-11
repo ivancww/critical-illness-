@@ -5,8 +5,8 @@ import { getActivePlans, resolveBenefits, resolveClaimRules } from './domain/pro
 import { verificationState } from './domain/verification.js';
 import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js';
 import { resolveAvaReturnContext } from './integration/return-context.js';
-import { ADMIN_SECTION_DEFINITIONS, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js';
-import { APP_VERSION } from './version.js?v=0.3.0';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js';
+import { APP_VERSION } from './version.js?v=0.3.1';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -38,6 +38,9 @@ const adminLaunch = new URLSearchParams(location.search).get('avaAdminLaunch') |
 let adminSessionProof = null;
 let adminAuthorizationError = adminLaunch ? '正在向 AVA Platform 驗證 Admin 授權…' : '必須由 AVA Studio 啟動並授權此 Admin 入口。';
 const canAdmin = appEntry === 'admin' && !unsupportedEntry;
+document.querySelector('#admin-header-label')?.toggleAttribute('hidden', !canAdmin);
+let adminActiveSection = 'products';
+const adminSelectedRecords = Object.create(null);
 
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function money(value) { return Number(value || 0).toLocaleString('en-HK', { maximumFractionDigits: 0 }); }
@@ -162,25 +165,151 @@ function downloadBackup() { const blob = new Blob([JSON.stringify(createUserBack
 async function restoreBackup(event) { try { const file = event.target.files?.[0]; if (!file) return; state.user = restoreUserBackup(JSON.parse(await file.text())); state.user.flow = createFlowState(state.user.flow); persistUser(); setStatus('Backup 已還原；媒體只保留 Cloud references。'); editPage(); } catch (e) { setStatus(`Backup 還原失敗：${e.message}`, true); } }
 
 function adminValue(value) { const safe = redactOfficialValue(value); if (safe === null || safe === undefined || safe === '') return '—'; if (typeof safe === 'object') return JSON.stringify(safe); return String(safe); }
-function adminRecordMarkup(record, dataset = '') { const safe = redactOfficialValue(record); const entries = Object.entries(safe || {}).filter(([, value]) => value !== null && value !== undefined && value !== ''); const id = adminRecordId(dataset, record); const version = adminRecordVersion(record); const editable = id && version ? adminEditableFields(dataset, record) : []; return `<article class="admin-record" data-admin-record="${escapeHtml(id)}" data-admin-dataset="${escapeHtml(dataset)}">${entries.length ? entries.map(([key, value]) => `<div class="admin-field"><span>${escapeHtml(adminFieldLabel(key))}</span><strong>${escapeHtml(adminValue(value))}</strong></div>`).join('') : '<p class="muted">沒有可顯示的官方欄位。</p>'}${editable.length ? `<button class="button subtle" type="button" data-admin-edit>編輯官方欄位</button><form class="admin-edit-form" data-admin-form hidden><p class="muted">預期記錄版本：${escapeHtml(version)}</p>${editable.map(key => { const type = adminFieldType(key, record[key]); const control = type === 'textarea' ? `<textarea name="${escapeHtml(key)}" data-original-type="${typeof record[key]}">${escapeHtml(record[key])}</textarea>` : type === 'checkbox' ? `<input name="${escapeHtml(key)}" type="checkbox" ${record[key] === true ? 'checked' : ''} data-original-type="boolean">` : `<input name="${escapeHtml(key)}" type="${type}" value="${escapeHtml(record[key])}" data-original-type="${typeof record[key]}">`; return `<label class="field"><span>${escapeHtml(adminFieldLabel(key))}</span>${control}</label>`; }).join('')}<div class="actions"><button class="primary" type="submit">驗證並儲存官方資料</button><button class="subtle" type="button" data-admin-cancel>取消</button></div></form>` : ''}</article>`; }
-function adminDatasetSection(id, dataset, title, description, records, active = false) { return `<section class="admin-section" id="admin-${id}" role="tabpanel" aria-labelledby="admin-tab-${id}" tabindex="-1" ${active ? '' : 'hidden'}><div class="admin-section-heading"><div><span class="eyebrow">Official Layer</span><h2>${title}</h2><p class="muted">${description}</p></div><span class="tag">${records.length} 筆 · 允許欄位</span></div><div class="admin-record-list">${records.length ? records.map(record => adminRecordMarkup(record, dataset)).join('') : '<p class="empty">官方資料未配置；不會在前端自行補造商業規則。</p>'}</div></section>`; }
+function adminRecordIdentity(dataset, record, index) {
+  const id = adminRecordId(dataset, record);
+  const labelKey = ['plan_name', 'benefit_name', 'condition_name', 'program_name', 'title', 'short_name', 'category', 'key', 'name'].find(key => record?.[key] !== undefined && record?.[key] !== null && record?.[key] !== '');
+  const label = labelKey ? String(record[labelKey]) : `第 ${index + 1} 筆`;
+  return { id, label, option: id ? `${id} · ${label}` : label };
+}
+function editableAdminFields(dataset, record) {
+  const id = adminRecordId(dataset, record);
+  const version = adminRecordVersion(record);
+  const versionRecord = dataset !== 'Settings_Versions' || /^dataset_(plans|benefits|claims|health|content|premium)_version$/.test(id);
+  return id && version && versionRecord ? adminEditableFields(dataset, record) : [];
+}
+function adminControlMarkup(key, value) {
+  const type = adminFieldType(key, value);
+  const originalType = typeof value;
+  const common = `class="ava-input" name="${escapeHtml(key)}" data-admin-field="${escapeHtml(key)}" data-admin-type="${type}" data-original-type="${originalType}"`;
+  if (type === 'textarea') return `<textarea ${common}>${escapeHtml(value ?? '')}</textarea>`;
+  if (type === 'checkbox') return `<input ${common} type="checkbox" ${value === true ? 'checked' : ''}>`;
+  return `<input ${common} type="${type}" value="${escapeHtml(value ?? '')}">`;
+}
+function adminRecordMarkup(record, dataset = '', index = 0, selected = false) {
+  const safe = redactOfficialValue(record);
+  const entries = Object.entries(safe || {}).filter(([, value]) => value !== null && value !== undefined);
+  const identity = adminRecordIdentity(dataset, record, index);
+  const version = adminRecordVersion(record);
+  const editable = editableAdminFields(dataset, record);
+  const editableSet = new Set(editable);
+  const fields = entries.length ? entries.map(([key, value]) => editableSet.has(key)
+    ? `<div class="admin-field admin-field--readonly"><span>${escapeHtml(adminFieldLabel(key))}<small>（可編輯）</small></span><strong>${escapeHtml(adminValue(value))}</strong></div>`
+    : `<div class="admin-field admin-field--readonly"><span>${escapeHtml(adminFieldLabel(key))}<small>（唯讀）</small></span><strong>${escapeHtml(adminValue(value))}</strong></div>`).join('')
+    : '<p class="muted">沒有可顯示的官方欄位。</p>';
+  const form = editable.length ? `<form class="admin-edit-form" data-admin-form data-admin-dataset="${escapeHtml(dataset)}" data-admin-record="${escapeHtml(identity.id)}"><p class="admin-form-version muted">預期記錄版本：${escapeHtml(version)}</p><div class="admin-editable-fields">${editable.map(key => `<label class="admin-field admin-field--editable"><span>${escapeHtml(adminFieldLabel(key))}</span>${adminControlMarkup(key, record[key])}</label>`).join('')}</div><div class="actions"><button class="primary" type="submit">驗證並儲存官方資料</button><button class="subtle" type="button" data-admin-cancel>取消</button></div></form>` : '<p class="muted admin-readonly-note">此記錄沒有可寫入欄位；資料只作檢視。</p>';
+  return `<article class="admin-record" data-admin-record="${escapeHtml(identity.id)}" data-admin-record-index="${index}" data-admin-record-label="${escapeHtml(identity.label)}" data-admin-dataset="${escapeHtml(dataset)}"${selected ? '' : ' hidden'}><div class="admin-record-heading"><div><span class="eyebrow">${escapeHtml(identity.id || 'Official record')}</span><h3>${escapeHtml(identity.label)}</h3></div><span class="admin-record-index">第 ${index + 1} 筆</span></div><div class="admin-field-grid">${fields}</div>${form}</article>`;
+}
+function adminReadonlyRecordMarkup(record, dataset, index) {
+  const safe = redactOfficialValue(record);
+  const entries = Object.entries(safe || {}).filter(([, value]) => value !== null && value !== undefined);
+  return `<article class="admin-record admin-record--readonly" data-admin-readonly-dataset="${escapeHtml(dataset)}"><div class="admin-record-heading"><div><span class="eyebrow">Official Layer</span><h3>${escapeHtml(adminRecordIdentity(dataset, record, index).label)}</h3></div><span class="admin-record-index">第 ${index + 1} 筆</span></div><div class="admin-field-grid">${entries.length ? entries.map(([key, value]) => `<div class="admin-field admin-field--readonly"><span>${escapeHtml(adminFieldLabel(key))}</span><strong>${escapeHtml(adminValue(value))}</strong></div>`).join('') : '<p class="muted">沒有可顯示的官方欄位。</p>'}</div></article>`;
+}
+function adminRecordSelector(dataset, records, selectedIndex) {
+  if (records.length < 2) return '';
+  return `<div class="admin-record-tools"><label for="admin-record-select-${escapeHtml(dataset)}"><span>選擇記錄</span><select class="ava-input" id="admin-record-select-${escapeHtml(dataset)}" data-admin-record-select="${escapeHtml(dataset)}">${records.map((record, index) => { const identity = adminRecordIdentity(dataset, record, index); return `<option value="${index}"${index === selectedIndex ? ' selected' : ''}>${escapeHtml(identity.option)}</option>`; }).join('')}</select></label><span class="quiet-note">已選擇一筆官方記錄；切換前會保護未儲存草稿。</span></div>`;
+}
+function adminDatasetSection(dataset, records, active = false, { readonly = false } = {}) {
+  const meta = ADMIN_SECTION_META[dataset];
+  const selectedIndex = Math.min(Math.max(Number(adminSelectedRecords[dataset] || 0), 0), Math.max(records.length - 1, 0));
+  if (records.length && !readonly) adminSelectedRecords[dataset] = selectedIndex;
+  const recordMarkup = readonly
+    ? (records.length ? records.map((record, index) => adminReadonlyRecordMarkup(record, dataset, index)).join('') : '<p class="empty">官方資料未配置；不會在前端自行補造商業規則。</p>')
+    : (records.length ? `${adminRecordSelector(dataset, records, selectedIndex)}<div class="admin-record-list">${records.map((record, index) => adminRecordMarkup(record, dataset, index, index === selectedIndex)).join('')}</div>` : '<p class="empty">官方資料未配置；不會在前端自行補造商業規則。</p>');
+  return `<section class="admin-section" id="admin-${meta.id}" data-admin-panel="${escapeHtml(meta.id)}" data-admin-dataset="${escapeHtml(dataset)}" role="tabpanel" aria-labelledby="admin-tab-${meta.id}" tabindex="-1"${active ? '' : ' hidden'}><div class="admin-section-heading"><div><span class="eyebrow">${escapeHtml(dataset === 'premium' || dataset === 'sources' ? 'Official Layer' : dataset)}</span><h2>${escapeHtml(meta.label)}</h2><p class="muted">${escapeHtml(meta.description)}</p></div><span class="admin-count">${records.length} 筆</span></div>${recordMarkup}</section>`;
+}
 function adminInputValue(input) { if (input.type === 'checkbox') return input.checked; if (input.dataset.originalType === 'number') return input.value === '' ? '' : Number(input.value); return input.value; }
-function activateAdminTab(button, { focusPanel = true } = {}) { const tabs = [...document.querySelectorAll('[data-admin-tab]')]; const panels = [...document.querySelectorAll('[role="tabpanel"]')]; const id = button?.dataset.adminTab; if (!id) return; tabs.forEach(tab => { const active = tab === button; tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1; }); panels.forEach(panel => { panel.hidden = panel.id !== `admin-${id}`; }); if (focusPanel) { const panel = document.getElementById(`admin-${id}`); panel?.focus({ preventScroll: true }); panel?.scrollIntoView({ block: 'start', behavior: 'smooth' }); } }
+function activateAdminTab(button, { focusPanel = true } = {}) {
+  const tabs = [...document.querySelectorAll('[data-admin-tab]')];
+  const panels = [...document.querySelectorAll('[data-admin-panel]')];
+  const id = button?.dataset.adminTab;
+  if (!id) return;
+  discardAdminDrafts();
+  adminActiveSection = id;
+  tabs.forEach(tab => { const active = tab === button; tab.classList.toggle('is-active', active); tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1; });
+  panels.forEach(panel => { panel.hidden = panel.dataset.adminPanel !== id; });
+  if (focusPanel) { const panel = document.getElementById(`admin-${id}`); panel?.scrollIntoView({ block: 'start', behavior: 'auto' }); button?.focus?.({ preventScroll: true }); }
+}
 function adminHasDirtyDraft() { return [...document.querySelectorAll('[data-admin-form][data-dirty="true"]')].length > 0; }
-function bindAdmin() { document.querySelectorAll('[data-admin-edit]').forEach(button => button.addEventListener('click', () => { const form = button.closest('[data-admin-record]')?.querySelector('[data-admin-form]'); if (form) { form.hidden = false; button.hidden = true; } })); document.querySelectorAll('[data-admin-cancel]').forEach(button => button.addEventListener('click', () => { const form = button.closest('[data-admin-form]'); const edit = button.closest('[data-admin-record]')?.querySelector('[data-admin-edit]'); if (form) { form.hidden = true; form.dataset.dirty = 'false'; } if (edit) edit.hidden = false; })); document.querySelectorAll('[data-admin-form]').forEach(form => { form.addEventListener('input', () => { form.dataset.dirty = 'true'; }); form.addEventListener('submit', async event => { event.preventDefault(); const record = form.closest('[data-admin-record]'); const fields = Object.fromEntries([...form.elements].filter(input => input.name).map(input => [input.name, adminInputValue(input)])); try { const request = createAdminWriteRequest({ dataset: record.dataset.adminDataset, recordId: record.dataset.adminRecord, expectedVersion: form.querySelector('p')?.textContent.replace('預期記錄版本：', '').trim(), fields }); await writeOfficialData(request, adminSessionProof); const latest = await loadOfficialData(); const normalized = { ...latest, structured: normalizeStructuredData(latest.structured) }; validateOfficialData(normalized); state.official = normalized; saveOfficialCache(normalized); setStatus('官方資料已保存並由伺服器重新確認。'); route(); } catch (error) { setStatus(`官方資料未保存：${error.message}`, true); } }); }); document.querySelectorAll('[data-admin-tab]').forEach((tab, index, tabs) => { const canSwitch = () => !adminHasDirtyDraft() || Boolean(globalThis.confirm?.('目前有未保存的編輯。要放棄草稿並切換嗎？')); tab.addEventListener('click', () => { if (!canSwitch()) return; activateAdminTab(tab); }); tab.addEventListener('keydown', event => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length; if (!canSwitch()) return; tabs[nextIndex].focus(); activateAdminTab(tabs[nextIndex], { focusPanel: false }); }); }); if (!globalThis.__ciAdminUnloadGuard) { globalThis.__ciAdminUnloadGuard = true; globalThis.addEventListener?.('beforeunload', event => { if (adminHasDirtyDraft()) { event.preventDefault(); event.returnValue = ''; } }); } }
+function discardAdminDrafts() { document.querySelectorAll('[data-admin-form][data-dirty="true"]').forEach(form => { form.reset(); form.dataset.dirty = 'false'; }); }
+function activateAdminRecord(select) {
+  const panel = select.closest('[data-admin-panel]');
+  const records = [...(panel?.querySelectorAll('[data-admin-record-index]') || [])];
+  const nextIndex = Number(select.value);
+  if (!panel || !Number.isInteger(nextIndex) || !records[nextIndex]) return false;
+  if (adminHasDirtyDraft() && !globalThis.confirm?.('目前有未保存的編輯。要放棄草稿並切換嗎？')) { select.value = String(panel.dataset.adminSelectedRecord || 0); return false; }
+  discardAdminDrafts();
+  const dataset = panel.dataset.adminDataset;
+  adminSelectedRecords[dataset] = nextIndex;
+  panel.dataset.adminSelectedRecord = String(nextIndex);
+  records.forEach((record, index) => { record.hidden = index !== nextIndex; });
+  records[nextIndex].scrollIntoView?.({ block: 'start', behavior: 'auto' });
+  return true;
+}
+function bindAdmin() {
+  document.querySelectorAll('[data-admin-cancel]').forEach(button => button.addEventListener('click', () => { const form = button.closest('[data-admin-form]'); if (!form) return; form.reset(); form.dataset.dirty = 'false'; }));
+  document.querySelectorAll('[data-admin-form]').forEach(form => {
+    const markDirty = () => { form.dataset.dirty = 'true'; };
+    form.addEventListener('input', markDirty);
+    form.addEventListener('change', markDirty);
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const record = form.closest('[data-admin-record]');
+      const fields = Object.fromEntries([...form.elements].filter(input => input.name).map(input => [input.name, adminInputValue(input)]));
+      try {
+        const request = createAdminWriteRequest({ dataset: record.dataset.adminDataset, recordId: record.dataset.adminRecord, expectedVersion: form.querySelector('[data-admin-version]')?.textContent.replace('預期記錄版本：', '').trim() || form.querySelector('.admin-form-version')?.textContent.replace('預期記錄版本：', '').trim(), fields });
+        await writeOfficialData(request, adminSessionProof);
+        const latest = await loadOfficialData();
+        const normalized = { ...latest, structured: normalizeStructuredData(latest.structured) };
+        validateOfficialData(normalized);
+        state.official = normalized;
+        saveOfficialCache(normalized);
+        adminActiveSection = document.querySelector('[data-admin-tab][aria-selected="true"]')?.dataset.adminTab || adminActiveSection;
+        adminSelectedRecords[record.dataset.adminDataset] = Number(record.dataset.adminRecordIndex || 0);
+        setStatus('官方資料已保存並由伺服器重新確認。');
+        route();
+      } catch (error) { setStatus(`官方資料未保存：${error.message}`, true); }
+    });
+  });
+  document.querySelectorAll('[data-admin-tab]').forEach((tab, index, tabs) => {
+    const canSwitch = () => !adminHasDirtyDraft() || Boolean(globalThis.confirm?.('目前有未保存的編輯。要放棄草稿並切換嗎？'));
+    tab.addEventListener('click', () => { if (canSwitch()) activateAdminTab(tab); });
+    tab.addEventListener('keydown', event => { if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1) + tabs.length) % tabs.length; if (canSwitch()) { tabs[nextIndex].focus(); activateAdminTab(tabs[nextIndex], { focusPanel: false }); } });
+  });
+  document.querySelectorAll('[data-admin-record-select]').forEach(select => {
+    const panel = select.closest('[data-admin-panel]');
+    if (panel) panel.dataset.adminSelectedRecord = select.value;
+    select.addEventListener('change', () => activateAdminRecord(select));
+  });
+  if (!globalThis.__ciAdminUnloadGuard) { globalThis.__ciAdminUnloadGuard = true; globalThis.addEventListener?.('beforeunload', event => { if (adminHasDirtyDraft()) { event.preventDefault(); event.returnValue = ''; } }); }
+}
 function adminPage() {
   if (!canAdmin || !adminSessionProof) return adminDeniedPage();
   const d = datasets();
-  const premium = premiumSheetStatus(state.official?.premium || {});
+  const plans = officialRecords(d, 'Plans');
+  const benefits = officialRecords(d, 'Benefits');
+  const claimRules = officialRecords(d, 'Claim_Rules');
+  const healthProgram = officialRecords(d, 'Health_Program');
   const content = officialRecords(d, 'Product_Content');
-  const resources = resourceStatus(content);
   const versions = officialRecords(d, 'Settings_Versions');
+  const premium = premiumSheetStatus(state.official?.premium || {});
+  const resources = resourceStatus(content);
   const fetchedAt = state.official?.fetchedAt || state.official?.cachedAt || 'Not available';
-  const sourceRows = [['GAS endpoint', GAS_DATA_API_URL], ['Structured data', state.official?.structured ? 'AVAILABLE' : 'NOT AVAILABLE'], ['Premium sheets', state.official?.premium ? 'AVAILABLE · VERIFY REQUIRED' : 'NOT AVAILABLE'], ['Firebase resources', `${resources.linked} linked · ${resources.unlinked} unlinked / not configured`], ['Dataset versions', versions.length ? `${versions.length} records` : 'NOT AVAILABLE'], ['Last successful refresh', fetchedAt]];
-  const sectionIds = { Plans: 'products', Benefits: 'benefits', Claim_Rules: 'claim-rules', Health_Program: 'health-program', Product_Content: 'product-content', premium: 'premium-data', sources: 'data-sources', Settings_Versions: 'versions-status' };
-  const sectionLinks = ADMIN_SECTION_DEFINITIONS.map(([title, id, label], index) => { const sectionId = sectionIds[id] || id.toLowerCase(); return `<button class="button subtle admin-tab" id="admin-tab-${sectionId}" type="button" role="tab" data-admin-tab="${sectionId}" aria-selected="${index === 0}" aria-controls="admin-${sectionId}" tabindex="${index === 0 ? '0' : '-1'}">${label}</button>`; }).join('');
+  const sourceRows = [['GAS endpoint', GAS_DATA_API_URL], ['Structured data', state.official?.structured ? 'AVAILABLE' : 'NOT AVAILABLE'], ['Premium sheets', state.official?.premium ? 'AVAILABLE · VERIFY REQUIRED' : 'NOT AVAILABLE'], ['Firebase resources', `${resources.linked} linked · ${resources.unlinked} unlinked / not configured`], ['Dataset versions', versions.length ? `${versions.length} records` : 'NOT AVAILABLE'], ['Last successful refresh', fetchedAt]].map(([key, value]) => ({ key, value }));
+  const activeId = ADMIN_SECTION_META[Object.keys(ADMIN_SECTION_META).find(dataset => ADMIN_SECTION_META[dataset].id === adminActiveSection) || 'Plans'].id;
+  const sectionLinks = ADMIN_SECTION_DEFINITIONS.map(([, dataset], index) => { const meta = ADMIN_SECTION_META[dataset]; const records = { Plans: plans, Benefits: benefits, Claim_Rules: claimRules, Health_Program: healthProgram, Product_Content: content, premium, sources: sourceRows, Settings_Versions: versions }[dataset] || []; const active = meta.id === activeId; return `<button class="admin-tab${active ? ' is-active' : ''}" id="admin-tab-${meta.id}" type="button" role="tab" data-admin-tab="${meta.id}" aria-selected="${active}" aria-controls="admin-${meta.id}" tabindex="${active ? '0' : '-1'}"><span>${escapeHtml(meta.label)}</span><small>${records.length} 筆</small></button>`; }).join('');
   const persistence = adminPersistenceStatus();
-  render(`<section class="admin-shell" data-ava-mode="admin"><section class="hero admin-hero"><span class="eyebrow">AVA Studio · Critical Illness Admin</span><h1>官方資料管理</h1><p class="support">只管理 Critical Illness 官方層；不會修改 User Overrides、Customer Flow 或受保護計算邏輯。</p></section><nav class="admin-section-nav" role="tablist" aria-label="官方資料管理分頁">${sectionLinks}</nav>${adminDatasetSection('products', 'Plans', '產品方案', '方案代碼及受保護計算參數維持唯讀。', officialRecords(d, 'Plans'), true)}${adminDatasetSection('benefits', 'Benefits', '保障項目', '保障欄位只可經已授權及 allowlist 的寫入流程修改。', officialRecords(d, 'Benefits'))}${adminDatasetSection('claim-rules', 'Claim_Rules', '理賠規則', '不建立第二套計算引擎；只管理官方規則資料。', officialRecords(d, 'Claim_Rules'))}${adminDatasetSection('health-program', 'Health_Program', '健康計劃', '保費影響及保障／賠償影響維持為不同官方欄位。', officialRecords(d, 'Health_Program'))}${adminDatasetSection('product-content', 'Product_Content', '產品內容', `只顯示官方內容連結。已連結 ${resources.linked} 項；未配置 ${resources.unlinked} 項。`, content)}${adminDatasetSection('premium-data', 'premium', '保費資料', '保費矩陣只作檢視；不推算列、欄、吸煙狀態、供款期或四捨五入。', premium.map(sheet => sheet))}${adminDatasetSection('data-sources', 'sources', '資料來源', '只顯示來源狀態，不暴露憑證或寫入控制。', sourceRows.map(([key, value]) => ({ key, value })))}${adminDatasetSection('versions-status', 'Settings_Versions', '版本／狀態', '只可按 allowlist 管理資料集版本；受保護計算參數維持唯讀。', versions)}<details class="admin-system-info"><summary>系統資訊</summary><p>同步狀態：${escapeHtml(persistence.status)}</p><p>${escapeHtml(persistence.reason)}</p><p>${escapeHtml(persistence.authentication)}</p><p>Admin URL 本身不會授權；保存必須有 AVA Platform 的有效 Admin session。</p></details></section>`, 'admin');
+  const systemDataVersion = state.official?.structured?._meta?.data_version || state.official?.structured?._meta?.version || '未提供';
+  const sections = [
+    adminDatasetSection('Plans', plans, activeId === ADMIN_SECTION_META.Plans.id),
+    adminDatasetSection('Benefits', benefits, activeId === ADMIN_SECTION_META.Benefits.id),
+    adminDatasetSection('Claim_Rules', claimRules, activeId === ADMIN_SECTION_META.Claim_Rules.id),
+    adminDatasetSection('Health_Program', healthProgram, activeId === ADMIN_SECTION_META.Health_Program.id),
+    adminDatasetSection('Product_Content', content, activeId === ADMIN_SECTION_META.Product_Content.id),
+    adminDatasetSection('premium', premium, activeId === ADMIN_SECTION_META.premium.id, { readonly: true }),
+    adminDatasetSection('sources', sourceRows, activeId === ADMIN_SECTION_META.sources.id, { readonly: true }),
+    adminDatasetSection('Settings_Versions', versions, activeId === ADMIN_SECTION_META.Settings_Versions.id)
+  ].join('');
+  render(`<section class="admin-shell" data-ava-mode="admin"><div class="admin-surface"><div class="admin-topline"><span>AVA Studio · Critical Illness Admin</span><span>Official Layer only</span></div><nav class="admin-section-nav" role="tablist" aria-label="Critical Illness 官方資料分區">${sectionLinks}</nav>${sections}<details class="admin-system-info"><summary>系統資料</summary><div class="admin-system-grid"><p><strong>App 版本</strong><span>v${escapeHtml(APP_VERSION)}</span></p><p><strong>Official 資料版本</strong><span>${escapeHtml(systemDataVersion)}</span></p><p><strong>同步狀態</strong><span>${escapeHtml(persistence.status)} · ${escapeHtml(persistence.reason)}</span></p><p><strong>最近更新</strong><span>${escapeHtml(fetchedAt)}</span></p><p><strong>安全狀態</strong><span>${escapeHtml(persistence.authentication)}；Official Write 必須有 AVA Platform Admin session。</span></p></div></details></div></section>`, 'admin');
   bindAdmin();
 }
 function adminDeniedPage() { render(`<section class="hero" data-ava-mode="admin"><span class="eyebrow">AVA Studio · Critical Illness Admin</span><h1>Admin 未授權</h1><p class="support">${escapeHtml(adminAuthorizationError)}</p><p class="muted">此網址只是 Admin routing；沒有 AVA Platform 的一次性 App 授權，Official 資料和寫入功能不會顯示。</p><div class="actions"><a class="button secondary return-ava" href="#return-to-ava" data-return-to-ava>返回 AVA</a></div></section>`, 'admin'); document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); }
