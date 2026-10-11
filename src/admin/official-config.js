@@ -9,6 +9,20 @@ export const ADMIN_SECTION_DEFINITIONS = Object.freeze([
   ['Versions / Status', 'Settings_Versions', '版本／狀態']
 ]);
 
+// The section inventory stays Critical Illness-specific.  Saving V1.8 is only
+// the presentation reference; these labels, datasets, and descriptions remain
+// owned by the Critical Illness Official contract.
+export const ADMIN_SECTION_META = Object.freeze({
+  Plans: Object.freeze({ id: 'products', label: '產品方案', description: '查看方案資料；方案 ID 及受保護計算參數維持唯讀。', editable: true }),
+  Benefits: Object.freeze({ id: 'benefits', label: '保障項目', description: '管理已授權的保障顯示欄位；不改動保障計算邏輯。', editable: true }),
+  Claim_Rules: Object.freeze({ id: 'claim-rules', label: '理賠規則', description: '管理官方理賠規則資料；不建立第二套計算引擎。', editable: true }),
+  Health_Program: Object.freeze({ id: 'health-program', label: '健康計劃', description: '管理健康計劃內容及已授權的作用欄位。', editable: true }),
+  Product_Content: Object.freeze({ id: 'product-content', label: '產品內容', description: '管理前台產品內容；資源連結及來源欄位按既有合約處理。', editable: true }),
+  premium: Object.freeze({ id: 'premium-data', label: '保費資料', description: '保費矩陣只作檢視；不推算、不四捨五入、不修改。', editable: false }),
+  sources: Object.freeze({ id: 'data-sources', label: '資料來源', description: '查看實際 Official data 來源狀態；不暴露憑證或寫入控制。', editable: false }),
+  Settings_Versions: Object.freeze({ id: 'versions-status', label: '版本／狀態', description: '查看資料集版本；只可按既有 allowlist 管理版本設定。', editable: true })
+});
+
 export const ADMIN_FIELD_LABELS = Object.freeze({
   plan_id: '方案 ID', plan_name: '方案名稱', short_name: '簡稱', plan_category: '方案類別',
   protection_style: '保障形式', active: '啟用', sort_order: '排序', benefit_id: '保障 ID',

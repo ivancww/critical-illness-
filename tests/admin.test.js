@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { CI_APP_ID, browserProofFromContext, exchangeAdminLaunch, writeOfficialData } from '../src/data/data-api.js';
-import { ADMIN_SECTION_DEFINITIONS, adminPersistenceStatus, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus, validateAdminWrite } from '../src/admin/official-config.js';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminPersistenceStatus, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus, validateAdminWrite } from '../src/admin/official-config.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
 const sections = fs.readFileSync('src/admin/official-config.js', 'utf8');
@@ -129,14 +129,49 @@ test('Admin uses true tab state, structured Traditional Chinese labels, and prot
   assert.match(adminSource, /role="tablist"/);
   assert.match(adminSource, /role="tab"/);
   assert.match(app, /role="tabpanel"/);
-  assert.match(app, /panel\.hidden = panel\.id !==/);
+  assert.match(app, /panel\.hidden = panel\.dataset\.adminPanel !== id/);
   assert.match(app, /adminHasDirtyDraft/);
+  assert.match(app, /discardAdminDrafts/);
+  assert.match(app, /button\?\.focus\?\.\(\{ preventScroll: true \}\)/);
   assert.match(app, /未保存的編輯/);
-  assert.match(adminSource, /系統資訊/);
+  assert.match(adminSource, /系統資料/);
   assert.match(app, /驗證並儲存官方資料/);
   assert.match(sections, /adminFieldLabel/);
   assert.match(sections, /ADMIN_FIELD_LABELS/);
   assert.match(fs.readFileSync('src/styles.css', 'utf8'), /\.admin-section\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+});
+
+test('Saving V1.8 Admin alignment keeps CI domains data-driven and separates editable records', () => {
+  const adminStart = app.indexOf('function adminPage()');
+  const adminEnd = app.indexOf('function adminDeniedPage()', adminStart);
+  const adminSource = app.slice(adminStart, adminEnd);
+  assert.deepEqual(ADMIN_SECTION_DEFINITIONS.map(([, dataset]) => dataset), ['Plans', 'Benefits', 'Claim_Rules', 'Health_Program', 'Product_Content', 'premium', 'sources', 'Settings_Versions']);
+  assert.equal(ADMIN_SECTION_META.premium.editable, false);
+  assert.equal(ADMIN_SECTION_META.sources.editable, false);
+  assert.match(adminSource, /class="admin-tab\$\{active \? ' is-active' : ''\}"/);
+  assert.match(adminSource, /<small>\$\{records\.length\} 筆<\/small>/);
+  assert.match(app, /data-admin-panel/);
+  assert.match(app, /adminRecordSelector\(dataset, records, selectedIndex\)/);
+  assert.match(app, /data-admin-record-select/);
+  assert.match(app, /data-admin-field/);
+  assert.match(app, /admin-field--readonly/);
+  assert.match(app, /adminActiveSection/);
+  assert.match(app, /adminSelectedRecords/);
+  assert.match(adminSource, /adminDatasetSection\('premium', premium, .*readonly: true/);
+  assert.match(adminSource, /adminDatasetSection\('sources', sourceRows, .*readonly: true/);
+  assert.doesNotMatch(adminSource, /admin-hero/);
+});
+
+test('Admin responsive contract wraps cards and prevents page overflow', () => {
+  const styles = fs.readFileSync('src/styles.css', 'utf8');
+  assert.match(styles, /html, body \{ overflow-x: hidden; \}/);
+  assert.match(styles, /\.admin-section-nav \{ display: grid; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /@media \(max-width: 760px\)/);
+  assert.match(styles, /@media \(max-width: 430px\)/);
+  assert.match(styles, /\.admin-section-nav \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); \}/);
+  assert.match(styles, /\.admin-section-nav \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
+  assert.match(styles, /\.admin-field-grid, \.admin-editable-fields \{ grid-template-columns: 1fr; \}/);
+  assert.match(styles, /\.admin-section\[hidden\], \.admin-record\[hidden\] \{ display: none !important; \}/);
 });
 
 test('official records retain product history, verify premium mappings, and protect secrets', () => {

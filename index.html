@@ -14,7 +14,7 @@
       <header class="app-header">
         <a class="brand" href="#/" aria-label="AVA Critical Illness 首頁">
           <span class="brand-mark" aria-hidden="true">CI</span>
-          <span><strong>生活支援預備金</strong><small>AVA Critical Illness</small><small class="app-version" id="app-version" aria-label="App version"></small></span>
+          <span><strong>生活支援預備金</strong><small>AVA Critical Illness</small><small class="app-version" id="app-version" aria-label="App version"></small><small id="admin-header-label" hidden>Admin · 官方設定</small></span>
         </a>
         <nav class="top-nav" aria-label="主要導航">
           <a class="return-ava" href="#return-to-ava" data-return-to-ava aria-label="返回 AVA">← 返回 AVA</a>
@@ -42,6 +42,6 @@
         window.setTimeout(() => renderFailure('Admin 初始化逾時。'), 15000);
       })();
     </script>
-    <script type="module" src="./src/app.js?v=0.3.0"></script>
+    <script type="module" src="./src/app.js?v=0.3.1"></script>
   </body>
 </html>
