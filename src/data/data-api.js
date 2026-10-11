@@ -18,7 +18,7 @@ function parseResponse(payload) {
 export async function fetchDataset(action = 'all', fetchImpl = fetch) {
   const url = new URL(GAS_DATA_API_URL);
   if (action) url.searchParams.set('action', action);
-  const response = await fetchImpl(url, { headers: { Accept: 'application/json' } });
+  const response = await fetchImpl(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
   if (!response.ok) throw new DataApiError(`GAS request failed (${response.status}).`, 'HTTP_ERROR');
   return parseResponse(await response.json());
 }
@@ -83,8 +83,28 @@ export async function writeOfficialData(request, adminSessionProof, fetchImpl = 
   const response = await fetchImpl(GAS_DATA_API_URL, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...request, adminSessionProof, appId: CI_APP_ID, operation: CI_APP_ID + ':official-write:' + dataset }) });
   if (!response.ok) throw new DataApiError('GAS write failed (' + response.status + ').', 'WRITE_HTTP_ERROR');
   const envelope = await response.json();
-  if (!envelope || envelope.success !== true && envelope.status !== 'success') throw new DataApiError(envelope?.error || 'GAS did not confirm the official update.', 'WRITE_NOT_CONFIRMED');
-  return envelope.data && typeof envelope.data === 'object' ? envelope.data : envelope;
+  const data = envelope?.data && typeof envelope.data === 'object' ? envelope.data : null;
+  const idFields = { Plans: 'plan_id', Benefits: 'benefit_id', Claim_Rules: 'rule_id', Health_Program: 'health_rule_id', Product_Content: 'content_id', Settings_Versions: 'setting_key' };
+  const fields = request?.fields && typeof request.fields === 'object' ? request.fields : request?.patch;
+  const expectedVersion = String(request?.expectedVersion ?? '');
+  const expectedNextVersion = /^\d+$/.test(expectedVersion) ? String(Number(expectedVersion) + 1) : '';
+  const idField = idFields[dataset];
+  const returnedRecordId = data?.record && idField ? data.record[idField] : undefined;
+  const fieldsVerified = Boolean(data?.record && fields && typeof fields === 'object' && !Array.isArray(fields) && Object.keys(fields).every(key => Object.prototype.hasOwnProperty.call(data.record, key) && valuesMatch(data.record[key], fields[key])));
+  const verifiedFieldNames = Array.isArray(data?.verifiedFields) && fields ? Object.keys(fields).length === data.verifiedFields.length && Object.keys(fields).every(key => data.verifiedFields.includes(key)) : false;
+  const datasetVersionVerified = dataset === 'Settings_Versions'
+    ? Boolean(fields && Object.prototype.hasOwnProperty.call(fields, 'setting_value') && String(data?.datasetVersion ?? '') === String(fields.setting_value) && String(data?.record?.setting_value ?? '') === String(fields.setting_value))
+    : typeof data?.datasetVersion === 'string' && data.datasetVersion.length > 0;
+  const confirmed = envelope && envelope.success === true && data && idField && data.dataset === dataset && data.record && String(returnedRecordId ?? '') === String(request.recordId) && expectedNextVersion && String(data.recordVersion || '') === expectedNextVersion && fieldsVerified && verifiedFieldNames && datasetVersionVerified && data.authoritative === true && data.readAfterWrite === true && data.persisted === true && data.rollback && data.rollback.attempted === false && data.rollback.success === true;
+  if (!confirmed) throw new DataApiError(envelope?.error?.message || envelope?.error || 'GAS did not return complete persisted Official evidence.', 'WRITE_NOT_CONFIRMED');
+  return data;
+}
+
+function valuesMatch(actual, expected) {
+  if (expected === null || expected === undefined) return actual === null || actual === undefined || actual === '';
+  if (typeof expected === 'boolean') return actual === expected;
+  if (typeof expected === 'number') return Number(actual) === expected;
+  return String(actual) === String(expected);
 }
 
 export function validateOfficialData(data) {
@@ -104,6 +124,7 @@ export function normalizeStructuredData(structured = {}) {
     Claim_Rules: pick('Claim_Rules', 'claim_rules'),
     Health_Program: pick('Health_Program', 'health_program'),
     Product_Content: pick('Product_Content', 'product_content'),
-    Settings_Versions: pick('Settings_Versions', 'settings_versions')
+    Settings_Versions: pick('Settings_Versions', 'settings_versions'),
+    _meta: structured._meta && typeof structured._meta === 'object' ? structured._meta : {}
   };
 }

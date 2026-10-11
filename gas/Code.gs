@@ -499,6 +499,166 @@ function bumpDatasetSemanticVersion_(dataset) {
   return next;
 }
 
+function sameValue_(actual, expected) {
+  if (actual instanceof Date || expected instanceof Date) {
+    const actualTime = actual instanceof Date ? actual.getTime() : NaN;
+    const expectedTime = expected instanceof Date ? expected.getTime() : NaN;
+    return Number.isFinite(actualTime) && Number.isFinite(expectedTime) && actualTime === expectedTime;
+  }
+
+  if (expected === null || expected === undefined) {
+    return actual === null || actual === undefined || actual === '';
+  }
+
+  if (typeof expected === 'boolean') return actual === expected;
+  if (typeof expected === 'number') return Number(actual) === expected;
+  return String(actual) === String(expected);
+}
+
+function cellSnapshot_(sheetName, row, column) {
+  const sheet = book_().getSheetByName(sheetName);
+  const range = sheet.getRange(row, column);
+
+  return {
+    sheet: sheetName,
+    row: row,
+    column: column,
+    value: range.getValue(),
+    formula: String(range.getFormula() || '')
+  };
+}
+
+function restoreCellSnapshot_(snapshot) {
+  const sheet = book_().getSheetByName(snapshot.sheet);
+  const range = sheet.getRange(snapshot.row, snapshot.column);
+
+  if (snapshot.formula) {
+    range.setFormula(snapshot.formula);
+  } else {
+    range.setValue(snapshot.value);
+  }
+}
+
+function cellMatchesSnapshot_(snapshot) {
+  const sheet = book_().getSheetByName(snapshot.sheet);
+  const range = sheet.getRange(snapshot.row, snapshot.column);
+  const formula = String(range.getFormula() || '');
+
+  if (formula !== snapshot.formula) return false;
+  return snapshot.formula ? true : sameValue_(range.getValue(), snapshot.value);
+}
+
+function rollbackAdminMutation_(snapshots) {
+  const result = {
+    attempted: true,
+    success: false,
+    restoredCells: 0,
+    error: null
+  };
+
+  try {
+    snapshots.forEach(function (snapshot) {
+      restoreCellSnapshot_(snapshot);
+    });
+
+    SpreadsheetApp.flush();
+
+    snapshots.forEach(function (snapshot) {
+      if (!cellMatchesSnapshot_(snapshot)) {
+        throw new Error(
+          'Rollback verification failed for ' + snapshot.sheet + '!R' + snapshot.row + 'C' + snapshot.column
+        );
+      }
+    });
+
+    result.success = true;
+    result.restoredCells = snapshots.length;
+    return result;
+  } catch (error) {
+    result.error = String(error && error.message || error);
+    return result;
+  }
+}
+
+function datasetVersionTarget_(dataset) {
+  const key = CONFIG.DATASET_VERSION_KEYS[dataset];
+
+  if (!key) return null;
+
+  const record = settingsRecord_(key);
+
+  if (!record) {
+    throw new Error('Dataset version setting not found: ' + key);
+  }
+
+  const columns = headers_('Settings_Versions');
+
+  if (!columns.setting_key || !columns.setting_value) {
+    throw new Error('Settings_Versions schema is missing setting_key or setting_value');
+  }
+
+  return {
+    key: key,
+    record: record,
+    columns: columns,
+    sheet: book_().getSheetByName('Settings_Versions')
+  };
+}
+
+function validateAdminSheetSchema_(dataset, config, columns, fields, versionTarget) {
+  if (!columns[config.id]) {
+    throw new Error('Required record ID column is missing: ' + config.id);
+  }
+
+  if (!columns.version) {
+    throw new Error('Technical record version column is missing');
+  }
+
+  Object.keys(fields).forEach(function (field) {
+    if (!columns[field]) {
+      throw new Error('Field does not exist in Sheet: ' + field);
+    }
+  });
+
+  if (dataset !== 'Settings_Versions' && !versionTarget) {
+    throw new Error('Dataset semantic version target is unavailable');
+  }
+}
+
+function verifyPersistedAdminWrite_(dataset, recordId, fields, expectedVersion, fresh, datasetVersion) {
+  const expectedNextVersion = nextRecordVersion_(expectedVersion);
+  const mismatchedFields = Object.keys(fields).filter(function (field) {
+    return !sameValue_(fresh[field], fields[field]);
+  });
+
+  if (mismatchedFields.length) {
+    throw new Error('Read-after-write field verification failed: ' + mismatchedFields.join(', '));
+  }
+
+  if (String(fresh.version) !== expectedNextVersion) {
+    throw new Error(
+      'Read-after-write record version verification failed: expected ' + expectedNextVersion + ', got ' + String(fresh.version)
+    );
+  }
+
+  if (dataset === 'Settings_Versions') {
+    if (datasetVersion !== String(fresh.setting_value)) {
+      throw new Error('Read-after-write dataset semantic version verification failed');
+    }
+  } else {
+    const versionTarget = datasetVersionTarget_(dataset);
+    const persistedVersion = String(findRecord_('Settings_Versions', versionTarget.key).setting_value || '');
+
+    if (!datasetVersion || persistedVersion !== String(datasetVersion)) {
+      throw new Error('Read-after-write dataset semantic version verification failed');
+    }
+  }
+
+  if (!recordId || !fresh) {
+    throw new Error('Read-after-write record verification failed');
+  }
+}
+
 function adminUpdate_(request) {
   const dataset = String(request.dataset || '').trim();
   const config = ADMIN_DATASETS[dataset];
@@ -539,6 +699,9 @@ function adminUpdate_(request) {
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
 
+  let mutationStarted = false;
+  let snapshots = [];
+
   try {
     const current = findRecord_(dataset, recordId);
     const actualVersion = recordVersion_(current);
@@ -549,20 +712,35 @@ function adminUpdate_(request) {
 
     const sheet = book_().getSheetByName(dataset);
     const columns = headers_(dataset);
+    const versionTarget = datasetVersionTarget_(dataset);
+
+    validateAdminSheetSchema_(dataset, config, columns, fields, versionTarget);
+
+    snapshots = Object.keys(fields).map(function (field) {
+      return cellSnapshot_(dataset, current.__rowNumber, columns[field]);
+    });
+
+    snapshots.push(cellSnapshot_(dataset, current.__rowNumber, columns.version));
+
+    if (columns.updated_at) {
+      snapshots.push(cellSnapshot_(dataset, current.__rowNumber, columns.updated_at));
+    }
+
+    if (versionTarget) {
+      snapshots.push(cellSnapshot_('Settings_Versions', versionTarget.record.__rowNumber, versionTarget.columns.setting_value));
+
+      if (versionTarget.columns.updated_at) {
+        snapshots.push(cellSnapshot_('Settings_Versions', versionTarget.record.__rowNumber, versionTarget.columns.updated_at));
+      }
+    }
+
+    mutationStarted = true;
 
     Object.keys(fields).forEach(function (field) {
-      if (!columns[field]) {
-        throw new Error('Field does not exist in Sheet: ' + field);
-      }
-
       sheet
         .getRange(current.__rowNumber, columns[field])
         .setValue(fields[field]);
     });
-
-    if (!columns.version) {
-      throw new Error('Technical record version column is missing');
-    }
 
     sheet
       .getRange(current.__rowNumber, columns.version)
@@ -576,12 +754,13 @@ function adminUpdate_(request) {
 
     const datasetVersion =
       dataset === 'Settings_Versions'
-        ? null
+        ? String(fields.setting_value === undefined ? current.setting_value : fields.setting_value)
         : bumpDatasetSemanticVersion_(dataset);
 
     SpreadsheetApp.flush();
 
     const fresh = findRecord_(dataset, recordId);
+    verifyPersistedAdminWrite_(dataset, recordId, fields, actualVersion, fresh, datasetVersion);
     delete fresh.__rowNumber;
 
     return success_({
@@ -590,8 +769,42 @@ function adminUpdate_(request) {
       recordVersion: String(fresh.version),
       datasetVersion: datasetVersion,
       authoritative: true,
-      readAfterWrite: true
+      readAfterWrite: true,
+      persisted: true,
+      verifiedFields: Object.keys(fields),
+      rollback: {
+        attempted: false,
+        success: true
+      }
     });
+  } catch (error) {
+    if (mutationStarted) {
+      const rollback = rollbackAdminMutation_(snapshots);
+
+      if (!rollback.success) {
+        const rollbackError = new Error(
+          'Official write failed and rollback failed: ' + rollback.error
+        );
+        rollbackError.code = 'ROLLBACK_FAILED';
+        rollbackError.details = {
+          rollback: rollback,
+          originalError: String(error && error.message || error)
+        };
+        throw rollbackError;
+      }
+
+      const rolledBackError = new Error(
+        'Official write failed; all changed cells were rolled back: ' + String(error && error.message || error)
+      );
+      rolledBackError.code = 'WRITE_ROLLED_BACK';
+      rolledBackError.details = {
+        rollback: rollback,
+        originalError: String(error && error.message || error)
+      };
+      throw rolledBackError;
+    }
+
+    throw error;
   } finally {
     lock.releaseLock();
   }
@@ -624,6 +837,14 @@ function doPost(e) {
     );
   } catch (error) {
     const message = String(error && error.message || error);
+
+    if (error && error.code === 'ROLLBACK_FAILED') {
+      return failure_('ROLLBACK_FAILED', message, error.details || null);
+    }
+
+    if (error && error.code === 'WRITE_ROLLED_BACK') {
+      return failure_('WRITE_ROLLED_BACK', message, error.details || null);
+    }
 
     if (/session|proof|authorization|platform/i.test(message)) {
       return failure_('ADMIN_UNAUTHORIZED', message);
