@@ -85,9 +85,26 @@ export async function writeOfficialData(request, adminSessionProof, fetchImpl = 
   const envelope = await response.json();
   const data = envelope?.data && typeof envelope.data === 'object' ? envelope.data : null;
   const idFields = { Plans: 'plan_id', Benefits: 'benefit_id', Claim_Rules: 'rule_id', Health_Program: 'health_rule_id', Product_Content: 'content_id', Settings_Versions: 'setting_key' };
-  const confirmed = envelope && (envelope.success === true || envelope.status === 'success') && data && data.dataset === dataset && data.record && String(data.record[idFields[dataset]] || '') === String(request.recordId) && String(data.recordVersion || '') !== '' && data.authoritative === true && data.readAfterWrite === true;
+  const fields = request?.fields && typeof request.fields === 'object' ? request.fields : request?.patch;
+  const expectedVersion = String(request?.expectedVersion ?? '');
+  const expectedNextVersion = /^\d+$/.test(expectedVersion) ? String(Number(expectedVersion) + 1) : '';
+  const idField = idFields[dataset];
+  const returnedRecordId = data?.record && idField ? data.record[idField] : undefined;
+  const fieldsVerified = Boolean(data?.record && fields && typeof fields === 'object' && !Array.isArray(fields) && Object.keys(fields).every(key => Object.prototype.hasOwnProperty.call(data.record, key) && valuesMatch(data.record[key], fields[key])));
+  const verifiedFieldNames = Array.isArray(data?.verifiedFields) && fields ? Object.keys(fields).length === data.verifiedFields.length && Object.keys(fields).every(key => data.verifiedFields.includes(key)) : false;
+  const datasetVersionVerified = dataset === 'Settings_Versions'
+    ? Boolean(fields && Object.prototype.hasOwnProperty.call(fields, 'setting_value') && String(data?.datasetVersion ?? '') === String(fields.setting_value) && String(data?.record?.setting_value ?? '') === String(fields.setting_value))
+    : typeof data?.datasetVersion === 'string' && data.datasetVersion.length > 0;
+  const confirmed = envelope && envelope.success === true && data && idField && data.dataset === dataset && data.record && String(returnedRecordId ?? '') === String(request.recordId) && expectedNextVersion && String(data.recordVersion || '') === expectedNextVersion && fieldsVerified && verifiedFieldNames && datasetVersionVerified && data.authoritative === true && data.readAfterWrite === true && data.persisted === true && data.rollback && data.rollback.attempted === false && data.rollback.success === true;
   if (!confirmed) throw new DataApiError(envelope?.error?.message || envelope?.error || 'GAS did not return complete persisted Official evidence.', 'WRITE_NOT_CONFIRMED');
   return data;
+}
+
+function valuesMatch(actual, expected) {
+  if (expected === null || expected === undefined) return actual === null || actual === undefined || actual === '';
+  if (typeof expected === 'boolean') return actual === expected;
+  if (typeof expected === 'number') return Number(actual) === expected;
+  return String(actual) === String(expected);
 }
 
 export function validateOfficialData(data) {
