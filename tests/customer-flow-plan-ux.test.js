@@ -120,15 +120,21 @@ test('issue age chooses enhancement band while diagnosis age only controls first
   assert.equal(ageDependentEnhancement(benefits, 'OYS2', 30).percent, 50);
   assert.equal(ageDependentEnhancement(benefits, 'OYS2', 31).percent, 35);
   assert.deepEqual(diagnosisTiming(45, 50), { status: 'APPLICABLE', elapsedYears: 5, reason: '仍在首10年保障期內。' });
-  assert.equal(diagnosisTiming(45, 58).status, 'NOT_APPLICABLE');
+  assert.equal(diagnosisTiming(45, 54).status, 'APPLICABLE');
+  assert.equal(diagnosisTiming(45, 56).status, 'NOT_APPLICABLE');
+  assert.equal(diagnosisTiming(45, 55).status, 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY');
   const inPeriod = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 40 });
-  const afterPeriod = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 41 });
+  const afterPeriod = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 42 });
   assert.equal(inPeriod.extra.percent, 35);
   assert.equal(inPeriod.extra.amount, 175000);
   assert.equal(afterPeriod.extra.status, 'NOT_APPLICABLE');
   assert.equal(afterPeriod.totalApplicable, 500000);
+  const sce = planProtectionSummary({ plan: plans[0], benefits, sumAssured: 500000, age: 45, diagnosisAge: 50 });
+  assert.equal(sce.diagnosis.visible, false);
+  assert.equal(sce.extra.status, 'NOT_APPLICABLE');
   assert.match(app, /確診歲數/);
   assert.doesNotMatch(app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs')), /現時可享保障/);
+  assert.doesNotMatch(app, /globalThis\.__ciCumulativeCard/);
 });
 
 test('cumulative payout is derived from scenario events', () => {

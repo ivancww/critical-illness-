@@ -41,9 +41,9 @@ export function diagnosisTiming(issueAge, diagnosisAge, years = 10) {
     return { status: 'VERIFY_REQUIRED', reason: '首10年保障期的官方邊界未能核實。', elapsedYears };
   }
   return {
-    status: elapsedYears < Number(years) ? 'APPLICABLE' : 'NOT_APPLICABLE',
+    status: elapsedYears < Number(years) ? 'APPLICABLE' : elapsedYears > Number(years) ? 'NOT_APPLICABLE' : 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY',
     elapsedYears,
-    reason: elapsedYears < Number(years) ? '仍在首10年保障期內。' : '已超過首10年保障期。'
+    reason: elapsedYears < Number(years) ? '仍在首10年保障期內。' : elapsedYears > Number(years) ? '已超過首10年保障期。' : '接近首10年保障期邊界，需按保單週年確認。'
   };
 }
 
@@ -84,11 +84,16 @@ export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age
   const major = resolveBenefits(benefits, id).find(row => row.benefit_type === 'major_ci' && active(row) && number(row.payout_percent) === 100);
   const early = resolveBenefits(benefits, id).find(row => row.benefit_type === 'early_ci' && active(row));
   const enhancement = ageDependentEnhancement(benefits, id, age);
-  const timing = diagnosisAge === undefined || diagnosisAge === null || diagnosisAge === ''
+  const firstTenRows = resolveBenefits(benefits, id).filter(row => row.benefit_type === 'first_10_year_bonus' && active(row));
+  const timing = !firstTenRows.length
+    ? { status: 'NOT_APPLICABLE', visible: false, elapsedYears: null, reason: '此方案沒有配置首10年升級保障。' }
+    : diagnosisAge === undefined || diagnosisAge === null || diagnosisAge === ''
     ? { status: 'NOT_PROVIDED', elapsedYears: null, reason: '輸入確診歲數後顯示首10年保障是否生效。' }
     : diagnosisTiming(age, diagnosisAge);
   const effectiveEnhancement = timing.status === 'VERIFY_REQUIRED'
     ? { ...enhancement, status: 'VERIFY_REQUIRED', reason: timing.reason }
+    : timing.status === 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY'
+      ? { ...enhancement, status: 'VERIFY_REQUIRED', reason: timing.reason, amount: null }
     : timing.status === 'NOT_APPLICABLE'
       ? { ...enhancement, status: 'NOT_APPLICABLE', amount: 0, reason: timing.reason }
       : enhancement;
