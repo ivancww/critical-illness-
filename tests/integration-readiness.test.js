@@ -23,7 +23,7 @@ test('User flow includes Frontstage edit, Preview, and Save Local', () => {
   assert.match(app, /persistUser\(\); setStatus\('User Override 已保存至本機。'\)/);
 });
 
-test('Return to AVA uses caller context and no guessed deployment URL', () => {
+test('Return to AVA prefers caller context with a safe static fallback', () => {
   const currentUrl = 'https://ava.example/critical-illness/?avaEntry=user';
   assert.equal(resolveAvaReturnContext({ referrer: 'https://ivancww.github.io/avaplatform/', currentUrl }), 'https://ivancww.github.io/avaplatform/');
   assert.equal(resolveAvaReturnContext({ referrer: 'https://ivancww.github.io/avaplatform/?avaSurface=user', currentUrl }), 'https://ivancww.github.io/avaplatform/?avaSurface=user');
@@ -34,8 +34,8 @@ test('Return to AVA uses caller context and no guessed deployment URL', () => {
   assert.match(app, /function returnContext\(\)/);
   assert.match(app, /document\.referrer/);
   assert.match(app, /function returnToAva\(event\)/);
-  assert.doesNotMatch(app, /https:\/\/ivancww\.github\.io\/avaplatform/);
-  assert.doesNotMatch(html, /\.\.\/avaplatform\//);
+  assert.match(app, /https:\/\/ivancww\.github\.io\/avaplatform\//);
+  assert.match(html, /href="https:\/\/ivancww\.github\.io\/avaplatform\//);
   assert.match(compliance, /caller-provided browser return context/);
 });
 

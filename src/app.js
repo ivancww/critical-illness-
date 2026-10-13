@@ -1,15 +1,15 @@
-import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js';
-import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js';
-import { diseaseResourcesForProduct, firebaseResourceUrl } from './data/content.js';
-import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js';
-import { getActivePlans, resolveClaimRules } from './domain/product-engine.js';
-import { verificationState } from './domain/verification.js';
-import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js';
-import { claimOutcome, planProtectionSummary, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js';
-import { formatMoneyText, parseMoneyText } from './domain/input-format.js';
-import { resolveAvaReturnContext } from './integration/return-context.js';
-import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js';
-import { APP_VERSION } from './version.js?v=0.4.0';
+import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.4.1';
+import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.4.1';
+import { diseaseResourcesForProduct, firebaseResourceUrl } from './data/content.js?v=0.4.1';
+import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.4.1';
+import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.4.1';
+import { verificationState } from './domain/verification.js?v=0.4.1';
+import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.4.1';
+import { claimOutcome, planProtectionSummary, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.4.1';
+import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.4.1';
+import { resolveAvaReturnContext } from './integration/return-context.js?v=0.4.1';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.4.1';
+import { APP_VERSION } from './version.js?v=0.4.1';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -199,7 +199,7 @@ function presentation() { const s = supportSummary(); const chosen = plans(); co
 function editDraft() { return { introTitle: document.querySelector('#intro-title').value.trim(), introSubtitle: document.querySelector('#intro-subtitle').value.trim(), introSupport: document.querySelector('#intro-support').value.trim(), showIntro: document.querySelector('#show-intro').checked }; }
 function saveEditDraft() { state.user.pagePreferences = editDraft(); persistUser(); }
 function returnContext() { return resolveAvaReturnContext({ referrer: document.referrer, currentUrl: location.href }); }
-function returnToAva(event) { event?.preventDefault(); const context = returnContext(); if (context) { window.location.assign(context); return; } setStatus('AVA return context unavailable; please reopen this App from AVA.', true); }
+function returnToAva(event) { event?.preventDefault(); const context = returnContext(); window.location.assign(context || 'https://ivancww.github.io/avaplatform/'); }
 
 function editPage() { if (!canEdit) return home(); const p = state.user.pagePreferences || {}; render(`<section class="hero" data-ava-mode="edit"><span class="eyebrow">User Editing</span><h1>編輯 Frontstage</h1><p class="support">只保存 User/Local Layer；官方產品、計算、保費、理賠規則保持受保護。</p><article class="card"><div class="field"><label for="intro-title">主訊息</label><input id="intro-title" value="${escapeHtml(p.introTitle || '')}"></div><div class="field"><label for="intro-subtitle">標題</label><input id="intro-subtitle" value="${escapeHtml(p.introSubtitle || '')}"></div><div class="field"><label for="intro-support">Supporting text</label><textarea id="intro-support">${escapeHtml(p.introSupport || '')}</textarea></div><label><input id="show-intro" type="checkbox" ${p.showIntro !== false ? 'checked' : ''}> 顯示首頁介紹</label><div class="actions"><button class="primary" id="preview-edit">Preview</button><button class="secondary" id="save-edit">Save Local</button><a class="button subtle" href="#/">取消</a><button class="subtle" id="backup-user">下載結構化 Backup</button><label class="button subtle file-button" for="restore-user">還原 Backup</label><input id="restore-user" type="file" accept="application/json" hidden></div></article>${pagesEditorMarkup()}</section>`, 'edit'); bindEdit(); }
 function pagesEditorMarkup() { return `<article class="card"><h2>User-created Pages</h2><p class="muted">最多 6 張圖片；影片最多 1 段。二進位媒體只可上載至 Cloud Storage。</p><div class="field"><label for="page-type">Page type</label><select id="page-type"><option value="content">Content Page</option><option value="image">Image Page</option><option value="video">Video Page</option></select></div><div class="field"><label for="page-title">標題</label><input id="page-title"></div><div class="field"><label for="page-content">內容</label><textarea id="page-content"></textarea></div><button class="secondary" id="create-page">新增頁面</button>${state.user.pages.map((p, i) => `<div class="user-page-row"><span>${escapeHtml(p.title)} · ${p.type} · ${p.visible ? '顯示' : '隱藏'}</span><span><button class="subtle" data-toggle-page="${escapeHtml(p.id)}">${p.visible ? '隱藏' : '顯示'}</button><button class="subtle" data-move-page="${escapeHtml(p.id)}" data-direction="-1" ${i === 0 ? 'disabled' : ''}>↑</button><button class="subtle" data-move-page="${escapeHtml(p.id)}" data-direction="1" ${i === state.user.pages.length - 1 ? 'disabled' : ''}>↓</button><button class="subtle" data-delete-page="${escapeHtml(p.id)}">刪除</button>${p.type !== 'content' ? `<input class="media-input" data-media-page="${escapeHtml(p.id)}" type="file" accept="${p.type === 'image' ? 'image/*' : 'video/*'}" ${p.type === 'image' ? 'multiple' : ''}>` : ''}</span></div>`).join('')}</article>`; }
@@ -412,5 +412,5 @@ function registerServiceWorker() {
   }).catch(() => setStatus('離線外殼未能啟用。', true));
 }
 
-document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); window.addEventListener('hashchange', route); route(); if (!state.official) setStatus('官方資料正在載入；未配置資料會安全顯示 pending。'); refreshOfficial(); establishAdminAuthorization(); registerServiceWorker();
+document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); window.addEventListener('hashchange', route); route(); if (!state.official) setStatus('官方資料正在載入；未配置資料會安全顯示 pending。'); refreshOfficial(); establishAdminAuthorization(); registerServiceWorker(); window.__AVA_CI_BOOT_OK__ = true; window.__AVA_CI_MARK_BOOT_OK__?.();
 export { supportSummary, state, verificationState };

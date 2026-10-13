@@ -7,7 +7,7 @@
     <meta name="description" content="Critical Illness life support reserve planning">
     <link rel="manifest" href="./manifest.json">
     <title>生活支援預備金｜AVA Critical Illness</title>
-    <link rel="stylesheet" href="./src/styles.css">
+    <link rel="stylesheet" href="./src/styles.css?v=0.4.1">
   </head>
   <body>
     <div class="ava-shell" id="app">
@@ -17,12 +17,33 @@
           <span><strong>生活支援預備金</strong><small>AVA Critical Illness</small><small class="app-version" id="app-version" aria-label="App version"></small></span>
         </a>
         <nav class="top-nav" aria-label="主要導航">
-          <a class="return-ava" href="#return-to-ava" data-return-to-ava aria-label="返回 AVA">← 返回 AVA</a>
+          <a class="return-ava" href="https://ivancww.github.io/avaplatform/" data-return-to-ava aria-label="返回 AVA">← 返回 AVA</a>
         </nav>
       </header>
       <main id="main-content" tabindex="-1"></main>
       <div id="status" class="status" role="status" aria-live="polite"></div>
     </div>
+    <script>
+      (() => {
+        const avaFallback = 'https://ivancww.github.io/avaplatform/';
+        const isAdmin = new URLSearchParams(location.search).get('avaEntry') === 'admin';
+        const main = document.querySelector('#main-content');
+        let timer = null;
+        let booted = false;
+        window.__AVA_CI_BOOT_OK__ = false;
+        const showRecovery = () => {
+          if (booted || isAdmin || !main) return;
+          main.innerHTML = '<section class="hero" data-startup-recovery><span class="eyebrow">AVA Critical Illness</span><h1>Critical Illness 暫時未能載入</h1><p class="support">請重新載入，或返回 AVA 重新開啟此 App。</p><div class="actions actions--end"><button class="primary" type="button" data-startup-reload>重新載入</button><a class="button secondary" href="' + avaFallback + '">返回 AVA</a></div></section>';
+          main.querySelector('[data-startup-reload]')?.addEventListener('click', () => window.location.reload());
+        };
+        window.__AVA_CI_MARK_BOOT_OK__ = () => {
+          booted = true;
+          window.__AVA_CI_BOOT_OK__ = true;
+          if (timer) window.clearTimeout(timer);
+        };
+        if (!isAdmin) timer = window.setTimeout(showRecovery, 10000);
+      })();
+    </script>
     <script>
       (() => {
         const isAdmin = new URLSearchParams(location.search).get('avaEntry') === 'admin';
@@ -42,6 +63,6 @@
         window.setTimeout(() => renderFailure('Admin 初始化逾時。'), 15000);
       })();
     </script>
-    <script type="module" src="./src/app.js?v=0.4.0"></script>
+    <script type="module" src="./src/app.js?v=0.4.1"></script>
   </body>
 </html>
