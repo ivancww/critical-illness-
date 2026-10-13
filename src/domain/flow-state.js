@@ -1,4 +1,6 @@
-export const FLOW_STEP_COUNT = 14;
+// The guided conversation ends once the customer understands the two
+// protection styles. Product education continues inside the actual plans.
+export const FLOW_STEP_COUNT = 9;
 
 export function createFlowState(initial = {}) {
   return {
