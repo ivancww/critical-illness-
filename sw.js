@@ -1,9 +1,9 @@
 // Keep this name stable. Service-worker script updates discover a new
 // deployment; releases must not depend on a manually edited cache version.
 const CACHE = 'ava-ci-shell';
-const RELEASE = '0.3.1';
+const RELEASE = '0.4.0';
 const LEGACY_CACHE_PREFIX = 'ava-ci-shell-';
-const SHELL = ['./', './index.html', './manifest.json', `./src/app.js?v=${RELEASE}`, `./src/version.js?v=${RELEASE}`, './src/styles.css', './src/domain/product-engine.js', './src/domain/claim-engine.js', './src/domain/premium-engine.js', './src/domain/flow-state.js', './src/domain/verification.js', './src/domain/frontstage-experience.js', './src/data/data-api.js', './src/data/storage.js', './src/data/content.js', './src/integration/return-context.js', './src/admin/official-config.js'];
+const SHELL = ['./', './index.html', './manifest.json', `./src/app.js?v=${RELEASE}`, `./src/version.js?v=${RELEASE}`, `./src/styles.css?v=${RELEASE}`, `./src/domain/product-engine.js?v=${RELEASE}`, `./src/domain/claim-engine.js?v=${RELEASE}`, `./src/domain/premium-engine.js?v=${RELEASE}`, `./src/domain/flow-state.js?v=${RELEASE}`, `./src/domain/verification.js?v=${RELEASE}`, `./src/domain/frontstage-experience.js?v=${RELEASE}`, `./src/domain/plan-experience.js?v=${RELEASE}`, `./src/domain/input-format.js?v=${RELEASE}`, `./src/data/data-api.js?v=${RELEASE}`, `./src/data/storage.js?v=${RELEASE}`, `./src/data/content.js?v=${RELEASE}`, `./src/integration/return-context.js?v=${RELEASE}`, `./src/admin/official-config.js?v=${RELEASE}`];
 
 function isOwnedCache(name) {
   return name === CACHE || name.startsWith(LEGACY_CACHE_PREFIX);

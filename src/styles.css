@@ -132,6 +132,16 @@ h3 { margin: 0; font-size: 17px; }
 .protection-row strong small { display: block; color: var(--ava-color-muted); font-size: 13px; font-weight: 600; }
 .protection-row--total strong { font-size: clamp(24px, 4vw, 34px); }
 .claim-breakdown { display: grid; gap: 0; width: 100%; }
+.claim-selector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.claim-selector .choice { min-height: 44px; }
+.claim-selector .choice.is-selected { border-color: var(--ava-color-primary); background: var(--ava-color-selected); color: var(--ava-color-primary); }
+.claim-result { display: grid; gap: 6px; padding: 14px 0; border-block: 1px solid var(--ava-color-border); }
+.claim-result > strong { color: var(--ava-color-primary); font-size: clamp(28px, 5vw, 42px); line-height: 1.15; overflow-wrap: anywhere; }
+.support-effect { display: grid; gap: 6px; margin-top: auto; padding-top: 14px; }
+.support-effect > strong { color: var(--ava-color-primary); }
+.resource-category { display: grid; gap: 12px; margin: 20px 0; }
+.resource-card { display: grid; align-content: start; gap: 8px; }
+.resource-preview { display: block; width: 100%; height: auto; max-height: 360px; object-fit: contain; border-radius: var(--ava-radius-control); }
 .plan-outcome { min-height: 52px; display: grid; align-items: center; padding: 12px 0; color: var(--ava-color-primary); }
 .claim-state { display: grid; gap: 10px; border: 2px solid var(--ava-color-primary); }
 .claim-state > strong { color: var(--ava-color-primary); font-size: clamp(34px, 7vw, 52px); line-height: 1.15; }

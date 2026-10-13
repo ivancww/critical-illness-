@@ -1,6 +1,13 @@
 export const GAS_DATA_API_URL = 'https://script.google.com/macros/s/AKfycbyWEzPJm1q0QG0ZXFAqGQv6WxTGj8B3EVUgnSP28ML1Y0wbPu7ZaaqUdmARG6teYYjclA/exec';
 export const CI_APP_ID = 'critical-illness';
 
+export const PREMIUM_SOURCE_NAMES = Object.freeze({
+  OYS2_MALE: '男愛伴航2保費',
+  OYS2_FEMALE: '女愛伴航2保費',
+  SCE_MALE: '男簡護危疾保保費',
+  SCE_FEMALE: '女簡護危疾保保費'
+});
+
 export class DataApiError extends Error {
   constructor(message, code = 'DATA_API_ERROR') {
     super(message);
@@ -28,7 +35,18 @@ export async function loadOfficialData(fetchImpl = fetch) {
     fetchDataset('all', fetchImpl),
     fetchDataset('premiumSheets', fetchImpl)
   ]);
-  return { structured, premium, fetchedAt: new Date().toISOString() };
+  return { structured, premium: normalizePremiumData(premium), fetchedAt: new Date().toISOString() };
+}
+
+// GAS readPremium_ returns each premium sheet directly as a matrix. Keep the
+// source name explicit in the browser-owned normalized shape so presentation
+// code does not infer it from a display label or from matrix contents.
+export function normalizePremiumData(premium = {}) {
+  return Object.fromEntries(Object.entries(PREMIUM_SOURCE_NAMES).map(([key, sheetName]) => {
+    const raw = premium?.[key];
+    const values = Array.isArray(raw) ? raw : Array.isArray(raw?.values) ? raw.values : [];
+    return [key, { sheetName, values }];
+  }));
 }
 
 const PLATFORM_ORIGIN = 'https://ivancww.github.io';

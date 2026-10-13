@@ -92,18 +92,39 @@ export function heartStrokeTimeline({ rules, planId: id, sumAssured, age, claims
   return { events, remainingClaims: evidence.maxClaims - events.length, maxClaims: evidence.maxClaims };
 }
 
-export function premiumEvidence(premium, plan, gender, age, smokerStatus, paymentTerm) {
+function premiumAgeRow(matrix, age) {
+  return matrix.find(row => Array.isArray(row) && Number.isFinite(Number(row[0])) && Number(row[0]) === Number(age));
+}
+
+function premiumColumn(planId, paymentTerm, smokerStatus) {
+  if (planId === 'OYS2') {
+    const termColumns = { 10: [1, 2], 18: [3, 4], 25: [5, 6] };
+    const columns = termColumns[Number(paymentTerm)];
+    return columns?.[smokerStatus === 'smoker' ? 1 : 0];
+  }
+  return [1, 2][smokerStatus === 'smoker' ? 1 : 0];
+}
+
+export function premiumEvidence(premium, plan, gender, age, smokerStatus, paymentTerm, sumAssured) {
   const id = String(planId(plan) || '').toUpperCase();
   const key = `${id}_${gender === 'F' ? 'FEMALE' : 'MALE'}`;
   const matrix = premium?.[key]?.values;
   if (!Array.isArray(matrix) || !Number.isInteger(Number(age))) return { status: 'VERIFY_REQUIRED', reason: '官方保費資料或年齡未提供' };
-  const header = matrix[id === 'OYS2' ? 3 : 2] || [];
-  const row = matrix.find((entry, index) => index >= (id === 'OYS2' ? 4 : 3) && Number(entry[0]) === Number(age));
-  const terms = id === 'OYS2' ? { 10: [1, 2], 18: [3, 4], 25: [5, 6] } : { annual: [1, 2] };
-  const columns = terms[id === 'OYS2' ? paymentTerm : 'annual'];
-  const column = columns?.[smokerStatus === 'smoker' ? 1 : 0];
-  if (column === undefined || !row || !header[column] || !positive(row[column])) return { status: 'VERIFY_REQUIRED', reason: '此年齡、吸煙狀態或供款期沒有可用官方費率' };
-  return { status: 'VERIFY_REQUIRED', reason: '費率座標可讀；保費計算、四捨五入及月繳次序尚待核實', source: premium[key].sheetName };
+  const row = premiumAgeRow(matrix, age);
+  const column = premiumColumn(id, paymentTerm, smokerStatus);
+  const rate = column === undefined ? null : Number(row?.[column]);
+  const basis = Number(plan?.rate_basis);
+  if (column === undefined || !row || !positive(rate) || !positive(basis)) return { status: 'VERIFY_REQUIRED', reason: '此年齡、吸煙狀態、供款期或保額沒有可用官方資料', source: premium[key]?.sheetName };
+  if (!positive(sumAssured)) return { status: 'VERIFY_REQUIRED', reason: '請先輸入有效基本保額', source: premium[key]?.sheetName, rawRate: rate, rateBasis: basis };
+  return {
+    status: 'AVAILABLE',
+    source: premium[key].sheetName,
+    rawRate: rate,
+    rateBasis: basis,
+    sumAssured: Number(sumAssured),
+    annualPremium: Number(sumAssured) / basis * rate,
+    reason: '按已配置官方保費表及方案保額基準計算；未填補缺失費率。'
+  };
 }
 
 export function paymentEndAge(startAge, term) {
