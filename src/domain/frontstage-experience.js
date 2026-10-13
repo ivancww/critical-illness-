@@ -92,6 +92,13 @@ export function heartStrokeTimeline({ rules, planId: id, sumAssured, age, claims
   return { events, remainingClaims: evidence.maxClaims - events.length, maxClaims: evidence.maxClaims };
 }
 
+export function cumulativePayout(events = []) {
+  const valid = Array.isArray(events) ? events.filter(event => Number.isFinite(Number(event?.amount))) : [];
+  const amount = valid.reduce((total, event) => total + Number(event.amount), 0);
+  const percent = valid.reduce((total, event) => total + (Number(event?.percent) || 0), 0);
+  return { amount, percent, eventCount: valid.length };
+}
+
 function premiumAgeRow(matrix, age) {
   return matrix.find(row => Array.isArray(row) && Number.isFinite(Number(row[0])) && Number(row[0]) === Number(age));
 }

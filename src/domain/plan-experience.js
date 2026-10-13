@@ -30,6 +30,23 @@ export function ageDependentEnhancement(benefits = [], id, age) {
   return { status: 'VERIFIED', percent, amount: null, row };
 }
 
+export function diagnosisTiming(issueAge, diagnosisAge, years = 10) {
+  const issue = Number(issueAge);
+  const diagnosis = Number(diagnosisAge);
+  if (!Number.isInteger(issue) || issue < 0 || !Number.isInteger(diagnosis) || diagnosis < issue) {
+    return { status: 'VERIFY_REQUIRED', reason: '請輸入不早於投保年齡的確診歲數。', elapsedYears: null };
+  }
+  const elapsedYears = diagnosis - issue;
+  if (!Number.isFinite(Number(years)) || Number(years) <= 0) {
+    return { status: 'VERIFY_REQUIRED', reason: '首10年保障期的官方邊界未能核實。', elapsedYears };
+  }
+  return {
+    status: elapsedYears < Number(years) ? 'APPLICABLE' : 'NOT_APPLICABLE',
+    elapsedYears,
+    reason: elapsedYears < Number(years) ? '仍在首10年保障期內。' : '已超過首10年保障期。'
+  };
+}
+
 export function premiumWaiverText(benefits = [], id) {
   const row = resolveBenefits(benefits, id).find(candidate => candidate.benefit_type === 'premium_waiver' && active(candidate));
   const text = String(row?.display_text ?? '').trim();
@@ -61,15 +78,23 @@ export function supportMonthsForPayout(payout, monthlyNeed) {
   return Number.isFinite(amount) && amount >= 0 && Number.isFinite(need) && need > 0 ? amount / need : null;
 }
 
-export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age } = {}) {
+export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age, diagnosisAge } = {}) {
   const id = planId(plan);
   const base = number(sumAssured);
   const major = resolveBenefits(benefits, id).find(row => row.benefit_type === 'major_ci' && active(row) && number(row.payout_percent) === 100);
   const early = resolveBenefits(benefits, id).find(row => row.benefit_type === 'early_ci' && active(row));
   const enhancement = ageDependentEnhancement(benefits, id, age);
+  const timing = diagnosisAge === undefined || diagnosisAge === null || diagnosisAge === ''
+    ? { status: 'NOT_PROVIDED', elapsedYears: null, reason: '輸入確診歲數後顯示首10年保障是否生效。' }
+    : diagnosisTiming(age, diagnosisAge);
+  const effectiveEnhancement = timing.status === 'VERIFY_REQUIRED'
+    ? { ...enhancement, status: 'VERIFY_REQUIRED', reason: timing.reason }
+    : timing.status === 'NOT_APPLICABLE'
+      ? { ...enhancement, status: 'NOT_APPLICABLE', amount: 0, reason: timing.reason }
+      : enhancement;
   const waiverText = premiumWaiverText(benefits, id);
-  const extraPercent = enhancement.status === 'VERIFIED' ? enhancement.percent : 0;
-  const extraAmount = base !== null && enhancement.status === 'VERIFIED' ? base * extraPercent / 100 : null;
+  const extraPercent = effectiveEnhancement.status === 'VERIFIED' ? effectiveEnhancement.percent : 0;
+  const extraAmount = base !== null && effectiveEnhancement.status === 'VERIFIED' ? base * extraPercent / 100 : null;
   const earlyPercent = number(early?.payout_percent);
   const earlyAmount = base !== null && earlyPercent !== null ? base * earlyPercent / 100 : null;
   const total = base !== null && major ? base + (extraAmount || 0) : null;
@@ -78,7 +103,8 @@ export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age
     planId: id,
     baseAmount: base,
     basePercent: major ? number(major.payout_percent) : null,
-    extra: { status: enhancement.status, percent: enhancement.percent, amount: extraAmount, row: enhancement.row, reason: enhancement.reason },
+    extra: { status: effectiveEnhancement.status, percent: enhancement.percent, amount: extraAmount, row: enhancement.row, reason: effectiveEnhancement.reason },
+    diagnosis: timing,
     totalApplicable: total,
     early: { status: early && earlyPercent !== null ? 'VERIFIED' : 'VERIFY_REQUIRED', percent: earlyPercent, amount: earlyAmount, row: early },
     major: { status: major ? 'VERIFIED' : 'VERIFY_REQUIRED', row: major },

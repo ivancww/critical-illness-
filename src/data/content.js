@@ -7,6 +7,15 @@ export function firebaseResourceUrl(resource) {
   return resource?.resource_url ?? resource?.firebase_url ?? resource?.url ?? null;
 }
 
+export function resourceKind(resource) {
+  const value = String(resource?.resource_type ?? resource?.mime_type ?? '').toLowerCase();
+  if (value === 'pdf' || value === 'application/pdf') return 'pdf';
+  if (value.includes('png')) return 'image/png';
+  if (value.includes('jpeg') || value.includes('jpg')) return 'image/jpeg';
+  if (value.includes('webp')) return 'image/webp';
+  return value || 'resource';
+}
+
 function active(resource) {
   return resource?.active !== false && resource?.enabled !== false;
 }
