@@ -48,7 +48,10 @@ jobs:
           assert 'href="./manifest.json"' in html
           version = json.loads(Path('package.json').read_text())['version']
           assert f'src="./src/app.js?v={version}"' in html
-          assert 'href="./src/styles.css"' in html
+          assert 'href="./src/styles.css?v=' in html
+          assert 'href="https://ivancww.github.io/avaplatform/" data-return-to-ava' in html
+          assert 'window.__AVA_CI_BOOT_OK__ = false' in html
+          assert 'Critical Illness 暫時未能載入' in html
           assert "register('./sw.js'" in app or 'register("./sw.js"' in app
           assert './index.html' in service_worker
           assert './manifest.json' in service_worker
