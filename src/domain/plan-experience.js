@@ -1,4 +1,4 @@
-import { resolveBenefits } from './product-engine.js?v=0.4.1';
+import { resolveBenefits } from './product-engine.js?v=0.5.0';
 
 const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const active = row => row?.enabled !== false && row?.active !== false;
@@ -90,29 +90,34 @@ export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age
     : diagnosisAge === undefined || diagnosisAge === null || diagnosisAge === ''
     ? { status: 'NOT_PROVIDED', elapsedYears: null, reason: '輸入確診歲數後顯示首10年保障是否生效。' }
     : diagnosisTiming(age, diagnosisAge);
-  const effectiveEnhancement = timing.status === 'VERIFY_REQUIRED'
-    ? { ...enhancement, status: 'VERIFY_REQUIRED', reason: timing.reason }
-    : timing.status === 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY'
-      ? { ...enhancement, status: 'VERIFY_REQUIRED', reason: timing.reason, amount: null }
-    : timing.status === 'NOT_APPLICABLE'
-      ? { ...enhancement, status: 'NOT_APPLICABLE', amount: 0, reason: timing.reason }
-      : enhancement;
+  const bandResolved = !firstTenRows.length || enhancement.status === 'VERIFIED';
+  const timingResolved = !firstTenRows.length || ['APPLICABLE', 'NOT_APPLICABLE'].includes(timing.status);
+  const effectiveEnhancement = !firstTenRows.length
+    ? { ...enhancement, status: 'NOT_APPLICABLE', amount: 0, reason: timing.reason }
+    : !bandResolved || !timingResolved
+      ? { ...enhancement, status: 'VERIFY_REQUIRED', amount: null, reason: timing.reason || enhancement.reason }
+      : timing.status === 'NOT_APPLICABLE'
+        ? { ...enhancement, status: 'NOT_APPLICABLE', amount: 0, reason: timing.reason }
+        : enhancement;
   const waiverText = premiumWaiverText(benefits, id);
-  const extraPercent = effectiveEnhancement.status === 'VERIFIED' ? effectiveEnhancement.percent : 0;
-  const extraAmount = base !== null && effectiveEnhancement.status === 'VERIFIED' ? base * extraPercent / 100 : null;
+  const extraPercent = enhancement.percent;
+  const extraAmount = base !== null && effectiveEnhancement.status === 'VERIFIED'
+    ? base * extraPercent / 100
+    : base !== null && effectiveEnhancement.status === 'NOT_APPLICABLE' ? 0 : null;
   const earlyPercent = number(early?.payout_percent);
   const earlyAmount = base !== null && earlyPercent !== null ? base * earlyPercent / 100 : null;
-  const total = base !== null && major ? base + (extraAmount || 0) : null;
+  const majorVerified = Boolean(base !== null && major && timingResolved && bandResolved);
+  const total = majorVerified ? base + (extraAmount || 0) : null;
 
   return {
     planId: id,
     baseAmount: base,
     basePercent: major ? number(major.payout_percent) : null,
-    extra: { status: effectiveEnhancement.status, percent: enhancement.percent, amount: extraAmount, row: enhancement.row, reason: effectiveEnhancement.reason },
+    extra: { status: effectiveEnhancement.status, percent: extraPercent, amount: extraAmount, row: enhancement.row, reason: effectiveEnhancement.reason, bandStatus: enhancement.status },
     diagnosis: timing,
     totalApplicable: total,
     early: { status: early && earlyPercent !== null ? 'VERIFIED' : 'VERIFY_REQUIRED', percent: earlyPercent, amount: earlyAmount, row: early },
-    major: { status: major ? 'VERIFIED' : 'VERIFY_REQUIRED', row: major },
+    major: { status: majorVerified ? 'VERIFIED' : 'VERIFY_REQUIRED', row: major },
     premiumWaiver: { status: waiverText ? 'VERIFIED' : 'NOT_VERIFIED', text: waiverText }
   };
 }
