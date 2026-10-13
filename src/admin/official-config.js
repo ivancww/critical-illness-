@@ -79,9 +79,9 @@ export function officialRecords(structured = {}, key) {
 
 export function premiumSheetStatus(premium = {}) {
   return Object.entries(premium).map(([name, matrix]) => ({
-    name,
-    rows: Array.isArray(matrix) ? matrix.length : 0,
-    columns: Array.isArray(matrix) && Array.isArray(matrix[0]) ? matrix[0].length : 0,
+    name: matrix?.sheetName || name,
+    rows: Array.isArray(matrix) ? matrix.length : Array.isArray(matrix?.values) ? matrix.values.length : 0,
+    columns: Array.isArray(matrix) && Array.isArray(matrix[0]) ? matrix[0].length : Array.isArray(matrix?.values) && Array.isArray(matrix.values[0]) ? matrix.values[0].length : 0,
     status: 'VERIFY REQUIRED'
   }));
 }

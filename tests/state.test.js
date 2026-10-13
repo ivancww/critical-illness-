@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMemoryStorage, createUserBackup, loadUserState, restoreUserBackup, saveUserMediaReference, saveUserState } from '../src/data/storage.js';
-import { normalizeStructuredData } from '../src/data/data-api.js';
+import { normalizePremiumData, normalizeStructuredData } from '../src/data/data-api.js';
 import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, togglePlanSelection, translateProtectionToMonths } from '../src/domain/flow-state.js';
 import { createQrRestorePointer, officialCacheIsCurrent, validateQrRestorePointer } from '../src/data/storage.js';
 
@@ -19,6 +19,14 @@ test('structured datasets normalize without changing premium matrices', () => {
   assert.deepEqual(result.Plans, [{ plan_id: 'sce' }]);
   assert.deepEqual(result.Settings_Versions, []);
   assert.deepEqual(premium, { 男愛伴航2保費: [["Age", "Rate"]] });
+});
+
+test('production GAS premium arrays normalize to named frontend matrices', () => {
+  const result = normalizePremiumData({ OYS2_MALE: [['Age']], SCE_FEMALE: [['Age']] });
+  assert.equal(result.OYS2_MALE.sheetName, '男愛伴航2保費');
+  assert.deepEqual(result.OYS2_MALE.values, [['Age']]);
+  assert.equal(result.SCE_FEMALE.sheetName, '女簡護危疾保保費');
+  assert.deepEqual(result.OYS2_FEMALE.values, []);
 });
 
 test('flow navigation preserves state while changing only the step', () => {
