@@ -36,6 +36,31 @@ export function premiumWaiverText(benefits = [], id) {
   return text || null;
 }
 
+export function claimOutcome(summary, claimType = 'major') {
+  if (claimType === 'early') {
+    return {
+      claimType,
+      status: summary?.early?.status || 'VERIFY_REQUIRED',
+      amount: summary?.early?.amount ?? null,
+      percent: summary?.early?.percent ?? null,
+      includesEnhancement: false
+    };
+  }
+  return {
+    claimType: 'major',
+    status: summary?.major?.status || 'VERIFY_REQUIRED',
+    amount: summary?.totalApplicable ?? null,
+    percent: summary?.basePercent ?? null,
+    includesEnhancement: summary?.extra?.status === 'VERIFIED' && Number(summary.extra.percent) > 0
+  };
+}
+
+export function supportMonthsForPayout(payout, monthlyNeed) {
+  const amount = Number(payout);
+  const need = Number(monthlyNeed);
+  return Number.isFinite(amount) && amount >= 0 && Number.isFinite(need) && need > 0 ? amount / need : null;
+}
+
 export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age } = {}) {
   const id = planId(plan);
   const base = number(sumAssured);

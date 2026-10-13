@@ -67,12 +67,13 @@ test('heart/stroke runs only with a well-formed Official rule and uses customer 
   assert.equal(heartStrokeTimeline({ rules: malformed, planId: 'OYS2', sumAssured: 780000, age: 25 }), null);
 });
 
-test('premium remains unavailable even with an identifiable raw matrix cell', () => {
+test('premium uses a determinable configured Sheet matrix cell without approval gating', () => {
   const premium = { OYS2_MALE: { sheetName: '男愛伴航2保費', values: [[], [], ['Age', '10-Year Pay', '', '18-Year Pay'], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker'], [25, 44.2, 55, 27.5]] } };
-  const result = premiumEvidence(premium, { plan_id: 'OYS2' }, 'M', 25, 'non-smoker', 18);
-  assert.equal(result.status, 'VERIFY_REQUIRED');
+  const result = premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'non-smoker', 18, 500000);
+  assert.equal(result.status, 'AVAILABLE');
   assert.equal(result.source, '男愛伴航2保費');
-  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2' }, 'M', 26, 'non-smoker', 18).status, 'VERIFY_REQUIRED');
+  assert.equal(result.annualPremium, 500000 / 7800 * 27.5);
+  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 26, 'non-smoker', 18, 500000).status, 'VERIFY_REQUIRED');
   assert.equal(paymentEndAge(25, 18), 43);
   assert.equal(paymentEndAge(25, 99), null);
 });

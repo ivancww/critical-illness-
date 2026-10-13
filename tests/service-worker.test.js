@@ -16,6 +16,8 @@ test('service worker uses deployment-independent owned cache and retires only CI
   assert.doesNotMatch(sw, /SKIP_WAITING/);
   assert.doesNotMatch(sw, /package\.json/);
   assert.match(sw, /\.\/src\/version\.js/);
+  assert.match(sw, /\.\/src\/domain\/input-format\.js/);
+  assert.match(sw, /\.\/src\/domain\/plan-experience\.js/);
   assert.doesNotMatch(sw, /localStorage|indexedDB|deleteDatabase/);
 });
 
