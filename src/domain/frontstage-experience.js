@@ -1,6 +1,6 @@
-import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.4.1';
-import { translateProtectionToMonths } from './flow-state.js?v=0.4.1';
-import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.4.1';
+import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.5.0';
+import { translateProtectionToMonths } from './flow-state.js?v=0.5.0';
+import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.5.0';
 
 const positive = value => Number.isFinite(Number(value)) && Number(value) > 0;
 const active = row => row?.enabled !== false && row?.active !== false;
@@ -90,6 +90,13 @@ export function heartStrokeTimeline({ rules, planId: id, sumAssured, age, claims
     cumulativeAmount: (index + 1) * Number(sumAssured)
   }));
   return { events, remainingClaims: evidence.maxClaims - events.length, maxClaims: evidence.maxClaims };
+}
+
+export function cumulativePayout(events = []) {
+  const valid = Array.isArray(events) ? events.filter(event => Number.isFinite(Number(event?.amount))) : [];
+  const amount = valid.reduce((total, event) => total + Number(event.amount), 0);
+  const percent = valid.reduce((total, event) => total + (Number(event?.percent) || 0), 0);
+  return { amount, percent, eventCount: valid.length };
 }
 
 function premiumAgeRow(matrix, age) {

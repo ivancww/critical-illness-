@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
-import { ageDependentEnhancement, claimOutcome, planProtectionSummary, premiumWaiverText, supportMonthsForPayout } from '../src/domain/plan-experience.js';
-import { diseaseResourcesForProduct } from '../src/data/content.js';
+import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, supportMonthsForPayout } from '../src/domain/plan-experience.js';
+import { diseaseResourcesForProduct, resourceKind } from '../src/data/content.js';
+import { cumulativePayout } from '../src/domain/frontstage-experience.js';
+import { FIREBASE_CONFIG, officialResourcePath, sanitizeMediaFilename, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
 import { formatMoneyText, parseMoneyText } from '../src/domain/input-format.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
@@ -38,7 +40,7 @@ test('guided flow ends at P9 and P2 has no age field', () => {
 test('age-dependent and early-illness amounts use verified benefit rows', () => {
   assert.equal(ageDependentEnhancement(benefits, 'OYS2', 25).percent, 50);
   assert.equal(ageDependentEnhancement(benefits, 'OYS2', 31).percent, 35);
-  const young = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 25 });
+  const young = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 25, diagnosisAge: 30 });
   assert.equal(young.baseAmount, 500000);
   assert.equal(young.extra.percent, 50);
   assert.equal(young.extra.amount, 250000);
@@ -54,8 +56,18 @@ test('age-dependent and early-illness amounts use verified benefit rows', () => 
   assert.equal(premiumWaiverText(benefits, 'OYS2'), '符合嚴重危疾賠償後，豁免餘下保費');
   assert.equal(young.premiumWaiver.status, 'VERIFIED');
   const noAge = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000 });
+  assert.equal(noAge.extra.percent, null);
   assert.equal(noAge.extra.status, 'VERIFY_REQUIRED');
-  const age31 = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31 });
+  assert.equal(noAge.extra.amount, null);
+  assert.equal(noAge.totalApplicable, null);
+  assert.equal(noAge.major.status, 'VERIFY_REQUIRED');
+  assert.equal(claimOutcome(noAge, 'major').status, 'VERIFY_REQUIRED');
+  const missingDiagnosis = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31 });
+  assert.equal(missingDiagnosis.extra.percent, 35);
+  assert.equal(missingDiagnosis.extra.amount, null);
+  assert.equal(missingDiagnosis.totalApplicable, null);
+  assert.equal(missingDiagnosis.major.status, 'VERIFY_REQUIRED');
+  const age31 = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 40 });
   assert.equal(age31.extra.percent, 35);
   assert.equal(age31.extra.amount, 175000);
   assert.equal(age31.totalApplicable, 675000);
@@ -111,4 +123,56 @@ test('disease resources are configured-data driven at the 17/18 boundary', () =>
   assert.deepEqual(diseaseResourcesForProduct(configured, 'OYS2', 17).map(item => item.key), ['adult', 'child']);
   assert.deepEqual(diseaseResourcesForProduct(configured, 'OYS2', 18).map(item => item.key), ['adult']);
   assert.equal(diseaseResourcesForProduct(configured, 'SCE', 17).length, 0);
+  assert.equal(resourceKind({ resource_type: 'image/png' }), 'image/png');
+});
+
+test('issue age chooses enhancement band while diagnosis age only controls first-ten-year timing', () => {
+  assert.equal(ageDependentEnhancement(benefits, 'OYS2', 30).percent, 50);
+  assert.equal(ageDependentEnhancement(benefits, 'OYS2', 31).percent, 35);
+  assert.deepEqual(diagnosisTiming(45, 50), { status: 'APPLICABLE', elapsedYears: 5, reason: '仍在首10年保障期內。' });
+  assert.equal(diagnosisTiming(45, 54).status, 'APPLICABLE');
+  assert.equal(diagnosisTiming(45, 56).status, 'NOT_APPLICABLE');
+  assert.equal(diagnosisTiming(45, 55).status, 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY');
+  const inPeriod = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 40 });
+  const afterPeriod = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 42 });
+  assert.equal(inPeriod.extra.percent, 35);
+  assert.equal(inPeriod.extra.amount, 175000);
+  assert.equal(inPeriod.major.status, 'VERIFIED');
+  assert.equal(claimOutcome(inPeriod, 'major').amount, 675000);
+  assert.equal(afterPeriod.extra.status, 'NOT_APPLICABLE');
+  assert.equal(afterPeriod.extra.amount, 0);
+  assert.equal(afterPeriod.totalApplicable, 500000);
+  assert.equal(afterPeriod.major.status, 'VERIFIED');
+  assert.equal(claimOutcome(afterPeriod, 'major').status, 'VERIFIED');
+  const boundary = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 41 });
+  assert.equal(boundary.diagnosis.status, 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY');
+  assert.equal(boundary.extra.amount, null);
+  assert.equal(boundary.totalApplicable, null);
+  assert.equal(boundary.major.status, 'VERIFY_REQUIRED');
+  assert.equal(claimOutcome(boundary, 'major').status, 'VERIFY_REQUIRED');
+  const sce = planProtectionSummary({ plan: plans[0], benefits, sumAssured: 500000, age: 45, diagnosisAge: 50 });
+  assert.equal(sce.diagnosis.visible, false);
+  assert.equal(sce.extra.status, 'NOT_APPLICABLE');
+  assert.equal(sce.major.status, 'VERIFIED');
+  assert.equal(sce.totalApplicable, 500000);
+  assert.equal(claimOutcome(sce, 'major').amount, 500000);
+  assert.equal(claimOutcome(sce, 'major').status, 'VERIFIED');
+  assert.match(app, /summary\.diagnosis\?\.visible !== false/);
+  assert.match(app, /確診歲數/);
+  assert.doesNotMatch(app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs')), /現時可享保障/);
+  assert.doesNotMatch(app, /globalThis\.__ciCumulativeCard/);
+});
+
+test('cumulative payout is derived from scenario events', () => {
+  assert.deepEqual(cumulativePayout([{ amount: 500000, percent: 100 }, { amount: 500000, percent: 100 }, { amount: 25000, percent: 5 }]), { amount: 1025000, percent: 205, eventCount: 3 });
+  assert.deepEqual(cumulativePayout([]), { amount: 0, percent: 0, eventCount: 0 });
+});
+
+test('Firebase media gate validates references without creating an unsafe upload path', () => {
+  assert.equal(FIREBASE_CONFIG.projectId, 'medical-and-ci');
+  assert.equal(sanitizeMediaFilename('../疾病清單?.pdf'), '..-.pdf');
+  assert.match(officialResourcePath({ planId: 'OYS2', category: 'diseases', filename: 'guide.pdf', timestamp: 123 }), /^critical-illness\/official\/OYS2\/diseases\/123_guide\.pdf$/);
+  assert.deepEqual(validateMediaFile({ type: 'application/pdf', size: 10, name: 'guide.pdf' }), { type: 'application/pdf', size: 10, name: 'guide.pdf' });
+  assert.throws(() => validateMediaFile({ type: 'application/javascript', size: 10, name: 'bad.js' }));
+  assert.equal(userMediaCapability().binaryStoredLocally, false);
 });
