@@ -131,6 +131,7 @@ h3 { margin: 0; font-size: 17px; }
 .protection-row strong { color: var(--ava-color-primary); font-size: 20px; text-align: right; }
 .protection-row strong small { display: block; color: var(--ava-color-muted); font-size: 13px; font-weight: 600; }
 .protection-row--total strong { font-size: clamp(24px, 4vw, 34px); }
+.claim-breakdown { display: grid; gap: 0; width: 100%; }
 .plan-outcome { min-height: 52px; display: grid; align-items: center; padding: 12px 0; color: var(--ava-color-primary); }
 .claim-state { display: grid; gap: 10px; border: 2px solid var(--ava-color-primary); }
 .claim-state > strong { color: var(--ava-color-primary); font-size: clamp(34px, 7vw, 52px); line-height: 1.15; }

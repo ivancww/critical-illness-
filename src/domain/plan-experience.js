@@ -30,12 +30,19 @@ export function ageDependentEnhancement(benefits = [], id, age) {
   return { status: 'VERIFIED', percent, amount: null, row };
 }
 
+export function premiumWaiverText(benefits = [], id) {
+  const row = resolveBenefits(benefits, id).find(candidate => candidate.benefit_type === 'premium_waiver' && active(candidate));
+  const text = String(row?.display_text ?? '').trim();
+  return text || null;
+}
+
 export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age } = {}) {
   const id = planId(plan);
   const base = number(sumAssured);
   const major = resolveBenefits(benefits, id).find(row => row.benefit_type === 'major_ci' && active(row) && number(row.payout_percent) === 100);
   const early = resolveBenefits(benefits, id).find(row => row.benefit_type === 'early_ci' && active(row));
   const enhancement = ageDependentEnhancement(benefits, id, age);
+  const waiverText = premiumWaiverText(benefits, id);
   const extraPercent = enhancement.status === 'VERIFIED' ? enhancement.percent : 0;
   const extraAmount = base !== null && enhancement.status === 'VERIFIED' ? base * extraPercent / 100 : null;
   const earlyPercent = number(early?.payout_percent);
@@ -49,7 +56,8 @@ export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age
     extra: { status: enhancement.status, percent: enhancement.percent, amount: extraAmount, row: enhancement.row, reason: enhancement.reason },
     totalApplicable: total,
     early: { status: early && earlyPercent !== null ? 'VERIFIED' : 'VERIFY_REQUIRED', percent: earlyPercent, amount: earlyAmount, row: early },
-    major: { status: major ? 'VERIFIED' : 'VERIFY_REQUIRED', row: major }
+    major: { status: major ? 'VERIFIED' : 'VERIFY_REQUIRED', row: major },
+    premiumWaiver: { status: waiverText ? 'VERIFIED' : 'NOT_VERIFIED', text: waiverText }
   };
 }
 

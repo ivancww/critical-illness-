@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
-import { ageDependentEnhancement, planProtectionSummary } from '../src/domain/plan-experience.js';
+import { ageDependentEnhancement, planProtectionSummary, premiumWaiverText } from '../src/domain/plan-experience.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
 const header = fs.readFileSync('index.html', 'utf8').slice(fs.readFileSync('index.html', 'utf8').indexOf('<header'), fs.readFileSync('index.html', 'utf8').indexOf('</header>'));
@@ -43,8 +43,21 @@ test('age-dependent and early-illness amounts use verified benefit rows', () => 
   assert.equal(young.totalApplicable, 750000);
   assert.equal(young.early.percent, 20);
   assert.equal(young.early.amount, 100000);
+  assert.equal(premiumWaiverText(benefits, 'OYS2'), '符合嚴重危疾賠償後，豁免餘下保費');
+  assert.equal(young.premiumWaiver.status, 'VERIFIED');
   const noAge = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000 });
   assert.equal(noAge.extra.status, 'VERIFY_REQUIRED');
+  const age31 = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31 });
+  assert.equal(age31.extra.percent, 35);
+  assert.equal(age31.extra.amount, 175000);
+  assert.equal(age31.totalApplicable, 675000);
+  assert.doesNotMatch(app.slice(app.indexOf('function planClaim'), app.indexOf('function planDetail')), /首次100%賠償後/);
+  const noWaiverBenefits = benefits.filter(row => row.benefit_type !== 'premium_waiver');
+  const noWaiver = planProtectionSummary({ plan: plans[1], benefits: noWaiverBenefits, sumAssured: 500000, age: 25 });
+  assert.equal(premiumWaiverText(noWaiverBenefits, 'OYS2'), null);
+  assert.equal(noWaiver.premiumWaiver.status, 'NOT_VERIFIED');
+  assert.doesNotMatch(app.slice(app.indexOf('function planProtection'), app.indexOf('function planProtectionDetail')), /豁免往後保費/);
+  assert.match(app.slice(app.indexOf('function planClaim'), app.indexOf('function planDetail')), /premiumWaiverCopy\(summary\)/);
 });
 
 test('customer plan UX removes the comparison basket and hides backend rule fields', () => {
@@ -55,6 +68,13 @@ test('customer plan UX removes the comparison basket and hides backend rule fiel
   assert.match(app, /返回上一個保障頁/);
   assert.match(app, /data-claim-state="ended"/);
   assert.match(app, /data-claim-state="continuing"/);
+  assert.match(app, /100% 一次性賠償/);
+  assert.match(app, /一次性賠償完成/);
+  assert.match(app, /合約完結/);
+  assert.match(app, /claim-breakdown/);
+  assert.match(app, /基本保障.*basePercent/);
+  assert.match(app, /額外保障.*summary\.extra\.percent/);
+  assert.match(app, /保費豁免須按產品官方保障資料確認/);
   const detail = app.slice(app.indexOf('function planProtectionDetail'), app.indexOf('function planClaim'));
   for (const rawField of ['rule_id', 'shared_pool_id', 'option_switch_rule', 'max_claims', 'data_version']) assert.doesNotMatch(detail, new RegExp(rawField));
 });
