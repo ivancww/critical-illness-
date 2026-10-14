@@ -107,7 +107,7 @@ export async function uploadOfficialMedia({ planId, category, contentId, content
   const app = appSdk.getApps().find(item => item.name === 'ava-critical-illness')
     || appSdk.initializeApp(FIREBASE_CONFIG, 'ava-critical-illness');
   const auth = authSdk.getAuth(app);
-  const adapter = authAdapter || (await import('./firebase-auth.js?v=0.6.0')).createFirebaseAuthAdapter({ authSdk, auth });
+  const adapter = authAdapter || (await import('./firebase-auth.js?v=0.6.1')).createFirebaseAuthAdapter({ authSdk, auth });
   await adapter.authenticate({ mode: 'admin', adminSessionProof });
   const storage = storageSdk.getStorage(app);
   return uploadOfficialMediaWithProvider({

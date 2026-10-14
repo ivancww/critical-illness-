@@ -26,6 +26,9 @@ test('service worker uses deployment-independent owned cache and retires only CI
 
 test('registration checks for updates and bounds controllerchange reload across boot', () => {
   assert.match(app, /registration\.update\(\)/);
+  assert.match(app, /window\.addEventListener\('online', updateRegistration\)/);
+  assert.match(app, /document\.addEventListener\('visibilitychange'/);
+  assert.match(app, /window\.setInterval\(updateRegistration, 5 \* 60 \* 1000\)/);
   assert.match(app, /navigator\.serviceWorker\.addEventListener\('controllerchange'/);
   assert.match(app, /ci-sw-reload-pending/);
   assert.match(app, /fromController/);
