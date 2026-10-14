@@ -80,3 +80,40 @@ resources because this app requires User binaries to remain in approved cloud
 storage. No approved User cloud provider or canonical cloud User-binding
 adapter is currently available, so `USER_RESOURCE_RUNTIME_BLOCKED` remains the
 safe runtime state. No User binary is stored in CI LocalStorage or IndexedDB.
+
+## Secure authorization migration
+
+The repository now contains the activation contract, but production remains
+fail-closed until the Firebase-side bridge is configured:
+
+- `firebase/storage.rules` allows public reads for published Official media,
+  requires the `avaAdmin=true` Firebase claim for Official
+  create/update/delete, and requires an exact `avaUserScope` claim for private
+  User resources.
+- Uploads are limited to PDF, PNG, JPEG, and WebP, with a 20 MB maximum.
+- `src/integration/firebase-auth.js` requests a short-lived custom-token grant
+  from the existing CI GAS endpoint; it never contains a service account or
+  signing secret.
+- `gas/Code.gs` verifies the existing AVA Admin session before calling the
+  server-side broker configured through Script Properties:
+  `CI_FIREBASE_AUTH_BROKER_URL` and `CI_FIREBASE_AUTH_BROKER_SECRET`.
+- `src/integration/firebase-user-media.js` provides cloud-only User
+  `saveFile`, `replaceFile`, `resolveFile`, and `deleteFile` operations. It
+  requires a canonical opaque AVA User binding plus a short-lived User claim.
+
+The deployed Firebase project currently has no Authentication provider and
+still has the unsafe global public rule. Therefore the code reports
+`OFFICIAL_STORAGE_AUTH_CONFIG_REQUIRED` and
+`USER_STORAGE_AUTH_CONFIG_REQUIRED`; it does not enable upload or attempt a
+production write. No browser credential, Firebase Admin key, or broker secret
+is stored in this repository.
+
+## Shared Medical bucket compatibility
+
+The bucket is shared with Medical. The rules artifact leaves
+`medical/official/**` publicly readable but denies writes until Medical has
+migrated to the same verified Admin claim/broker contract. This prevents a CI
+rule activation from preserving the current global public-write vulnerability
+or silently breaking Medical customer reads. A coordinated Firebase Rules
+deployment and Medical upload migration are required before changing the
+deployed shared rules.

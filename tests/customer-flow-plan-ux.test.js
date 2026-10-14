@@ -5,7 +5,7 @@ import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
 import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, supportMonthsForPayout } from '../src/domain/plan-experience.js';
 import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochureForProduct, resourceKind } from '../src/data/content.js';
 import { cumulativePayout } from '../src/domain/frontstage-experience.js';
-import { FIREBASE_CONFIG, FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, officialResourcePath, sanitizeMediaFilename, uploadOfficialMedia, uploadOfficialMediaWithProvider, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
+import { FIREBASE_CONFIG, FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, OFFICIAL_STORAGE_AUTH_STATE, officialResourcePath, sanitizeMediaFilename, storageCapability, uploadOfficialMedia, uploadOfficialMediaWithProvider, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
 import { formatMoneyText, parseMoneyText } from '../src/domain/input-format.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
@@ -185,7 +185,10 @@ test('Firebase media gate validates references without creating an unsafe upload
   assert.throws(() => validateMediaFile({ type: 'application/javascript', size: 10, name: 'bad.js' }));
   assert.equal(userMediaCapability().binaryStoredLocally, false);
   assert.equal(FIREBASE_UPLOAD_ENABLED, false);
-  assert.equal(FIREBASE_AUTH_METHOD, 'UNVERIFIED_ADMIN_STORAGE_RULES_OR_APPROVED_BROKER');
+  assert.equal(FIREBASE_AUTH_METHOD, 'SERVER_SIDE_FIREBASE_CUSTOM_TOKEN_OR_APPROVED_BROKER');
+  assert.equal(userMediaCapability().status, 'USER_STORAGE_AUTH_CONFIG_REQUIRED');
+  assert.equal(OFFICIAL_STORAGE_AUTH_STATE, 'OFFICIAL_STORAGE_AUTH_CONFIG_REQUIRED');
+  assert.deepEqual(storageCapability().official, { status: OFFICIAL_STORAGE_AUTH_STATE, uploadEnabled: false, authMethod: FIREBASE_AUTH_METHOD, publicRead: true, publicWrite: false });
 });
 
 test('Firebase media upload is blocked without verified Storage authorization and never bypasses Admin proof', async () => {
@@ -202,7 +205,8 @@ test('mocked approved provider returns a usable reference without storing binari
     timestamp: 456,
     provider: {
       upload: async (path, file, metadata) => ({ ref: { path }, file, metadata }),
-      downloadUrl: async snapshot => 'https://storage.test/' + snapshot.ref.path
+      downloadUrl: async snapshot => 'https://storage.test/' + snapshot.ref.path,
+      authorized: true
     }
   });
   assert.equal(uploaded.resourceType, 'pdf');

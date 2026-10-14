@@ -110,6 +110,7 @@ export function userResourceCapability(provider = null) {
     && provider.isUserCloudProvider === true
     && provider.binaryStoredInCloud === true
     && typeof provider.saveFile === 'function'
+    && typeof provider.replaceFile === 'function'
     && typeof provider.resolveFile === 'function'
     && typeof provider.deletePersonalFile === 'function');
   if (!usable) return {

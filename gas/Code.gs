@@ -605,262 +605,120 @@ function datasetVersionTarget_(dataset) {
   };
 }
 
-function validateAdminSheetSchema_(dataset, config, columns, fields, versionTarget) {
-  if (!columns[config.id]) {
-    throw new Error('Required record ID column is missing: ' + config.id);
-  }
+function validateAdminSheetSchema_(dataset, config, columns, fields, ve]Y™\œÚ[ÛˆOOH[™Yš[™Yˆİ\YY^XİY™\œÚ[ÛˆOOH[ˆİ\YY^XİY™\œÚ[ÛˆOOH	ÉÂˆ
+HÂˆ›İÈ™]È\œ›ÜŠ	Ù^XİY™\œÚ[Ûˆ\È™\]Z\™Y	ÊNÂˆB‚ˆÛÛœİ^XİY™\œÚ[ÛˆHİš[™Êİ\YY^XİY™\œÚ[ÛŠNÂˆÛÛœİšY[ÈHØš™Xİ˜\ÜÚYÛŠˆßKˆ™\]Y\İ™šY[È™\]Y\İœ]ÚßBˆ
+NÂ‚ˆ˜[Y]QšY[×Ê]\Ù]šY[Ë™XÛÜ™Y
+NÂ‚ˆÛÛœİØÚÈHØÚÔÙ\šXÙK™Ù]ØÜš\ØÚÊ
+NÂˆØÚËØZ]ØÚÊML
+NÂ‚ˆ]]]][Û”İ\YH˜[ÙNÂˆ]Û˜\ÚİÈH×NÂ‚ˆHÂˆÛÛœİİ\œ™[Hš[™™XÛÜ™Ê]\Ù]™XÛÜ™Y
+NÂˆÛÛœİXİX[™\œÚ[ÛˆH™XÛÜ™™\œÚ[Û—Êİ\œ™[
+NÂ‚ˆYˆ
+^XİY™\œÚ[ÛˆOOHXİX[™\œÚ[ÛŠHÂˆ›İÈ™]È\œ›ÜŠ	Ôİ[H™XÛÜ™™\œÚ[Û‰ÊNÂˆB‚ˆÛÛœİÚY]H›ÛÚ×Ê
+K™Ù]ÚY]S˜[YJ]\Ù]
+NÂˆÛÛœİÛÛ[[œÈHXY\œ×Ê]\Ù]
+NÂˆÛÛœİ™\œÚ[Û•\™Ù]H]\Ù]™\œÚ[Û•\™Ù]Ê]\Ù]
+NÂ‚ˆ˜[Y]PYZ[”ÚY]ØÚ[XWÊ]\Ù]ÛÛ™šYËÛÛ[[œËšY[Ë™\œÚ[Û•\™Ù]
+NÂ‚ˆÛ˜\ÚİÈHØš™XİšÙ^\ÊšY[ÊK›X\
+[˜İ[Ûˆ
+šY[
+HÂˆ™]\›ˆÙ[Û˜\ÚİÊ]\Ù]İ\œ™[—×Ü›İÓ[X™\‹ÛÛ[[œÖÙšY[JNÂˆJNÂ‚ˆÛ˜\ÚİËœ\Ú
+Ù[Û˜\ÚİÊ]\Ù]İ\œ™[—×Ü›İÓ[X™\‹ÛÛ[[œË™\œÚ[ÛŠJNÂ‚ˆYˆ
+ÛÛ[[œË\]YØ]
+HÂˆÛ˜\ÚİËœ\Ú
+Ù[Û˜\ÚİÊ]\Ù]İ\œ™[—×Ü›İÓ[X™\‹ÛÛ[[œË\]YØ]
+JNÂˆB‚ˆYˆ
+™\œÚ[Û•\™Ù]
+HÂˆÛ˜\ÚİËœ\Ú
+Ù[Û˜\ÚİÊ	ÔÙ][™Ü×Õ™\œÚ[ÛœÉË™\œÚ[Û•\™Ù]œ™XÛÜ™—×Ü›İÓ[X™\‹™\œÚ[Û•\™Ù]˜ÛÛ[[œËœÙ][™×İ˜[YJJNÂ‚ˆYˆ
+™\œÚ[Û•\™Ù]˜ÛÛ[[œË\]YØ]
+HÂˆÛ˜\ÚİËœ\Ú
+Ù[Û˜\ÚİÊ	ÔÙ][™Ü×Õ™\œÚ[ÛœÉË™\œÚ[Û•\™Ù]œ™XÛÜ™—×Ü›İÓ[X™\‹™\œÚ[Û•\™Ù]˜ÛÛ[[œË\]YØ]
+JNÂˆBˆB‚ˆ]]][Û”İ\YHYNÂ‚ˆØš™XİšÙ^\ÊšY[ÊK™›Ü‘XXÚ
+[˜İ[Ûˆ
+šY[
+HÂˆÚY]ˆ™Ù]˜[™ÙJİ\œ™[—×Ü›İÓ[X™\‹ÛÛ[[œÖÙšY[JBˆœÙ]˜[YJšY[ÖÙšY[JNÂˆJNÂ‚ˆÚY]ˆ™Ù]˜[™ÙJİ\œ™[—×Ü›İÓ[X™\‹ÛÛ[[œË™\œÚ[ÛŠBˆœÙ]˜[YJ™^™XÛÜ™™\œÚ[Û—ÊXİX[™\œÚ[ÛŠJNÂ‚ˆYˆ
+ÛÛ[[œË\]YØ]
+HÂˆÚY]ˆ™Ù]˜[™ÙJİ\œ™[—×Ü›İÓ[X™\‹ÛÛ[[œË\]YØ]
+BˆœÙ]˜[YJ™]È]J
+JNÂˆB‚ˆÛÛœİ]\Ù]™\œÚ[ÛˆBˆ]\Ù]OOH	ÔÙ][™Ü×Õ™\œÚ[ÛœÉÂˆÈİš[™ÊšY[ËœÙ][™×İ˜[YHOOH[™Yš[™YÈİ\œ™[œÙ][™×İ˜[YHˆšY[ËœÙ][™×İ˜[YJBˆˆ[\]\Ù]Ù[X[XÕ™\œÚ[Û—Ê]\Ù]
+NÂ‚ˆÜ™XYÚY]\™›\Ú
 
-  if (!columns.version) {
-    throw new Error('Technical record version column is missing');
-  }
+NÂ‚ˆÛÛœİœ™\ÚHš[™™XÛÜ™Ê]\Ù]™XÛÜ™Y
+NÂˆ™\šYT\œÚ\İYYZ[•Üš]WÊ]\Ù]™XÛÜ™YšY[ËXİX[™\œÚ[Û‹œ™\Ú]\Ù]™\œÚ[ÛŠNÂˆ[]Hœ™\Ú—×Ü›İÓ[X™\Â‚ˆ™]\›ˆİXØÙ\Ü×ÊÂˆ]\Ù]ˆ]\Ù]ˆ™XÛÜ™ˆœ™\Úˆ™XÛÜ™™\œÚ[Ûˆİš[™Êœ™\Ú™\œÚ[ÛŠKˆ]\Ù]™\œÚ[Ûˆ]\Ù]™\œÚ[Û‹ˆ]]Üš]]]™NˆYKˆ™XYY\•Üš]NˆYKˆ\œÚ\İYˆYKˆ™\šYšYYšY[ÎˆØš™XİšÙ^\ÊšY[ÊKˆ›Û˜XÚÎˆÂˆ][\Yˆ˜[ÙKˆİXØÙ\ÜÎˆYBˆBˆJNÂˆHØ]Ú
+\œ›ÜŠHÂˆYˆ
+]]][Û”İ\Y
+HÂˆÛÛœİ›Û˜XÚÈH›Û˜XÚĞYZ[“]]][Û—ÊÛ˜\ÚİÊNÂ‚ˆYˆ
+\›Û˜XÚËœİXØÙ\ÜÊHÂˆÛÛœİ›Û˜XÚÑ\œ›ÜˆH™]È\œ›ÜŠˆ	ÓÙ™šXÚX[Üš]H˜Z[Y[™›Û˜XÚÈ˜Z[Yˆ	È
+È›Û˜XÚË™\œ›Ü‚ˆ
+NÂˆ›Û˜XÚÑ\œ›Ü‹˜ÛÙHH	Ô“ÓPÒ×ÑRSQ	ÎÂˆ›Û˜XÚÑ\œ›Ü‹™]Z[ÈHÂˆ›Û˜XÚÎˆ›Û˜XÚËˆÜšYÚ[˜[\œ›Üˆİš[™Ê\œ›Üˆ	‰ˆ\œ›Ü‹›Y\ÜØYÙH\œ›ÜŠBˆNÂˆ›İÈ›Û˜XÚÑ\œ›ÜÂˆB‚ˆÛÛœİ›ÛY˜XÚÑ\œ›ÜˆH™]È\œ›ÜŠˆ	ÓÙ™šXÚX[Üš]H˜Z[YÈ[Ú[™ÙYÙ[ÈÙ\™H›ÛY˜XÚÎˆ	È
+Èİš[™Ê\œ›Üˆ	‰ˆ\œ›Ü‹›Y\ÜØYÙH\œ›ÜŠBˆ
+NÂˆ›ÛY˜XÚÑ\œ›Ü‹˜ÛÙHH	ÕÔ’UWÔ“ÓQĞPÒÉÎÂˆ›ÛY˜XÚÑ\œ›Ü‹™]Z[ÈHÂˆ›Û˜XÚÎˆ›Û˜XÚËˆÜšYÚ[˜[\œ›Üˆİš[™Ê\œ›Üˆ	‰ˆ\œ›Ü‹›Y\ÜØYÙH\œ›ÜŠBˆNÂˆ›İÈ›ÛY˜XÚÑ\œ›ÜÂˆB‚ˆ›İÈ\œ›ÜÂˆHš[˜[HÂˆØÚËœ™[X\ÙSØÚÊ
+NÂˆBŸB‚‹Ê‚ˆ
+ˆš\™X˜\ÙH]]Üš^˜][ÛˆœšYÙHÛÛ˜Xİ‚ˆ
+‚ˆ
+ˆHœ›İÜÙ\ˆ™]™\ˆ™XÙZ]™\ÈHœ›ÚÙ\ˆÙXÜ™]ÜˆHÙ\šXÙHXØÛİ[ˆBˆ
+ˆ\Ş[Y[İÛ™\ˆ]\İÛÛ™šYİ\™H\ÙHØÜš\›Ü\Y\ÈY\ˆHš\™X˜\ÙBˆ
+ˆ]]ÔİÜ˜YÙH[\ÈÛÛ˜Xİ\È™Y[ˆ™]šY]ÙY‚ˆ
+ˆÒWÑ’T‘PTÑWĞUUĞ”“ÒÑT—ÕT“ˆ
+ˆÒWÑ’T‘PTÑWĞUUĞ”“ÒÑT—ÔÑPÔ‘Uˆ
+‚ˆ
+ˆHœ›ÚÙ\ˆ\È™\ÜÛœÚX›H›Üˆ\ÜİZ[™ÈHÚÜ[]™Yš\™X˜\ÙHİ\İÛHÚÙ[‚ˆ
+ˆÚ]Z]\ˆ]˜PYZ[]YHÜˆH^Xİ]˜U\Ù\”ØÛÜHÛZ[Kˆ\ÈĞTÈ^Y\‚ˆ
+ˆ™\šYšY\ÈH^\İ[™ÈUHYZ[ˆ›ÛÙˆ™Y›Ü™H›ÜØ\™[™È[ˆYZ[ˆ™\]Y\İÂˆ
+ˆ\Ù\ˆš[™[™È›ÛÙˆ™\šYšXØ][Ûˆ™[XZ[œÈÙ\™\‹\ÚYH[ˆHœ›ÚÙ\‹‚ˆ
+‹Â™[˜İ[Ûˆ\ÜİYQš\™X˜\ÙP]]Üš^˜][Û—Ê™\]Y\İ
+HÂˆYˆ
+İš[™Ê™\]Y\İ˜\Y	ÉÊHOOHÓÓ‘’QËTÒQ
+H›İÈ™]È\œ›ÜŠ	ÕÜ›Û™È\Q	ÊNÂ‚ˆÛÛœİ[ÙHHİš[™Ê™\]Y\İ›[ÙH	ÉÊKÓİÙ\Ø\ÙJ
+NÂˆYˆ
+ÉØYZ[‰Ë	İ\Ù\‰×Kš[™^ÙŠ[ÙJHOOHLJH›İÈ™]È\œ›ÜŠ	Õ[œİ\ÜYš\™X˜\ÙH]]Üš^˜][Ûˆ[ÙIÊNÂ‚ˆYˆ
+[ÙHOOH	ØYZ[‰ÊHÂˆ™\šYPYZ[”Ù\ÜÚ[Û—Ê™\]Y\İ˜YZ[”Ù\ÜÚ[Û”›ÛÙ‹ÓÓ‘’QËTÒQ
+È	Î›Ù™šXÚX[]Üš]N”›ÙXİĞÛÛ[	ÊNÂˆH[ÙHÂˆÛÛœİš[™[™ÈH™\]Y\İ\Ù\š[™[™ÈßNÂˆYˆ
+K×–ĞKV˜K^ŒNWËW^ÎLIË\İ
+İš[™Êš[™[™Ë›Ü\]YU\Ù\”ØÛÜH	ÉÊJHTİš[™Êš[™[™Ë˜š[™[™Ô›ÛÙˆ	ÉÊKš[J
+JHÂˆ›İÈ™]È\œ›ÜŠ	ĞØ[›ÛšXØ[UH\Ù\ˆš[™[™È›ÛÙˆ\È™\]Z\™Y	ÊNÂˆBˆB‚ˆÛÛœİ›Ü\Y\ÈH›Ü\Y\ÔÙ\šXÙK™Ù]ØÜš\›Ü\Y\Ê
+NÂˆÛÛœİœ›ÚÙ\•\›Hİš[™Ê›Ü\Y\Ë™Ù]›Ü\J	ĞÒWÑ’T‘PTÑWĞUUĞ”“ÒÑT—ÕT“	ÊH	ÉÊKš[J
+NÂˆÛÛœİœ›ÚÙ\”ÙXÜ™]Hİš[™Ê›Ü\Y\Ë™Ù]›Ü\J	ĞÒWÑ’T‘PTÑWĞUUĞ”“ÒÑT—ÔÑPÔ‘U	ÊH	ÉÊKš[J
+NÂ‚ˆYˆ
+Xœ›ÚÙ\•\›Xœ›ÚÙ\”ÙXÜ™]
+HÂˆÛÛœİ\œ›ÜˆH™]È\œ›ÜŠ	Ñš\™X˜\ÙH]]Üš^˜][Ûˆœ›ÚÙ\ˆ\È›İÛÛ™šYİ\™Y	ÊNÂˆ\œ›Ü‹˜ÛÙHH	Ñ’T‘PTÑWĞUUĞÓÓ‘’QÕTUSÓ—Ô‘TURT‘Q	ÎÂˆ›İÈ\œ›ÜÂˆB‚ˆÛÛœİ^[ØYHÂˆ\YˆÓÓ‘’QËTÒQˆÛÛ˜Xİˆ	Ø]˜KXÚK\İÜ˜YÙK]ŒIËˆ[ÙNˆ[ÙKˆÛZ[\Îˆ[ÙHOOH	ØYZ[‰ÂˆÈÈ]˜PYZ[ˆYHBˆˆÈ]˜U\Ù\”ØÛÜNˆİš[™Ê™\]Y\İ\Ù\š[™[™Ë›Ü\]YU\Ù\”ØÛÜJHKˆš[™[™Ô›ÛÙˆ[ÙHOOH	İ\Ù\‰ÈÈİš[™Ê™\]Y\İ\Ù\š[™[™Ë˜š[™[™Ô›ÛÙŠHˆ[™Yš[™YˆNÂ‚ˆÛÛœİ™\ÜÛœÙHH\›™]Ú\™™]Ú
+œ›ÚÙ\•\›ÂˆY]Ùˆ	ÜÜİ	ËˆÛÛ[\Nˆ	Ø\XØ][Û‹ÚœÛÛ‰ËˆXY\œÎˆÈ]]Üš^˜][Ûˆ	Ğ™X\™\ˆ	È
+Èœ›ÚÙ\”ÙXÜ™]Kˆ^[ØYˆ”ÓÓ‹œİš[™ÚYJ^[ØY
+Kˆ]]R^Ù\[ÛœÎˆYBˆJNÂˆÛÛœİİ]\ÈH™\ÜÛœÙK™Ù]™\ÜÛœÙPÛÙJ
+NÂˆ]™\İ[HßNÂˆHÈ™\İ[H”ÓÓ‹œ\œÙJ™\ÜÛœÙK™Ù]ÛÛ[^
 
-  Object.keys(fields).forEach(function (field) {
-    if (!columns[field]) {
-      throw new Error('Field does not exist in Sheet: ' + field);
-    }
-  });
-
-  if (dataset !== 'Settings_Versions' && !versionTarget) {
-    throw new Error('Dataset semantic version target is unavailable');
-  }
-}
-
-function verifyPersistedAdminWrite_(dataset, recordId, fields, expectedVersion, fresh, datasetVersion) {
-  const expectedNextVersion = nextRecordVersion_(expectedVersion);
-  const mismatchedFields = Object.keys(fields).filter(function (field) {
-    return !sameValue_(fresh[field], fields[field]);
-  });
-
-  if (mismatchedFields.length) {
-    throw new Error('Read-after-write field verification failed: ' + mismatchedFields.join(', '));
-  }
-
-  if (String(fresh.version) !== expectedNextVersion) {
-    throw new Error(
-      'Read-after-write record version verification failed: expected ' + expectedNextVersion + ', got ' + String(fresh.version)
-    );
-  }
-
-  if (dataset === 'Settings_Versions') {
-    if (datasetVersion !== String(fresh.setting_value)) {
-      throw new Error('Read-after-write dataset semantic version verification failed');
-    }
-  } else {
-    const versionTarget = datasetVersionTarget_(dataset);
-    const persistedVersion = String(findRecord_('Settings_Versions', versionTarget.key).setting_value || '');
-
-    if (!datasetVersion || persistedVersion !== String(datasetVersion)) {
-      throw new Error('Read-after-write dataset semantic version verification failed');
-    }
-  }
-
-  if (!recordId || !fresh) {
-    throw new Error('Read-after-write record verification failed');
-  }
-}
-
-function adminUpdate_(request) {
-  const dataset = String(request.dataset || '').trim();
-  const config = ADMIN_DATASETS[dataset];
-
-  if (!config) {
-    throw new Error('Dataset is not Admin-editable');
-  }
-
-  if (String(request.appId || '') !== CONFIG.APP_ID) throw new Error('Wrong App ID');
-  const operation = CONFIG.APP_ID + ':official-write:' + dataset;
-  if (String(request.operation || '') !== operation) throw new Error('Wrong Official operation');
-  verifyAdminSession_(request.adminSessionProof, operation);
-
-  const recordId = String(request.recordId || '').trim();
-
-  if (!recordId) {
-    throw new Error('recordId is required');
-  }
-
-  const suppliedExpectedVersion = request.expectedVersion;
-
-  if (
-    suppliedExpectedVersion === undefined ||
-    suppliedExpectedVersion === null ||
-    suppliedExpectedVersion === ''
-  ) {
-    throw new Error('expectedVersion is required');
-  }
-
-  const expectedVersion = String(suppliedExpectedVersion);
-  const fields = Object.assign(
-    {},
-    request.fields || request.patch || {}
-  );
-
-  validateFields_(dataset, fields, recordId);
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
-
-  let mutationStarted = false;
-  let snapshots = [];
-
-  try {
-    const current = findRecord_(dataset, recordId);
-    const actualVersion = recordVersion_(current);
-
-    if (expectedVersion !== actualVersion) {
-      throw new Error('Stale record version');
-    }
-
-    const sheet = book_().getSheetByName(dataset);
-    const columns = headers_(dataset);
-    const versionTarget = datasetVersionTarget_(dataset);
-
-    validateAdminSheetSchema_(dataset, config, columns, fields, versionTarget);
-
-    snapshots = Object.keys(fields).map(function (field) {
-      return cellSnapshot_(dataset, current.__rowNumber, columns[field]);
-    });
-
-    snapshots.push(cellSnapshot_(dataset, current.__rowNumber, columns.version));
-
-    if (columns.updated_at) {
-      snapshots.push(cellSnapshot_(dataset, current.__rowNumber, columns.updated_at));
-    }
-
-    if (versionTarget) {
-      snapshots.push(cellSnapshot_('Settings_Versions', versionTarget.record.__rowNumber, versionTarget.columns.setting_value));
-
-      if (versionTarget.columns.updated_at) {
-        snapshots.push(cellSnapshot_('Settings_Versions', versionTarget.record.__rowNumber, versionTarget.columns.updated_at));
-      }
-    }
-
-    mutationStarted = true;
-
-    Object.keys(fields).forEach(function (field) {
-      sheet
-        .getRange(current.__rowNumber, columns[field])
-        .setValue(fields[field]);
-    });
-
-    sheet
-      .getRange(current.__rowNumber, columns.version)
-      .setValue(nextRecordVersion_(actualVersion));
-
-    if (columns.updated_at) {
-      sheet
-        .getRange(current.__rowNumber, columns.updated_at)
-        .setValue(new Date());
-    }
-
-    const datasetVersion =
-      dataset === 'Settings_Versions'
-        ? String(fields.setting_value === undefined ? current.setting_value : fields.setting_value)
-        : bumpDatasetSemanticVersion_(dataset);
-
-    SpreadsheetApp.flush();
-
-    const fresh = findRecord_(dataset, recordId);
-    verifyPersistedAdminWrite_(dataset, recordId, fields, actualVersion, fresh, datasetVersion);
-    delete fresh.__rowNumber;
-
-    return success_({
-      dataset: dataset,
-      record: fresh,
-      recordVersion: String(fresh.version),
-      datasetVersion: datasetVersion,
-      authoritative: true,
-      readAfterWrite: true,
-      persisted: true,
-      verifiedFields: Object.keys(fields),
-      rollback: {
-        attempted: false,
-        success: true
-      }
-    });
-  } catch (error) {
-    if (mutationStarted) {
-      const rollback = rollbackAdminMutation_(snapshots);
-
-      if (!rollback.success) {
-        const rollbackError = new Error(
-          'Official write failed and rollback failed: ' + rollback.error
-        );
-        rollbackError.code = 'ROLLBACK_FAILED';
-        rollbackError.details = {
-          rollback: rollback,
-          originalError: String(error && error.message || error)
-        };
-        throw rollbackError;
-      }
-
-      const rolledBackError = new Error(
-        'Official write failed; all changed cells were rolled back: ' + String(error && error.message || error)
-      );
-      rolledBackError.code = 'WRITE_ROLLED_BACK';
-      rolledBackError.details = {
-        rollback: rollback,
-        originalError: String(error && error.message || error)
-      };
-      throw rolledBackError;
-    }
-
-    throw error;
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function doPost(e) {
-  const request = requestBody_(e);
-
-  if (!request) {
-    return failure_(
-      'INVALID_JSON',
-      'Request body must be valid JSON'
-    );
-  }
-
-  try {
-    const action = String(request.action || '').trim();
-
-    if (action === 'exchangeAdminSession') {
-      return json_(exchangeAdminSession_(request));
-    }
-
-    if (action === 'adminUpdate') {
-      return json_(adminUpdate_(request));
-    }
-
-    return failure_(
-      'UNKNOWN_ACTION',
-      'Unsupported POST action'
-    );
-  } catch (error) {
-    const message = String(error && error.message || error);
-
-    if (error && error.code === 'ROLLBACK_FAILED') {
-      return failure_('ROLLBACK_FAILED', message, error.details || null);
-    }
-
-    if (error && error.code === 'WRITE_ROLLED_BACK') {
-      return failure_('WRITE_ROLLED_BACK', message, error.details || null);
-    }
-
-    if (/session|proof|authorization|platform/i.test(message)) {
-      return failure_('ADMIN_UNAUTHORIZED', message);
-    }
-
-    if (/stale|version/i.test(message)) {
-      return failure_('STALE_WRITE', message);
-    }
-
-    if (
-      /protected|allowlist|editable|field|dataset|record|patch|expected|numeric|boolean/i
-        .test(message)
-    ) {
-      return failure_('ADMIN_WRITE_REJECTED', message);
-    }
-
-    return failure_('REQUEST_FAILED', message);
-  }
-}
+H	ŞßIÊNÈHØ]Ú
+ÊHÈ™\İ[HßNÈB‚ˆYˆ
+İ]\ÈŒİ]\ÈHÌ™\İ[œİXØÙ\ÜÈOOHYJHÂˆÛÛœİ\œ›ÜˆH™]È\œ›ÜŠ	Ñš\™X˜\ÙH]]Üš^˜][Ûˆœ›ÚÙ\ˆ™Z™XİYH™\]Y\İ	ÊNÂˆ\œ›Ü‹˜ÛÙHH	Ñ’T‘PTÑWĞUUĞ”“ÒÑT—Ô‘R‘PÕQ	ÎÂˆ›İÈ\œ›ÜÂˆB‚ˆÛÛœİÚÙ[ˆHİš[™Ê™\İ[™š\™X˜\ÙPİ\İÛUÚÙ[ˆ	ÉÊKš[J
+NÂˆÛÛœİ^\™\Ğ]H]Kœ\œÙJ™\İ[™^\™\Ğ]	ÉÊNÂˆÛÛœİÛZ[\ÈH™\İ[˜ÛZ[\ÈßNÂˆYˆ
+]ÚÙ[ˆS[X™\‹š\Ñš[š]J^\™\Ğ]
+H^\™\Ğ]H]K››İÊ
+JH›İÈ™]È\œ›ÜŠ	Ñš\™X˜\ÙHœ›ÚÙ\ˆ™]\›™Y[ˆ[˜[YÚÜ[]™YÜ˜[	ÊNÂˆYˆ
+[ÙHOOH	ØYZ[‰È	‰ˆÛZ[\Ë˜]˜PYZ[ˆOOHYJH›İÈ™]È\œ›ÜŠ	Ñš\™X˜\ÙHœ›ÚÙ\ˆ™]\›™Y›ÈYZ[ˆÛZ[IÊNÂˆYˆ
+[ÙHOOH	İ\Ù\‰È	‰ˆÛZ[\Ë˜]˜U\Ù\”ØÛÜHOOHİš[™Ê™\]Y\İ\Ù\š[™[™Ë›Ü\]YU\Ù\”ØÛÜJJH›İÈ™]È\œ›ÜŠ	Ñš\™X˜\ÙHœ›ÚÙ\ˆ™]\›™YHÜ›Û™È\Ù\ˆØÛÜIÊNÂ‚ˆ™]\›ˆİXØÙ\Ü×ÊÂˆš\™X˜\ÙPİ\İÛUÚÙ[ˆÚÙ[‹ˆ^\™\Ğ]ˆ™\İ[™^\™\Ğ]ˆÛZ[\ÎˆÛZ[\ËˆÛÛ˜Xİˆ	Ø]˜KXÚK\İÜ˜YÙK]ŒIÂˆJNÂŸB‚™[˜İ[ÛˆÔÜİ
+JHÂˆÛÛœİ™\]Y\İH™\]Y\İ›ÙWÊJNÂ‚ˆYˆ
+\™\]Y\İ
+HÂˆ™]\›ˆ˜Z[\™WÊˆ	ÒS•SQÒ”ÓÓ‰Ëˆ	Ô™\]Y\İ›ÙH]\İ™H˜[Y”ÓÓ‰Âˆ
+NÂˆB‚ˆHÂˆÛÛœİXİ[ÛˆHİš[™Ê™\]Y\İ˜Xİ[Ûˆ	ÉÊKš[J
+NÂ‚ˆYˆ
+Xİ[ÛˆOOH	Ù^Ú[™ÙPYZ[”Ù\ÜÚ[Û‰ÊHÂˆ™]\›ˆœÛÛ—Ê^Ú[™ÙPYZ[”Ù\ÜÚ[Û—Ê™\]Y\İ
+JNÂˆB‚ˆYˆ
+Xİ[ÛˆOOH	Ú\ÜİYQš\™X˜\ÙP]]Üš^˜][Û‰ÊHÂˆ™]\›ˆœÛÛ—Ê\ÜİYQš\™X˜\ÙP]]Üš^˜][Û—Ê™\]Y\İ
+JNÂˆB‚ˆYˆ
+Xİ[ÛˆOOH	ØYZ[•\]IÊHÂˆ™]\›ˆœÛÛ—ÊYZ[•\]WÊ™\]Y\İ
+JNÂˆB‚ˆ™]\›ˆ˜Z[\™WÊˆ	ÕS’Ó“ÕÓ—ĞPÕSÓ‰Ëˆ	Õ[œİ\ÜYÔÕXİ[Û‰Âˆ
+NÂˆHØ]Ú
+\œ›ÜŠHÂˆÛÛœİY\ÜØYÙHHİš[™Ê\œ›Üˆ	‰ˆ\œ›Ü‹›Y\ÜØYÙH\œ›ÜŠNÂ‚ˆYˆ
+\œ›Üˆ	‰ˆ\œ›Ü‹˜ÛÙHOOH	Ô“ÓPÒ×ÑRSQ	ÊHÂˆ™]\›ˆ˜Z[\™WÊ	Ô“ÓPÒ×ÑRSQ	ËY\ÜØYÙK\œ›Ü‹™]Z[È[
+NÂˆB‚ˆYˆ
+\œ›Üˆ	‰ˆ\œ›Ü‹˜ÛÙHOOH	ÕÔ’UWÔ“ÓQĞPÒÉÊHÂˆ™]\›ˆ˜Z[\™WÊ	ÕÔ’UWÔ“ÓQĞPÒÉËY\ÜØYÙK\œ›Ü‹™]Z[È[
+NÂˆB‚ˆYˆ
+\œ›Üˆ	‰ˆ\œ›Ü‹˜ÛÙHOOH	Ñ’T‘PTÑWĞUUĞÓÓ‘’QÕTUSÓ—Ô‘TURT‘Q	ÊHÂˆ™]\›ˆ˜Z[\™WÊ	Ñ’T‘PTÑWĞUUĞÓÓ‘’QÕTUSÓ—Ô‘TURT‘Q	ËY\ÜØYÙJNÂˆB‚ˆYˆ
+\œ›Üˆ	‰ˆ\œ›Ü‹˜ÛÙHOOH	Ñ’T‘PTÑWĞUUĞ”“ÒÑT—Ô‘R‘PÕQ	ÊHÂˆ™]\›ˆ˜Z[\™WÊ	Ñ’T‘PTÑWĞUUĞ”“ÒÑT—Ô‘R‘PÕQ	ËY\ÜØYÙJNÂˆB‚ˆYˆ
+ÜÙ\ÜÚ[ÛŸ›ÛÙŸ]]Üš^˜][ÛŸ]›Ü›KÚK\İ
+Y\ÜØYÙJJHÂˆ™]\›ˆ˜Z[\™WÊ	ĞQRS—ÕSUUÔ’V‘Q	ËY\ÜØYÙJNÂˆB‚ˆYˆ
+Üİ[_™\œÚ[Û‹ÚK\İ
+Y\ÜØYÙJJHÂˆ™]\›ˆ˜Z[\™WÊ	ÔÕSWÕÔ’UIËY\ÜØYÙJNÂˆB‚ˆYˆ
+ˆÜ›İXİY[İÛ\İY]X›_šY[]\Ù]™XÛÜ™]Ú^XİY[Y\šXß›ÛÛX[‹ÚBˆ\İ
+Y\ÜØYÙJBˆ
+HÂˆ™]\›ˆ˜Z[\™WÊ	ĞQRS—ÕÔ’UWÔ‘R‘PÕQ	ËY\ÜØYÙJNÂˆB‚ˆ™]\›ˆ˜Z[\™WÊ	Ô‘TUQTÕÑRSQ	ËY\ÜØYÙJNÂˆBŸB

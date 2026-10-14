@@ -97,9 +97,17 @@ export function restoreUserBackup(backup) {
   return normalizeUserState(backup.data);
 }
 
-export function saveUserMediaReference() {
+export function saveUserMediaReference({ provider, planId, resourceId, file, timestamp } = {}) {
+  if (provider && typeof provider.saveFile === 'function') return provider.saveFile({ planId, resourceId, file, timestamp });
   const error = new Error('Cloud Storage provider 未配置；媒體上載功能目前只供 Development QA 顯示。');
   error.code = 'CLOUD_STORAGE_UNAVAILABLE';
+  throw error;
+}
+
+export function removeUserMediaReference({ provider, reference } = {}) {
+  if (provider && typeof provider.deleteFile === 'function') return provider.deleteFile(reference);
+  const error = new Error('User cloud Storage provider 未配置。');
+  error.code = 'USER_STORAGE_AUTH_CONFIG_REQUIRED';
   throw error;
 }
 

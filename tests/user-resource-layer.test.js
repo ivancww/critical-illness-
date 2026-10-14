@@ -5,6 +5,7 @@ import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochu
 import { createMemoryStorage, loadUserState, saveUserState } from '../src/data/storage.js';
 import { FIREBASE_UPLOAD_ENABLED, officialResourcePath } from '../src/integration/firebase-media.js';
 import { USER_RESOURCE_RUNTIME_BLOCKED, canonicalUserScope, removeUserResourceOverride, resolveEffectiveResource, userResourceCapability, userResourcePath } from '../src/domain/resource-layer.js';
+import { USER_STORAGE_AUTH_STATE } from '../src/integration/firebase-media.js';
 
 const bindingA = { opaqueUserScope: 'ava-user-a-123' };
 const bindingB = { opaqueUserScope: 'ava-user-b-456' };
@@ -53,8 +54,13 @@ test('layered customer resources apply User-first then Official fallback', () =>
 
 test('no approved User cloud provider keeps User resource runtime safely blocked', () => {
   assert.equal(userResourceCapability().status, USER_RESOURCE_RUNTIME_BLOCKED);
-  assert.equal(userResourceCapability({ id: 'local', saveFile() {}, resolveFile() {}, deletePersonalFile() {}, binaryStoredInCloud: false, isUserCloudProvider: false }).status, USER_RESOURCE_RUNTIME_BLOCKED);
-  assert.equal(userResourceCapability({ id: 'approved-user-cloud', saveFile() {}, resolveFile() {}, deletePersonalFile() {}, binaryStoredInCloud: true, isUserCloudProvider: true }).status, 'AVAILABLE');
+  assert.equal(userResourceCapability({ id: 'local', saveFile() {}, replaceFile() {}, resolveFile() {}, deletePersonalFile() {}, binaryStoredInCloud: false, isUserCloudProvider: false }).status, USER_RESOURCE_RUNTIME_BLOCKED);
+  assert.equal(userResourceCapability({ id: 'approved-user-cloud', saveFile() {}, replaceFile() {}, resolveFile() {}, deletePersonalFile() {}, binaryStoredInCloud: true, isUserCloudProvider: true }).status, 'AVAILABLE');
+});
+
+test('runtime capability distinguishes missing User auth configuration from the resolver contract', () => {
+  assert.equal(USER_STORAGE_AUTH_STATE, 'USER_STORAGE_AUTH_CONFIG_REQUIRED');
+  assert.equal(userResourceCapability().status, USER_RESOURCE_RUNTIME_BLOCKED);
 });
 
 test('Official/Admin layer remains separate and unchanged while its runtime gate is blocked', () => {
