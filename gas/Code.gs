@@ -42,7 +42,7 @@ const ADMIN_DATASETS = {
   },
   Product_Content: {
     id: 'content_id',
-    fields: ['category', 'title', 'short_text', 'resource_ref', 'sort_order', 'enabled']
+    fields: ['category', 'title', 'short_text', 'resource_type', 'resource_ref', 'sort_order', 'enabled']
   },
   Settings_Versions: {
     id: 'setting_key',

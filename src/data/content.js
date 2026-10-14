@@ -7,13 +7,22 @@ export function firebaseResourceUrl(resource) {
   return resource?.resource_url ?? resource?.firebase_url ?? resource?.url ?? null;
 }
 
+function referenceExtension(reference) {
+  const value = String(reference || '').split(/[?#]/, 1)[0].toLowerCase();
+  if (value.endsWith('.pdf')) return 'pdf';
+  if (value.endsWith('.png')) return 'image/png';
+  if (value.endsWith('.jpg') || value.endsWith('.jpeg')) return 'image/jpeg';
+  if (value.endsWith('.webp')) return 'image/webp';
+  return '';
+}
+
 export function resourceKind(resource) {
   const value = String(resource?.resource_type ?? resource?.mime_type ?? '').toLowerCase();
   if (value === 'pdf' || value === 'application/pdf') return 'pdf';
   if (value.includes('png')) return 'image/png';
   if (value.includes('jpeg') || value.includes('jpg')) return 'image/jpeg';
   if (value.includes('webp')) return 'image/webp';
-  return value || 'resource';
+  return referenceExtension(resource?.resource_ref || firebaseResourceUrl(resource)) || 'resource';
 }
 
 function active(resource) {
@@ -21,7 +30,24 @@ function active(resource) {
 }
 
 function resourceReference(resource) {
-  return resource?.resource_ref || firebaseResourceUrl(resource);
+  const reference = resource?.resource_ref || firebaseResourceUrl(resource);
+  return /^https:\/\//i.test(String(reference || '')) ? reference : null;
+}
+
+export function productBrochureForProduct(productContent = [], planId) {
+  return resourcesForProduct(productContent, planId)
+    .filter(active)
+    .filter(resource => String(resource.content_type || '').toLowerCase() === 'brochure')
+    .filter(resource => resourceReference(resource))
+    .map(resource => ({ ...resource, resourceReference: resourceReference(resource) }));
+}
+
+export function claimCaseResourcesForProduct(productContent = [], planId) {
+  return resourcesForProduct(productContent, planId)
+    .filter(active)
+    .filter(resource => ['claim_example', 'claim_case'].includes(String(resource.content_type || '').toLowerCase()))
+    .filter(resource => resourceReference(resource))
+    .map(resource => ({ ...resource, resourceReference: resourceReference(resource) }));
 }
 
 export function diseaseResourcesForProduct(productContent = [], planId, age) {

@@ -148,6 +148,9 @@ h3 { margin: 0; font-size: 17px; }
 .resource-category { display: grid; gap: 12px; margin: 20px 0; }
 .resource-card { display: grid; align-content: start; gap: 8px; }
 .resource-preview { display: block; width: 100%; height: auto; max-height: 360px; object-fit: contain; border-radius: var(--ava-radius-control); }
+.admin-media-upload { display: grid; gap: 10px; padding-top: 12px; border-top: 1px dashed var(--ava-color-border); }
+.admin-media-upload h4, .admin-media-upload p { margin: 0; }
+.admin-media-upload .is-error { color: #b91c1c; }
 .plan-outcome { min-height: 52px; display: grid; align-items: center; padding: 12px 0; color: var(--ava-color-primary); }
 .claim-state { display: grid; gap: 10px; border: 2px solid var(--ava-color-primary); }
 .claim-state > strong { color: var(--ava-color-primary); font-size: clamp(34px, 7vw, 52px); line-height: 1.15; }

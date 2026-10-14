@@ -141,6 +141,14 @@ test('Admin uses true tab state, structured Traditional Chinese labels, and prot
   assert.match(fs.readFileSync('src/styles.css', 'utf8'), /\.admin-section\[hidden\]\s*\{\s*display:\s*none\s*!important/);
 });
 
+test('Product Content Admin exposes stable resource records and resource type writeback only through the existing allowlist', () => {
+  assert.match(app, /data-media-upload/);
+  assert.match(app, /Product_Content/);
+  assert.match(app, /resource_type/);
+  assert.match(sections, /resource_type: '資源格式'/);
+  assert.match(gas, /Product_Content:[\s\S]*resource_type/);
+});
+
 test('Saving V1.8 Admin alignment keeps CI domains data-driven and separates editable records', () => {
   const adminStart = app.indexOf('function adminPage()');
   const adminEnd = app.indexOf('function adminDeniedPage()', adminStart);
