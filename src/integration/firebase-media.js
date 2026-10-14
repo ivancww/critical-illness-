@@ -118,5 +118,10 @@ export async function uploadOfficialMedia({ planId, category, contentId, content
 }
 
 export function userMediaCapability() {
-  return { status: 'USER_RESOURCE_UPLOAD_BLOCKED_BY_STORAGE_PROVIDER', binaryStoredLocally: false };
+  return {
+    status: 'USER_RESOURCE_RUNTIME_BLOCKED',
+    reason: 'AVA_USER_CLOUD_PROVIDER_AND_BINDING_REQUIRED',
+    binaryStoredLocally: false,
+    officialIsolation: true
+  };
 }

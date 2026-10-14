@@ -1,3 +1,5 @@
+import { resolveEffectiveResource, resourceIdentity } from '../domain/resource-layer.js?v=0.6.0';
+
 export function resourcesForProduct(productContent = [], planId) {
   return productContent.filter(item => item.plan_id === planId && item.active !== false)
     .sort((a, b) => Number(a.display_order ?? a.sort_order ?? 0) - Number(b.display_order ?? b.sort_order ?? 0));
@@ -34,25 +36,35 @@ function resourceReference(resource) {
   return /^https:\/\//i.test(String(reference || '')) ? reference : null;
 }
 
-export function productBrochureForProduct(productContent = [], planId) {
-  return resourcesForProduct(productContent, planId)
-    .filter(active)
+function layeredResourcesForProduct(productContent = [], planId, userOverrides = [], userBinding = null) {
+  const official = resourcesForProduct(productContent, planId).filter(active);
+  const user = Array.isArray(userOverrides) ? userOverrides.filter(item => item?.plan_id === planId) : [];
+  const ids = [...new Set([...official, ...user].map(resourceIdentity).filter(Boolean))];
+  return ids.map(id => {
+    const officialResource = official.find(item => resourceIdentity(item) === id) || null;
+    const userOverride = user.find(item => resourceIdentity(item) === id) || null;
+    const effective = resolveEffectiveResource({ officialResource, userOverride, userBinding });
+    if (!effective || !active(effective) || !resourceReference(effective)) return null;
+    return { ...effective, resourceReference: resourceReference(effective) };
+  }).filter(Boolean).sort((a, b) => Number(a.display_order ?? a.sort_order ?? 0) - Number(b.display_order ?? b.sort_order ?? 0));
+}
+
+export function productBrochureForProduct(productContent = [], planId, userOverrides = [], userBinding = null) {
+  return layeredResourcesForProduct(productContent, planId, userOverrides, userBinding)
     .filter(resource => String(resource.content_type || '').toLowerCase() === 'brochure')
     .filter(resource => resourceReference(resource))
     .map(resource => ({ ...resource, resourceReference: resourceReference(resource) }));
 }
 
-export function claimCaseResourcesForProduct(productContent = [], planId) {
-  return resourcesForProduct(productContent, planId)
-    .filter(active)
+export function claimCaseResourcesForProduct(productContent = [], planId, userOverrides = [], userBinding = null) {
+  return layeredResourcesForProduct(productContent, planId, userOverrides, userBinding)
     .filter(resource => ['claim_example', 'claim_case'].includes(String(resource.content_type || '').toLowerCase()))
     .filter(resource => resourceReference(resource))
     .map(resource => ({ ...resource, resourceReference: resourceReference(resource) }));
 }
 
-export function diseaseResourcesForProduct(productContent = [], planId, age) {
-  const rows = resourcesForProduct(productContent, planId)
-    .filter(active)
+export function diseaseResourcesForProduct(productContent = [], planId, age, userOverrides = [], userBinding = null) {
+  const rows = layeredResourcesForProduct(productContent, planId, userOverrides, userBinding)
     .filter(resource => resourceReference(resource))
     .map(resource => ({ ...resource, resourceReference: resourceReference(resource) }));
   const adult = rows.filter(resource => ['diseases', 'adult', 'adult_disease'].includes(String(resource.category || '').toLowerCase()));

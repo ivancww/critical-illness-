@@ -60,5 +60,23 @@ changed by this release.
 This is a file-storage and configured-resource workflow only. It does not
 perform AI processing, OCR, extraction, summarization, classification,
 document understanding, CRM integration, claim interpretation, or payout
-calculation. User-personal upload remains unavailable and separate from
-Official media.
+calculation.
+
+## Official and User resource layers
+
+Official resources remain shared Admin-owned content. Their metadata and
+references are governed by `Product_Content`, and their binaries use the
+`critical-illness/official/{planId}/...` namespace.
+
+User resource overrides are a separate metadata-only layer. Resolution is
+deterministic: an override owned by the current canonical AVA User binding is
+used first, then the matching Official resource, then no resource. Removing
+an override only removes that User metadata and automatically reveals the
+Official resource; it never writes or deletes Official data.
+
+The current AVA Platform source exposes only its local provider for personal
+files, which stores Blobs in IndexedDB. That provider is not used for CI User
+resources because this app requires User binaries to remain in approved cloud
+storage. No approved User cloud provider or canonical cloud User-binding
+adapter is currently available, so `USER_RESOURCE_RUNTIME_BLOCKED` remains the
+safe runtime state. No User binary is stored in CI LocalStorage or IndexedDB.
