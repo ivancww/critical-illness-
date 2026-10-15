@@ -63,8 +63,8 @@ test('runtime capability distinguishes missing User auth configuration from the 
   assert.equal(userResourceCapability().status, USER_RESOURCE_RUNTIME_BLOCKED);
 });
 
-test('Official/Admin layer remains separate and unchanged while its runtime gate is blocked', () => {
-  assert.equal(FIREBASE_UPLOAD_ENABLED, false);
+test('Official/Admin layer remains separate while upload authenticates at runtime', () => {
+  assert.equal(FIREBASE_UPLOAD_ENABLED, true);
   assert.match(officialResourcePath({ planId: 'OYS2', category: 'claims', contentId: 'OYS2_CASE_001', filename: 'case.pdf', timestamp: 1 }), /^critical-illness\/official\/OYS2\/claims\/OYS2_CASE_001\/1_case\.pdf$/);
   const source = fs.readFileSync('src/integration/firebase-media.js', 'utf8');
   assert.match(source, /adminSessionProof/);

@@ -14,12 +14,12 @@ export const FIREBASE_CONFIG = Object.freeze({
 export const ALLOWED_MEDIA_TYPES = Object.freeze(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']);
 export const MAX_MEDIA_BYTES = 20 * 1024 * 1024;
 
-// Deliberately disabled until the Firebase project proves an authenticated,
-// Admin-only Storage Rules/provider contract. This prevents a public web
-// configuration from being mistaken for upload authorization.
-export const FIREBASE_UPLOAD_ENABLED = false;
-export const FIREBASE_UPLOAD_STATUS = 'FIREBASE_RUNTIME_BLOCKED';
-export const OFFICIAL_STORAGE_AUTH_STATE = 'OFFICIAL_STORAGE_AUTH_CONFIG_REQUIRED';
+// The production path is enabled as a capability, but authorization is still
+// enforced per upload by the AVA Admin proof -> Firebase custom-token flow.
+// A public Web config never grants Storage write access by itself.
+export const FIREBASE_UPLOAD_ENABLED = true;
+export const FIREBASE_UPLOAD_STATUS = 'FIREBASE_AUTH_REQUIRED';
+export const OFFICIAL_STORAGE_AUTH_STATE = 'OFFICIAL_STORAGE_AUTH_READY';
 export const USER_STORAGE_AUTH_STATE = 'USER_STORAGE_AUTH_CONFIG_REQUIRED';
 export const FIREBASE_AUTH_METHOD = 'SERVER_SIDE_FIREBASE_CUSTOM_TOKEN_OR_APPROVED_BROKER';
 
@@ -98,16 +98,11 @@ export async function uploadOfficialMedia({ planId, category, contentId, content
     error.code = 'ADMIN_PROOF_REQUIRED';
     throw error;
   }
-  if (!FIREBASE_UPLOAD_ENABLED) {
-    const error = new Error('Firebase Storage Rules／Admin upload provider 尚未完成核實。');
-    error.code = FIREBASE_UPLOAD_STATUS;
-    throw error;
-  }
   const { appSdk, storageSdk, authSdk } = await loadFirebaseStorageSdk();
   const app = appSdk.getApps().find(item => item.name === 'ava-critical-illness')
     || appSdk.initializeApp(FIREBASE_CONFIG, 'ava-critical-illness');
   const auth = authSdk.getAuth(app);
-  const adapter = authAdapter || (await import('./firebase-auth.js?v=0.6.2')).createFirebaseAuthAdapter({ authSdk, auth });
+  const adapter = authAdapter || (await import('./firebase-auth.js?v=0.6.3')).createFirebaseAuthAdapter({ authSdk, auth });
   await adapter.authenticate({ mode: 'admin', adminSessionProof });
   const storage = storageSdk.getStorage(app);
   return uploadOfficialMediaWithProvider({
