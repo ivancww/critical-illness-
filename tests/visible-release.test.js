@@ -8,15 +8,15 @@ const version = fs.readFileSync('src/version.js', 'utf8');
 const packageMetadata = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 test('visible CI release keeps one version source and a lightweight persistent header', () => {
-  assert.equal(packageMetadata.version, '0.6.2');
-  assert.match(version, /export const APP_VERSION = '0\.6\.2'/);
-  assert.match(app, /import \{ APP_VERSION \} from '\.\/version\.js\?v=0\.6\.2'/);
+  assert.equal(packageMetadata.version, '0.6.3');
+  assert.match(version, /export const APP_VERSION = '0\.6\.3'/);
+  assert.match(app, /import \{ APP_VERSION \} from '\.\/version\.js\?v=0\.6\.3'/);
   assert.doesNotMatch(app, /package\.json.*type:\s*'json'/);
   assert.match(app, /document\.querySelector\('#app-version'\)\.textContent = `v\$\{APP_VERSION\}`/);
   assert.match(html, /id="app-version"/);
   assert.match(html, /data-admin-startup/);
   assert.match(html, /正在建立安全瀏覽器綁定及載入 Official Data/);
-  assert.match(html, /src="\.\/src\/app\.js\?v=0\.6\.2"/);
+  assert.match(html, /src="\.\/src\/app\.js\?v=0\.6\.3"/);
   const header = html.slice(html.indexOf('<header'), html.indexOf('</header>'));
   assert.match(header, /返回 AVA/);
   assert.doesNotMatch(header, /開始了解|查看方案/);
@@ -34,6 +34,7 @@ test('home and guided navigation preserve direct plan access and stateful flow c
   assert.match(flow, /page-control/);
   assert.match(flow, /actions actions--end/);
   assert.match(flow, /直接查看方案/);
+  assert.match(app, /step === steps.length - 1 \? ''/);
   assert.match(app, /previousFlowStep\(flow\(\)\)/);
   assert.match(app, /nextFlowStep\(flow\(\)\)/);
 });
@@ -41,7 +42,7 @@ test('home and guided navigation preserve direct plan access and stateful flow c
 test('visible release does not replace the independent update lifecycle or clear user data', () => {
   const sw = fs.readFileSync('sw.js', 'utf8');
   assert.match(sw, /const CACHE = 'ava-ci-shell';/);
-  assert.match(sw, /const RELEASE = '0\.6\.2';/);
+  assert.match(sw, /const RELEASE = '0\.6\.3';/);
   assert.match(sw, /src\/integration\/firebase-media\.js/);
   assert.match(sw, /src\/domain\/input-format\.js/);
   assert.match(sw, /src\/domain\/plan-experience\.js/);

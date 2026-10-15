@@ -33,12 +33,13 @@ parameter such as avaEntry=admin is not upload authority.
 The Firebase Web configuration is public client configuration. It is not a
 credential and it does not prove Firebase Storage upload permission.
 
-FIREBASE_UPLOAD_ENABLED remains false in this release because the current
-environment could not verify an authenticated Firebase Storage Rules contract
-or an approved AVA upload broker. The browser integration is prepared with
+FIREBASE_UPLOAD_ENABLED is a runtime capability flag for the authenticated
+Admin path. It does not grant access by itself: every upload still requires a
+valid AVA Admin session proof, a short-lived Firebase custom token, and the
+`avaAdmin=true` Storage Rules claim. If any stage fails, the UI shows the real
+authorization or upload error and fails closed. The browser integration uses
 Firebase browser ESM imports, MIME/20 MB validation, safe paths, HTTPS URL
-validation, and single-app/single-Storage initialization, but production
-activation is blocked with FIREBASE_RUNTIME_BLOCKED.
+validation, and single-app/single-Storage initialization.
 
 Before activation, an authorized owner must verify one of the following
 without public writes:
@@ -112,12 +113,10 @@ verify the canonical AVA User binding proof.
   `saveFile`, `replaceFile`, `resolveFile`, and `deleteFile` operations. It
   requires a canonical opaque AVA User binding plus a short-lived User claim.
 
-The deployed Firebase project currently has Authentication uninitialized and
-still has the unsafe global public rule. Therefore the code reports
-`OFFICIAL_STORAGE_AUTH_CONFIG_REQUIRED` and
-`USER_STORAGE_AUTH_CONFIG_REQUIRED`; it does not enable upload or attempt a
-production write. No browser credential, Firebase Admin key, or broker secret
-is stored in this repository.
+The browser never treats Firebase Web configuration as upload authority. No
+browser credential, Firebase Admin key, or broker secret is stored in this
+repository. User resource upload remains separately fail-closed until an
+approved AVA User cloud provider and binding are available.
 
 The direct issuer does not make the current live project safe by itself. The
 minimum activation sequence remains: initialize Firebase Authentication,

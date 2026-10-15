@@ -184,16 +184,17 @@ test('Firebase media gate validates references without creating an unsafe upload
   assert.deepEqual(validateMediaFile({ type: 'application/pdf', size: 10, name: 'guide.pdf' }), { type: 'application/pdf', size: 10, name: 'guide.pdf' });
   assert.throws(() => validateMediaFile({ type: 'application/javascript', size: 10, name: 'bad.js' }));
   assert.equal(userMediaCapability().binaryStoredLocally, false);
-  assert.equal(FIREBASE_UPLOAD_ENABLED, false);
+  assert.equal(FIREBASE_UPLOAD_ENABLED, true);
   assert.equal(FIREBASE_AUTH_METHOD, 'SERVER_SIDE_FIREBASE_CUSTOM_TOKEN_OR_APPROVED_BROKER');
   assert.equal(userMediaCapability().status, 'USER_STORAGE_AUTH_CONFIG_REQUIRED');
-  assert.equal(OFFICIAL_STORAGE_AUTH_STATE, 'OFFICIAL_STORAGE_AUTH_CONFIG_REQUIRED');
-  assert.deepEqual(storageCapability().official, { status: OFFICIAL_STORAGE_AUTH_STATE, uploadEnabled: false, authMethod: FIREBASE_AUTH_METHOD, publicRead: true, publicWrite: false });
+  assert.equal(OFFICIAL_STORAGE_AUTH_STATE, 'OFFICIAL_STORAGE_AUTH_READY');
+  assert.deepEqual(storageCapability().official, { status: OFFICIAL_STORAGE_AUTH_STATE, uploadEnabled: true, authMethod: FIREBASE_AUTH_METHOD, publicRead: true, publicWrite: false });
 });
 
-test('Firebase media upload is blocked without verified Storage authorization and never bypasses Admin proof', async () => {
+test('Firebase media upload requires Admin proof and no longer uses a static runtime block', async () => {
   await assert.rejects(() => uploadOfficialMedia({ planId: 'OYS2', category: 'diseases', contentId: 'OYS2_DISEASES', file: { type: 'application/pdf', size: 10, name: 'guide.pdf' } }), error => error.code === 'ADMIN_PROOF_REQUIRED');
-  await assert.rejects(() => uploadOfficialMedia({ planId: 'OYS2', category: 'diseases', contentId: 'OYS2_DISEASES', file: { type: 'application/pdf', size: 10, name: 'guide.pdf' }, adminSessionProof: 'test-only-proof' }), error => error.code === FIREBASE_UPLOAD_STATUS);
+  assert.equal(FIREBASE_UPLOAD_STATUS, 'FIREBASE_AUTH_REQUIRED');
+  assert.doesNotMatch(fs.readFileSync('src/integration/firebase-media.js', 'utf8'), /if \(!FIREBASE_UPLOAD_ENABLED\)/);
 });
 
 test('mocked approved provider returns a usable reference without storing binaries locally', async () => {
@@ -218,5 +219,19 @@ test('Admin media controls keep AVA authorization and Firebase safety boundaries
   assert.match(app, /adminSessionProof/);
   assert.match(app, /writeOfficialData\(request, adminSessionProof\)/);
   assert.doesNotMatch(app, /getAnalytics|firebase-admin|serviceAccount|allow write: if true/);
-  assert.match(app, /FIREBASE_RUNTIME_BLOCKED/);
+  assert.doesNotMatch(app, /FIREBASE_RUNTIME_BLOCKED/);
+  assert.match(app, /Firebase Admin 授權失敗/);
+});
+
+test('P9 information cards are display-only and the three choices route directly', () => {
+  const p9 = app.slice(app.indexOf('if (step === 8)'), app.indexOf('function flowPage()'));
+  assert.match(p9, /data-information-card="single"/);
+  assert.match(p9, /data-information-card="continuing"/);
+  assert.doesNotMatch(p9, /<article[^>]*data-information-card="single"[^>]*data-style/);
+  assert.equal((p9.match(/data-style="(single|continuing|compare)"/g) || []).length, 3);
+  assert.match(app, /location\.hash = '#\/plans'/);
+  assert.match(app, /function routedPlans\(\)/);
+  assert.match(app, /mode === 'single'.*planKey\(plan\) === 'SCE'/s);
+  assert.match(app, /mode === 'continuing'.*planKey\(plan\) === 'OYS2'/s);
+  assert.doesNotMatch(p9, /查看方案|直接查看方案/);
 });
