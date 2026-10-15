@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 20868)
-Total output lines: 486
-
 import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.3';
 import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.3';
 import { claimCaseResourcesForProduct, diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.3';
@@ -180,7 +177,40 @@ function legacyClaimPage() {
   else body = id === 'OYS2' && dementia ? `<div class="card result-panel"><small>腦退化症 · 使用已確認業務規則</small><strong>首次 100%</strong><p>其後每年 6% 基本保額，終身。以下只展示到所選年齡，並非賠償上限。</p><p>到 ${throughAge} 歲累計 ${dementia.events.at(-1).cumulativePercent}% · HK$${money(dementia.events.at(-1).cumulativeAmount)}</p></div><ol class="claim-timeline">${dementia.events.slice(-8).map(event => claimEvent(event, `${event.age}歲`)).join('')}</ol><div class="actions"><button class="secondary" data-dementia-years="1">再看 1 年</button><button class="secondary" data-dementia-years="10">再看 10 年</button><button class="subtle" id="dementia-reset">返回首次保障</button></div><p class="muted">合約資格與付款時間仍須核實。</p>` : '<p class="verify">此方案的腦退化症規則尚待核實。</p>';
   render(`<section class="hero"><span class="eyebrow">多重賠償</span><h1>第一次之後，保障怎樣延續？</h1><div class="ava-comparison experience-grid"><div class="card"><h2>一次保障</h2><p>確診 → 首次保障 → 合約完結</p></div><div class="card"><h2>延續保障</h2><p>確診 → 首次保障 → 治療／康復 → 延續保障</p></div></div>${experienceNav()}</section><div class="claim-controls">${continuingPlans().length > 1 ? `<div class="field"><label for="claim-plan">延續保障方案</label><select id="claim-plan">${continuingPlans().map(item => `<option value="${escapeHtml(planKey(item))}" ${planKey(item) === id ? 'selected' : ''}>${escapeHtml(planName(item))}</option>`).join('')}</select></div>` : ''}<div class="field"><label for="claim-age">客戶目前年齡</label><input id="claim-age" type="number" min="1" step="1" value="${age || ''}"></div><div class="field"><label for="claim-sum">${escapeHtml(plan ? planName(plan) : '延續保障方案')}基本保額（HK$）</label><input id="claim-sum" data-money-input="claim-sum" type="text" inputmode="numeric" value="${moneyInputValue(sum)}"></div></div><div class="scenario-nav" role="group" aria-label="選擇情境">${[['cancer','癌症'],['heart','心臟病／中風'],['dementia','腦退化症']].map(([key,label]) => `<button class="${scenario === key ? 'primary' : 'secondary'}" data-scenario="${key}" aria-pressed="${scenario === key}">${label}</button>`).join('')}</div><section class="scenario-body">${body}</section>`);
   document.querySelector('#claim-plan')?.addEventListener('change', event => { frontstage().claimPlanId = event.target.value; frontstage().cancerActions = []; persistUser(); claimPage(); });
-  document.querySelector('#claim-age')?.addEventListener('cha…868 tokens truncated…st evidence = premiumEvidence(state.official?.premium, plan, gender, age, smoker, term, sum);
+  document.querySelector('#claim-age')?.addEventListener('change', event => { frontstage().age = Math.max(0, Math.trunc(Number(event.target.value) || 0)); frontstage().cancerActions = []; delete frontstage().throughAge; persistUser(); claimPage(); });
+  document.querySelector('#claim-sum')?.addEventListener('input', event => { const value = formatMoneyInput(event.target); frontstage().sums ||= {}; frontstage().sums[id] = value; persistUser(); });
+  document.querySelector('#claim-sum')?.addEventListener('change', () => claimPage());
+  document.querySelectorAll('[data-scenario]').forEach(button => button.addEventListener('click', () => { frontstage().scenario = button.dataset.scenario; persistUser(); claimPage(); }));
+  document.querySelectorAll('[data-cancer-action]').forEach(button => button.addEventListener('click', () => { frontstage().cancerActions ||= []; frontstage().cancerActions.push(button.dataset.cancerAction); persistUser(); claimPage(); }));
+  document.querySelector('#cancer-reset')?.addEventListener('click', () => { frontstage().cancerActions = []; persistUser(); claimPage(); });
+  document.querySelector('#heart-next')?.addEventListener('click', () => { frontstage().heartClaims = (Number(frontstage().heartClaims) || 1) + 1; persistUser(); claimPage(); });
+  document.querySelector('#heart-reset')?.addEventListener('click', () => { frontstage().heartClaims = 1; persistUser(); claimPage(); });
+  document.querySelectorAll('[data-dementia-years]').forEach(button => button.addEventListener('click', () => { frontstage().throughAge = throughAge + Number(button.dataset.dementiaYears); persistUser(); claimPage(); }));
+  document.querySelector('#dementia-reset')?.addEventListener('click', () => { frontstage().throughAge = age; persistUser(); claimPage(); });
+}
+
+function claimPage() {
+  legacyClaimPage();
+  const plan = continuingPlan(); const id = plan && planKey(plan); const sum = Number(frontstage().sums?.[id]) || 0; const age = savedAge();
+  const scenario = ['cancer', 'heart', 'dementia'].includes(frontstage().scenario) ? frontstage().scenario : 'cancer';
+  const rules = datasets().Claim_Rules;
+  const events = scenario === 'cancer'
+    ? cancerTimeline({ rules, planId: id, sumAssured: sum, age, actions: frontstage().cancerActions || [] })?.events
+    : scenario === 'heart'
+      ? heartStrokeTimeline({ rules, planId: id, sumAssured: sum, age, claims: Number(frontstage().heartClaims) || 1 })?.events
+      : dementiaTimeline({ sumAssured: sum, age, throughAge: Math.max(age || 0, Number(frontstage().throughAge) || (age || 0) + 3) })?.events;
+  if (!events) return;
+  const total = cumulativePayout(events);
+  const markup = `<article class="card cumulative-payout-card"><span class="eyebrow">已模擬 ${total.eventCount} 次賠償</span><h2>累積總賠償金額</h2><strong>HK$${money(total.amount)}</strong><p>累積 ${total.percent}%</p></article>`;
+  document.querySelector('.scenario-body')?.insertAdjacentHTML('afterbegin', markup);
+}
+
+function premiumMoney(value) { return Number(value).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function premiumPage() {
+  const age = savedAge(); const gender = frontstage().gender === 'F' ? 'F' : 'M'; const smoker = frontstage().smoker === 'smoker' ? 'smoker' : 'non-smoker';
+  const term = [10,18,25].includes(Number(frontstage().payTerm)) ? Number(frontstage().payTerm) : 18;
+  const cards = plans().map(plan => { const id = planKey(plan); const sum = Number(frontstage().sums?.[id]) || 0;
+    const evidence = premiumEvidence(state.official?.premium, plan, gender, age, smoker, term, sum);
     const isContinuing = ['continuing', 'continuing_multiple_claim'].includes(plan.protection_style);
     const annual = evidence.status === 'AVAILABLE' ? `HK$${premiumMoney(evidence.annualPremium)}` : 'VERIFY REQUIRED';
     return `<article class="card premium-plan"><span class="tag">${escapeHtml(plan.plan_category || plan.badge || '方案')}</span><h2>${escapeHtml(planName(plan))}</h2><p>${isContinuing ? '延續保障' : '一次保障'} · 基本保額 ${sum ? `HK$${money(sum)}` : '待輸入'}</p><p>${isContinuing ? `${term} 年供` : '官方年繳費率'}</p><div class="premium-figure"><small>每年保費</small><strong>${annual}</strong></div><p>每月保費：VERIFY REQUIRED（官方月繳換算未核實）</p><p>總保費：VERIFY REQUIRED（供款總額次序未核實）</p><small class="verify">${escapeHtml(evidence.reason)}</small></article>`; }).join('');
