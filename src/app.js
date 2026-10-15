@@ -1,15 +1,16 @@
-import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.5.0';
-import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.5.0';
-import { diseaseResourcesForProduct, firebaseResourceUrl, resourceKind } from './data/content.js?v=0.5.0';
-import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.5.0';
-import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.5.0';
-import { verificationState } from './domain/verification.js?v=0.5.0';
-import { cancerTimeline, cumulativePayout, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.5.0';
-import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.5.0';
-import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.5.0';
-import { resolveAvaReturnContext } from './integration/return-context.js?v=0.5.0';
-import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.5.0';
-import { APP_VERSION } from './version.js?v=0.5.0';
+import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.2';
+import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.2';
+import { claimCaseResourcesForProduct, diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.2';
+import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.2';
+import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.2';
+import { verificationState } from './domain/verification.js?v=0.6.2';
+import { cancerTimeline, cumulativePayout, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.2';
+import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.2';
+import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.2';
+import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.2';
+import { FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.2';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.2';
+import { APP_VERSION } from './version.js?v=0.6.2';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -142,8 +143,10 @@ function bindPlanInputs() {
 function plansPage() { const s = supportSummary(); const age = savedAge(); const diagnosisAge = savedDiagnosisAge(); render(`<section class="hero"><span class="eyebrow">Actual Plans</span><h1>直接比較兩種危疾保障</h1><p class="support">先輸入投保年齡、確診歲數及基本保額，直接看首10年升級保障、賠償結果及生活支援效果。</p><div class="plan-scenario-inputs"><div class="field"><label for="plan-age">投保年齡</label><input id="plan-age" type="number" min="1" max="120" step="1" inputmode="numeric" value="${age || ''}" placeholder="進入實際方案時輸入"></div><div class="field"><label for="diagnosis-age">確診歲數</label><input id="diagnosis-age" type="number" min="1" max="120" step="1" inputmode="numeric" value="${diagnosisAge || ''}" placeholder="用於展示首10年保障"></div></div><p class="muted">投保年齡用於選擇 +50% / +35% 年齡組別；確診歲數只用於判斷首10年保障期。目標 HK$${money(s.desired)} · ${flow().desiredMonths} 個月 · 現有保障約 ${s.months.toFixed(1)} 個月</p><div class="actions"><a class="button subtle" href="#/flow">返回 Guided Flow</a><a class="button secondary" href="#/claims">多重賠償情境</a><a class="button secondary" href="#/premiums">方案保費</a><a class="button secondary" href="#/presentation">一鍵客戶展示</a></div></section><section class="experience-grid">${plans().map(plan => `<div class="plan-input-wrap"><div class="field card-field"><label for="sum-${escapeHtml(planKey(plan))}">${escapeHtml(planName(plan))}基本保額（HK$）</label><input id="sum-${escapeHtml(planKey(plan))}" data-plan-sum="${escapeHtml(planKey(plan))}" data-money-input="${escapeHtml(planKey(plan))}" type="text" min="1" inputmode="numeric" value="${moneyInputValue(frontstage().sums?.[planKey(plan)])}"></div>${planComparisonCard(plan, age, diagnosisAge)}</div>`).join('') || '<p class="empty">官方方案資料尚未提供。</p>'}</section>`); bindPlanInputs(); }
 
 function planProtection(id) { const planId = decodeURIComponent(id); const plan = plans().find(item => planKey(item) === planId); if (!plan) return plansPage(); const summary = planProtectionSummary({ plan, benefits: datasets().Benefits, sumAssured: Number(frontstage().sums?.[planId]) || 0, age: savedAge() }); const continuing = planKind(plan) !== '一次性保障'; render(`<section class="hero"><span class="eyebrow">Protection</span><h1>${escapeHtml(planName(plan))}</h1><p class="support">${escapeHtml(planKind(plan))} · 先看賠償後的保障狀態，再查看詳細內容。</p>${protectionRows(summary)}<div class="actions"><a class="button secondary" href="#/plans">返回方案</a><a class="button subtle" href="#/plans/${encodeURIComponent(planId)}/diseases">查看保障疾病種類</a><a class="button primary" href="#/plans/${encodeURIComponent(planId)}/claim">查看保障效果</a></div></section><section class="grid"><article class="card"><h2>${continuing ? '多次保障' : '一次性保障'}</h2><p>${continuing ? '首次合資格嚴重疾病獲得賠償後，可按產品條款繼續享有保障。' : '發生合資格嚴重疾病後賠償基本保障額；完成100%賠償後合約完結。'}</p>${continuing ? premiumWaiverCopy(summary) : ''}</article><article class="card"><h2>保費</h2><p class="verify">保費金額需以官方費率及已核實計算次序為準。</p><a class="button secondary" href="#/premiums">查看方案保費</a></article></section>`); }
-function resourceMarkup(resource) { const ref = resource.resourceReference || firebaseResourceUrl(resource); const title = resource.title || resource.content_type || '疾病保障資源'; const type = resourceKind(resource); const image = /^image\//i.test(type) ? `<img class="resource-preview" loading="lazy" src="${escapeHtml(ref)}" alt="${escapeHtml(title)}">` : ''; return `<article class="card resource-card"><h3>${escapeHtml(title)}</h3><p class="muted">${escapeHtml(resource.short_text || '')}</p>${image}<a class="button secondary" href="${escapeHtml(ref)}" target="_blank" rel="noopener">${type === 'pdf' ? '開啟 PDF' : '開啟圖片資源'}</a></article>`; }
-function diseaseResourcePage(id) { const planId = decodeURIComponent(id); const plan = plans().find(item => planKey(item) === planId); if (!plan) return plansPage(); const categories = diseaseResourcesForProduct(datasets().Product_Content, planId, savedAge()); const body = categories.length ? categories.map(category => `<section class="resource-category"><h2>${escapeHtml(category.label)}</h2><div class="grid">${category.resources.map(resourceMarkup).join('')}</div></section>`).join('') : '<p class="empty">目前未配置可開啟的疾病保障資源。</p>'; render(`<section class="hero"><span class="eyebrow">Disease resources</span><h1>${escapeHtml(planName(plan))} · 保障疾病種類</h1><div class="actions"><a class="button secondary" href="#/plans">返回方案</a></div></section>${body}`); }
+function resourceMarkup(resource) { const ref = resource.resourceReference || firebaseResourceUrl(resource); const title = resource.title || resource.content_type || '疾病保障資源'; const type = resourceKind(resource); const image = /^image\//i.test(type) ? `<img class="resource-preview" loading="lazy" src="${escapeHtml(ref)}" alt="${escapeHtml(title)}">` : ''; const contentType = String(resource.content_type || '').toLowerCase(); const action = contentType === 'brochure' ? '查看產品小冊子' : contentType === 'claim_example' || contentType === 'claim_case' ? '查看案例' : type === 'pdf' ? '開啟 PDF' : /^image\//i.test(type) ? '查看圖片' : '開啟資源'; return `<article class="card resource-card"><h3>${escapeHtml(title)}</h3><p class="muted">${escapeHtml(resource.short_text || '')}</p>${image}<a class="button secondary" href="${escapeHtml(ref)}" target="_blank" rel="noopener">${action}</a></article>`; }
+function currentUserResourceOverrides() { return Array.isArray(state.user.resourceOverrides) ? state.user.resourceOverrides : []; }
+function currentUserBinding() { return state.user.userBinding || null; }
+function diseaseResourcePage(id) { const planId = decodeURIComponent(id); const plan = plans().find(item => planKey(item) === planId); if (!plan) return plansPage(); const productContent = datasets().Product_Content; const overrides = currentUserResourceOverrides(); const binding = currentUserBinding(); const categories = diseaseResourcesForProduct(productContent, planId, savedAge(), overrides, binding); const brochures = productBrochureForProduct(productContent, planId, overrides, binding); const cases = claimCaseResourcesForProduct(productContent, planId, overrides, binding); const diseaseBody = categories.length ? categories.map(category => `<section class="resource-category"><h2>${escapeHtml(category.label)}</h2><div class="grid">${category.resources.map(resourceMarkup).join('')}</div></section>`).join('') : '<p class="empty">目前未配置可開啟的疾病保障資源。</p>'; const brochureBody = brochures.length ? `<section class="resource-category"><h2>產品小冊子</h2><div class="grid">${brochures.map(resourceMarkup).join('')}</div></section>` : ''; const caseBody = cases.length ? `<section class="resource-category"><h2>賠償案例</h2><div class="grid">${cases.map(resourceMarkup).join('')}</div></section>` : ''; render(`<section class="hero"><span class="eyebrow">Disease resources</span><h1>${escapeHtml(planName(plan))} · 保障疾病種類</h1><div class="actions"><a class="button secondary" href="#/plans">返回方案</a></div></section>${diseaseBody}${brochureBody}${caseBody}`); }
 function planProtectionDetail(id) { return diseaseResourcePage(id); }
 function planClaim(id) { const planId = decodeURIComponent(id); const plan = plans().find(item => planKey(item) === planId); if (!plan) return plansPage(); const age = savedAge(); const sum = Number(frontstage().sums?.[planId]) || 0; const summary = planProtectionSummary({ plan, benefits: datasets().Benefits, sumAssured: sum, age }); const continuing = planKind(plan) !== '一次性保障'; const amountReady = Number(summary.totalApplicable) > 0 && summary.major.status === 'VERIFIED' && summary.extra.status !== 'VERIFY_REQUIRED'; const claimed = amountReady && Boolean(frontstage().claimDemo?.[planId]); const payout = summary.totalApplicable; const stateCard = claimed ? continuing ? `<article class="card claim-state claim-state--active" data-claim-state="continuing">${claimPayout(summary, true)}<p>保障仍然生效</p>${premiumWaiverCopy(summary)}<p>仍可享有多重賠償</p><a class="button primary" href="#/claims" data-open-multiple>繼續查看多重賠償情境</a></article>` : `<article class="card claim-state claim-state--ended" data-claim-state="ended">${claimPayout(summary, false)}<p>一次性賠償完成</p><p><strong>合約完結</strong></p></article>` : `<article class="card claim-state"><span class="tag">${continuing && summary.extra.status === 'VERIFIED' ? '模擬首次主要危疾賠償' : continuing ? '模擬首次100%主要危疾賠償' : '模擬100%一次性賠償'}</span><p>按目前輸入的投保年齡及基本保額，查看賠償後的真實保障狀態。</p><button class="button primary" data-full-claim="${escapeHtml(planId)}" ${amountReady ? '' : 'disabled'}>${continuing && summary.extra.status === 'VERIFIED' ? '模擬首次主要危疾賠償' : '模擬100%賠償'}${amountReady ? ` · HK$${money(payout)}` : ''}</button>${amountReady ? '' : '<p class="verify">請先在方案比較輸入年齡及有效基本保額；額外保障未核實前不會自行推算。</p>'}</article>`; render(`<section class="hero"><span class="eyebrow">Claim outcome</span><h1>${escapeHtml(planName(plan))}</h1><p class="support">${escapeHtml(planKind(plan))} · 以視覺看清楚主要危疾賠償後的結果。</p>${stateCard}<div class="actions"><a class="button secondary" href="#/plans/${encodeURIComponent(planId)}/protection">返回保障頁</a><a class="button subtle" href="#/plans">返回方案比較</a></div></section>`); document.querySelector('[data-full-claim]')?.addEventListener('click', () => { frontstage().claimDemo ||= {}; frontstage().claimDemo[planId] = true; if (continuing) frontstage().claimPlanId = planId; persistUser(); planClaim(planId); }); document.querySelector('[data-open-multiple]')?.addEventListener('click', () => { frontstage().claimPlanId = planId; persistUser(); }); }
 
@@ -246,6 +249,13 @@ function adminControlMarkup(key, value) {
   if (type === 'checkbox') return `<input ${common} type="checkbox" ${value === true ? 'checked' : ''}>`;
   return `<input ${common} type="${type}" value="${escapeHtml(value ?? '')}">`;
 }
+function adminMediaUploadMarkup(record) {
+  const id = adminRecordId('Product_Content', record);
+  const ref = record.resource_ref || '';
+  const blocked = !FIREBASE_UPLOAD_ENABLED;
+  const status = blocked ? '上載功能暫停：Firebase Storage Rules／Admin upload provider 尚未完成核實。' : '可選擇 PDF 或圖片後上載。';
+  return `<section class="admin-media-upload" data-media-upload-panel data-content-id="${escapeHtml(id)}"><h4>官方 PDF／圖片資源</h4><p class="muted">${escapeHtml(status)}</p>${ref ? `<p class="muted">目前檔案：<a href="${escapeHtml(ref)}" target="_blank" rel="noopener">開啟目前資源</a></p>` : '<p class="muted">目前未配置資源。</p>'}<label class="admin-field admin-field--editable"><span>上載新檔案</span><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" data-media-file="${escapeHtml(id)}"></label><div class="actions"><button class="secondary" type="button" data-media-upload="${escapeHtml(id)}"${blocked ? ' disabled' : ''}>上載／發布資源</button></div><p class="muted" data-media-status="${escapeHtml(id)}" role="status">${escapeHtml(blocked ? `FIREBASE_RUNTIME_BLOCKED：${FIREBASE_AUTH_METHOD}` : '尚未上載。')}</p></section>`;
+}
 function adminRecordMarkup(record, dataset = '', index = 0, selected = false) {
   const safe = redactOfficialValue(record);
   const entries = Object.entries(safe || {}).filter(([, value]) => value !== null && value !== undefined);
@@ -258,7 +268,8 @@ function adminRecordMarkup(record, dataset = '', index = 0, selected = false) {
     : `<div class="admin-field admin-field--readonly"><span>${escapeHtml(adminFieldLabel(key))}<small>（唯讀）</small></span><strong>${escapeHtml(adminValue(value))}</strong></div>`).join('')
     : '<p class="muted">沒有可顯示的官方欄位。</p>';
   const form = editable.length ? `<form class="admin-edit-form" data-admin-form data-admin-dataset="${escapeHtml(dataset)}" data-admin-record="${escapeHtml(identity.id)}"><p class="admin-form-version muted">預期記錄版本：${escapeHtml(version)}</p><div class="admin-editable-fields">${editable.map(key => `<label class="admin-field admin-field--editable"><span>${escapeHtml(adminFieldLabel(key))}</span>${adminControlMarkup(key, record[key])}</label>`).join('')}</div><div class="actions"><button class="primary" type="submit">驗證並儲存官方資料</button><button class="subtle" type="button" data-admin-cancel>取消</button></div></form>` : '<p class="muted admin-readonly-note">此記錄沒有可寫入欄位；資料只作檢視。</p>';
-  return `<article class="admin-record" data-admin-record="${escapeHtml(identity.id)}" data-admin-record-index="${index}" data-admin-record-label="${escapeHtml(identity.label)}" data-admin-dataset="${escapeHtml(dataset)}"${selected ? '' : ' hidden'}><div class="admin-record-heading"><div><span class="eyebrow">${escapeHtml(identity.id || 'Official record')}</span><h3>${escapeHtml(identity.label)}</h3></div><span class="admin-record-index">第 ${index + 1} 筆</span></div><div class="admin-field-grid">${fields}</div>${form}</article>`;
+  const media = dataset === 'Product_Content' ? adminMediaUploadMarkup(record) : '';
+  return `<article class="admin-record" data-admin-record="${escapeHtml(identity.id)}" data-admin-record-index="${index}" data-admin-record-label="${escapeHtml(identity.label)}" data-admin-dataset="${escapeHtml(dataset)}" data-admin-plan-id="${escapeHtml(record.plan_id || '')}" data-admin-content-type="${escapeHtml(record.content_type || '')}"${selected ? '' : ' hidden'}><div class="admin-record-heading"><div><span class="eyebrow">${escapeHtml(identity.id || 'Official record')}</span><h3>${escapeHtml(identity.label)}</h3></div><span class="admin-record-index">第 ${index + 1} 筆</span></div><div class="admin-field-grid">${fields}</div>${form}${media}</article>`;
 }
 function adminReadonlyRecordMarkup(record, dataset, index) {
   const safe = redactOfficialValue(record);
@@ -341,6 +352,35 @@ function bindAdmin() {
     if (panel) panel.dataset.adminSelectedRecord = select.value;
     select.addEventListener('change', () => activateAdminRecord(select));
   });
+  document.querySelectorAll('[data-media-upload]').forEach(button => button.addEventListener('click', async () => {
+    const id = button.dataset.mediaUpload;
+    const panel = button.closest('[data-media-upload-panel]');
+    const input = [...(panel?.querySelectorAll('[data-media-file]') || [])].find(item => item.dataset.mediaFile === id);
+    const statusNode = [...(panel?.querySelectorAll('[data-media-status]') || [])].find(item => item.dataset.mediaStatus === id);
+    const record = panel?.closest('[data-admin-record]');
+    const setMediaStatus = (message, error = false) => { if (statusNode) { statusNode.textContent = message; statusNode.classList.toggle('is-error', error); } };
+    if (!adminSessionProof) { setMediaStatus('上載未獲授權：必須由 AVA Studio Admin session 啟動。', true); return; }
+    const file = input?.files?.[0];
+    if (!file) { setMediaStatus('請先選擇 PDF 或圖片。', true); return; }
+    try {
+      validateMediaFile(file);
+      if (!FIREBASE_UPLOAD_ENABLED) { const error = new Error('Firebase Storage Rules／Admin upload provider 尚未完成核實。'); error.code = FIREBASE_UPLOAD_STATUS; throw error; }
+      setMediaStatus('正在上載…');
+      const result = await uploadOfficialMedia({ planId: record?.dataset.adminPlanId || '', category: record?.querySelector('[data-admin-field="category"]')?.value || 'documents', contentId: id, contentType: record?.dataset.adminContentType || '', file, adminSessionProof });
+      const request = createAdminWriteRequest({ dataset: 'Product_Content', recordId: id, expectedVersion: record?.querySelector('.admin-form-version')?.textContent.replace('預期記錄版本：', '').trim(), fields: { resource_type: result.resourceType, resource_ref: result.url } });
+      await writeOfficialData(request, adminSessionProof);
+      const latest = await loadOfficialData();
+      const normalized = { ...latest, structured: normalizeStructuredData(latest.structured) };
+      validateOfficialData(normalized);
+      state.official = normalized;
+      saveOfficialCache(normalized);
+      setMediaStatus('已發佈');
+      setStatus('官方資源已上載並由伺服器重新確認。');
+      route();
+    } catch (error) {
+      setMediaStatus(error.code === FIREBASE_UPLOAD_STATUS ? `FIREBASE_RUNTIME_BLOCKED：${error.message}` : `檔案已上載，但官方資料未完成更新：${error.message}`, true);
+    }
+  }));
   if (!globalThis.__ciAdminUnloadGuard) { globalThis.__ciAdminUnloadGuard = true; globalThis.addEventListener?.('beforeunload', event => { if (adminHasDirtyDraft()) { event.preventDefault(); event.returnValue = ''; } }); }
 }
 function adminPage() {
@@ -422,9 +462,19 @@ function registerServiceWorker() {
     window.location.reload();
   });
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(registration => {
-    // Platform may have requested the same update immediately before launch;
-    // update() is safe to repeat and never gates the initial render.
-    return registration.update();
+    // Check at boot, when the app returns online, and when an installed PWA
+    // becomes visible again. The periodic check covers a long-lived tab while
+    // keeping the stable cache and all User data intact.
+    const updateRegistration = () => {
+      if (navigator.onLine === false) return Promise.resolve();
+      return registration.update().catch(() => undefined);
+    };
+    window.addEventListener('online', updateRegistration);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') updateRegistration();
+    });
+    window.setInterval(updateRegistration, 5 * 60 * 1000);
+    return updateRegistration();
   }).catch(() => setStatus('離線外殼未能啟用。', true));
 }
 

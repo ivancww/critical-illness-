@@ -1,10 +1,10 @@
 // Keep this name stable. Service-worker script updates discover a new
 // deployment; releases must not depend on a manually edited cache version.
 const CACHE = 'ava-ci-shell';
-const RELEASE = '0.5.0';
+const RELEASE = '0.6.2';
 const LEGACY_CACHE_PREFIX = 'ava-ci-shell-';
 const VERSIONED_INDEX = `./index.html?v=${RELEASE}`;
-const SHELL = ['./', VERSIONED_INDEX, './manifest.json', `./src/app.js?v=${RELEASE}`, `./src/version.js?v=${RELEASE}`, `./src/styles.css?v=${RELEASE}`, `./src/domain/product-engine.js?v=${RELEASE}`, `./src/domain/claim-engine.js?v=${RELEASE}`, `./src/domain/premium-engine.js?v=${RELEASE}`, `./src/domain/flow-state.js?v=${RELEASE}`, `./src/domain/verification.js?v=${RELEASE}`, `./src/domain/frontstage-experience.js?v=${RELEASE}`, `./src/domain/plan-experience.js?v=${RELEASE}`, `./src/domain/input-format.js?v=${RELEASE}`, `./src/data/data-api.js?v=${RELEASE}`, `./src/data/storage.js?v=${RELEASE}`, `./src/data/content.js?v=${RELEASE}`, `./src/integration/return-context.js?v=${RELEASE}`, `./src/admin/official-config.js?v=${RELEASE}`];
+const SHELL = ['./', VERSIONED_INDEX, './manifest.json', `./src/app.js?v=${RELEASE}`, `./src/version.js?v=${RELEASE}`, `./src/styles.css?v=${RELEASE}`, `./src/domain/product-engine.js?v=${RELEASE}`, `./src/domain/claim-engine.js?v=${RELEASE}`, `./src/domain/premium-engine.js?v=${RELEASE}`, `./src/domain/flow-state.js?v=${RELEASE}`, `./src/domain/verification.js?v=${RELEASE}`, `./src/domain/frontstage-experience.js?v=${RELEASE}`, `./src/domain/plan-experience.js?v=${RELEASE}`, `./src/domain/resource-layer.js?v=${RELEASE}`, `./src/domain/input-format.js?v=${RELEASE}`, `./src/data/data-api.js?v=${RELEASE}`, `./src/data/storage.js?v=${RELEASE}`, `./src/data/content.js?v=${RELEASE}`, `./src/integration/return-context.js?v=${RELEASE}`, `./src/integration/firebase-media.js?v=${RELEASE}`, `./src/integration/firebase-auth.js?v=${RELEASE}`, `./src/integration/firebase-user-media.js?v=${RELEASE}`, `./src/integration/storage-policy.js?v=${RELEASE}`, `./src/admin/official-config.js?v=${RELEASE}`];
 
 function isOwnedCache(name) {
   return name === CACHE || name.startsWith(LEGACY_CACHE_PREFIX);

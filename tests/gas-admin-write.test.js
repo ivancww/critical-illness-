@@ -92,7 +92,7 @@ class FakeBook {
   }
 }
 
-function loadGas(book) {
+function loadGas(book, { scriptProperties = {}, utilities = {} } = {}) {
   let lockReleased = false;
   const context = {
     console,
@@ -128,6 +128,19 @@ function loadGas(book) {
             expiresAt: new Date(Date.now() + 60000).toISOString()
           })
         };
+      }
+    },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperty: key => scriptProperties[key] || ''
+      })
+    },
+    Utilities: {
+      newBlob: value => ({ getBytes: () => Array.from(Buffer.from(String(value), 'utf8')) }),
+      base64EncodeWebSafe: bytes => Buffer.from(bytes).toString('base64url'),
+      computeRsaSha256Signature: (value, key) => {
+        if (utilities.computeRsaSha256Signature) return utilities.computeRsaSha256Signature(value, key);
+        return [1, 2, 3];
       }
     },
     ContentService: {
@@ -291,4 +304,41 @@ test('stale revision, invalid session, protected field and incorrect operation r
   assert.throws(() => protectedGas.adminUpdate_(updateRequest({ version: '9' })), /Unknown or protected/);
   assert.throws(() => protectedGas.adminUpdate_({ ...updateRequest(), operation: 'critical-illness:official-write:Benefits' }), /Wrong Official operation/);
   assert.deepEqual(planState(protectedBook).slice(0, 4), ['p1', 'Original', true, '1']);
+});
+
+test('direct GAS custom-token fallback is Admin-only and never returns server credentials', () => {
+  const book = new FakeBook();
+  const { api } = loadGas(book, {
+    scriptProperties: {
+      CI_FIREBASE_SERVICE_ACCOUNT_EMAIL: 'ci-broker@medical-and-ci.iam.gserviceaccount.com',
+      CI_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nserver-only-test-key\n-----END PRIVATE KEY-----'
+    }
+  });
+  const response = api.doPost({ postData: { contents: JSON.stringify({
+    action: 'issueFirebaseAuthorization',
+    appId: 'critical-illness',
+    mode: 'admin',
+    adminSessionProof: 'session-proof'
+  }) } });
+
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.data.claims.avaAdmin, true);
+  assert.equal(response.body.data.provider, 'gas-service-account-custom-token');
+  assert.equal(response.body.data.firebaseCustomToken.split('.').length, 3);
+  assert.equal('privateKey' in response.body.data, false);
+  assert.equal('serviceAccountJson' in response.body.data, false);
+});
+
+test('direct GAS custom-token fallback remains fail-closed without server configuration', () => {
+  const book = new FakeBook();
+  const { api } = loadGas(book);
+  const response = api.doPost({ postData: { contents: JSON.stringify({
+    action: 'issueFirebaseAuthorization',
+    appId: 'critical-illness',
+    mode: 'admin',
+    adminSessionProof: 'session-proof'
+  }) } });
+
+  assert.equal(response.body.success, false);
+  assert.equal(response.body.error.code, 'FIREBASE_AUTH_CONFIGURATION_REQUIRED');
 });

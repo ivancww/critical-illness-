@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
 import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, supportMonthsForPayout } from '../src/domain/plan-experience.js';
-import { diseaseResourcesForProduct, resourceKind } from '../src/data/content.js';
+import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochureForProduct, resourceKind } from '../src/data/content.js';
 import { cumulativePayout } from '../src/domain/frontstage-experience.js';
-import { FIREBASE_CONFIG, officialResourcePath, sanitizeMediaFilename, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
+import { FIREBASE_CONFIG, FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, OFFICIAL_STORAGE_AUTH_STATE, officialResourcePath, sanitizeMediaFilename, storageCapability, uploadOfficialMedia, uploadOfficialMediaWithProvider, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
 import { formatMoneyText, parseMoneyText } from '../src/domain/input-format.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
@@ -118,12 +118,20 @@ test('disease resources are configured-data driven at the 17/18 boundary', () =>
   const configured = [
     { plan_id: 'OYS2', category: 'diseases', resource_type: 'pdf', resource_ref: 'https://example.test/adult.pdf' },
     { plan_id: 'OYS2', category: 'child', resource_type: 'pdf', resource_ref: 'https://example.test/child.pdf' },
-    { plan_id: 'OYS2', category: 'diseases', resource_type: 'pdf', resource_ref: '' }
+    { plan_id: 'OYS2', category: 'diseases', resource_type: 'pdf', resource_ref: '' },
+    { plan_id: 'OYS2', content_type: 'brochure', category: 'documents', resource_type: 'firebase', resource_ref: 'https://example.test/brochure.pdf', enabled: true },
+    { plan_id: 'OYS2', content_type: 'claim_example', category: 'claims', resource_type: 'firebase', resource_ref: 'https://example.test/case.png', enabled: true },
+    { plan_id: 'OYS2', content_type: 'claim_example', category: 'claims', resource_type: 'firebase', resource_ref: 'https://example.test/disabled.pdf', enabled: false }
   ];
   assert.deepEqual(diseaseResourcesForProduct(configured, 'OYS2', 17).map(item => item.key), ['adult', 'child']);
   assert.deepEqual(diseaseResourcesForProduct(configured, 'OYS2', 18).map(item => item.key), ['adult']);
   assert.equal(diseaseResourcesForProduct(configured, 'SCE', 17).length, 0);
   assert.equal(resourceKind({ resource_type: 'image/png' }), 'image/png');
+  assert.equal(resourceKind({ resource_type: 'firebase', resource_ref: 'https://example.test/case.png' }), 'image/png');
+  assert.equal(productBrochureForProduct(configured, 'OYS2').length, 1);
+  assert.equal(claimCaseResourcesForProduct(configured, 'OYS2').length, 1);
+  assert.match(app, /查看產品小冊子|產品小冊子/);
+  assert.match(app, /賠償案例/);
 });
 
 test('issue age chooses enhancement band while diagnosis age only controls first-ten-year timing', () => {
@@ -171,8 +179,44 @@ test('cumulative payout is derived from scenario events', () => {
 test('Firebase media gate validates references without creating an unsafe upload path', () => {
   assert.equal(FIREBASE_CONFIG.projectId, 'medical-and-ci');
   assert.equal(sanitizeMediaFilename('../疾病清單?.pdf'), '..-.pdf');
-  assert.match(officialResourcePath({ planId: 'OYS2', category: 'diseases', filename: 'guide.pdf', timestamp: 123 }), /^critical-illness\/official\/OYS2\/diseases\/123_guide\.pdf$/);
+  assert.match(officialResourcePath({ planId: 'OYS2', category: 'diseases', filename: 'guide.pdf', timestamp: 123 }), /^critical-illness\/official\/OYS2\/product\/diseases\/123_guide\.pdf$/);
+  assert.match(officialResourcePath({ planId: 'OYS2', category: 'claims', contentId: 'OYS2_CASE_001', contentType: 'claim_example', filename: 'case.pdf', timestamp: 123 }), /^critical-illness\/official\/OYS2\/claims\/OYS2_CASE_001\/123_case\.pdf$/);
   assert.deepEqual(validateMediaFile({ type: 'application/pdf', size: 10, name: 'guide.pdf' }), { type: 'application/pdf', size: 10, name: 'guide.pdf' });
   assert.throws(() => validateMediaFile({ type: 'application/javascript', size: 10, name: 'bad.js' }));
   assert.equal(userMediaCapability().binaryStoredLocally, false);
+  assert.equal(FIREBASE_UPLOAD_ENABLED, false);
+  assert.equal(FIREBASE_AUTH_METHOD, 'SERVER_SIDE_FIREBASE_CUSTOM_TOKEN_OR_APPROVED_BROKER');
+  assert.equal(userMediaCapability().status, 'USER_STORAGE_AUTH_CONFIG_REQUIRED');
+  assert.equal(OFFICIAL_STORAGE_AUTH_STATE, 'OFFICIAL_STORAGE_AUTH_CONFIG_REQUIRED');
+  assert.deepEqual(storageCapability().official, { status: OFFICIAL_STORAGE_AUTH_STATE, uploadEnabled: false, authMethod: FIREBASE_AUTH_METHOD, publicRead: true, publicWrite: false });
+});
+
+test('Firebase media upload is blocked without verified Storage authorization and never bypasses Admin proof', async () => {
+  await assert.rejects(() => uploadOfficialMedia({ planId: 'OYS2', category: 'diseases', contentId: 'OYS2_DISEASES', file: { type: 'application/pdf', size: 10, name: 'guide.pdf' } }), error => error.code === 'ADMIN_PROOF_REQUIRED');
+  await assert.rejects(() => uploadOfficialMedia({ planId: 'OYS2', category: 'diseases', contentId: 'OYS2_DISEASES', file: { type: 'application/pdf', size: 10, name: 'guide.pdf' }, adminSessionProof: 'test-only-proof' }), error => error.code === FIREBASE_UPLOAD_STATUS);
+});
+
+test('mocked approved provider returns a usable reference without storing binaries locally', async () => {
+  const uploaded = await uploadOfficialMediaWithProvider({
+    planId: 'SCE',
+    category: 'brochure',
+    contentId: 'SCE_BROCHURE',
+    file: { type: 'application/pdf', size: 12, name: 'brochure.pdf' },
+    timestamp: 456,
+    provider: {
+      upload: async (path, file, metadata) => ({ ref: { path }, file, metadata }),
+      downloadUrl: async snapshot => 'https://storage.test/' + snapshot.ref.path,
+      authorized: true
+    }
+  });
+  assert.equal(uploaded.resourceType, 'pdf');
+  assert.match(uploaded.url, /^https:\/\/storage\.test\/critical-illness\/official\/SCE\/product\/brochure\/456_brochure\.pdf$/);
+});
+
+test('Admin media controls keep AVA authorization and Firebase safety boundaries', () => {
+  assert.match(app, /data-media-upload/);
+  assert.match(app, /adminSessionProof/);
+  assert.match(app, /writeOfficialData\(request, adminSessionProof\)/);
+  assert.doesNotMatch(app, /getAnalytics|firebase-admin|serviceAccount|allow write: if true/);
+  assert.match(app, /FIREBASE_RUNTIME_BLOCKED/);
 });

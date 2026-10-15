@@ -33,7 +33,7 @@ export const ADMIN_FIELD_LABELS = Object.freeze({
   interval_unit: '間隔單位', max_months: '最長月份', duration_rule: '持續規則', display_label: '顯示標籤',
   health_rule_id: '健康規則 ID', program_name: '計劃名稱', effect_type: '作用類型', effect_value: '作用數值',
   annual_fee: '年費', feature_1: '特色一', feature_2: '特色二', feature_3: '特色三', content_id: '內容 ID',
-  category: '內容類別', title: '標題', short_text: '簡介', resource_ref: '資源連結', setting_key: '設定鍵',
+  category: '內容類別', title: '標題', short_text: '簡介', resource_type: '資源格式', resource_ref: '資源連結', setting_key: '設定鍵',
   setting_value: '設定值', version: '版本', record_version: '記錄版本', updated_at: '更新時間', key: '名稱', value: '數值'
 });
 
@@ -59,7 +59,7 @@ const ADMIN_ALLOWED_FIELDS = Object.freeze({
   Benefits: ['benefit_type', 'benefit_name', 'payout_percent', 'max_payout', 'max_claims', 'display_text', 'sort_order', 'enabled'],
   Claim_Rules: ['condition_name', 'claim_phase', 'claim_option', 'shared_pool_percent', 'option_switch_rule', 'payout_type', 'payout_value', 'interval_value', 'interval_unit', 'max_claims', 'max_months', 'duration_rule', 'display_label', 'sort_order', 'enabled'],
   Health_Program: ['program_name', 'effect_type', 'effect_value', 'annual_fee', 'feature_1', 'feature_2', 'feature_3', 'display_text', 'enabled'],
-  Product_Content: ['category', 'title', 'short_text', 'resource_ref', 'sort_order', 'enabled'],
+  Product_Content: ['category', 'title', 'short_text', 'resource_type', 'resource_ref', 'sort_order', 'enabled'],
   Settings_Versions: ['setting_value']
 });
 

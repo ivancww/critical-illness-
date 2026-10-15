@@ -6,6 +6,7 @@
 const CONFIG = {
   API_VERSION: '1.2.0',
   APP_ID: 'critical-illness',
+  FIREBASE_CUSTOM_TOKEN_AUDIENCE: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
   PLATFORM_VERIFY_ENDPOINT: 'https://script.google.com/macros/s/AKfycbzVf1fuxcq8GPSOzS8WvcAtubqaawFj0rbVjxe0LOLKfwbYkRZf7Vs61Q0T73UG6dznww/exec',
   DATA_SHEETS: ['Plans', 'Benefits', 'Claim_Rules', 'Health_Program', 'Product_Content', 'Settings_Versions'],
   PREMIUM_SHEETS: {
@@ -42,7 +43,7 @@ const ADMIN_DATASETS = {
   },
   Product_Content: {
     id: 'content_id',
-    fields: ['category', 'title', 'short_text', 'resource_ref', 'sort_order', 'enabled']
+    fields: ['category', 'title', 'short_text', 'resource_type', 'resource_ref', 'sort_order', 'enabled']
   },
   Settings_Versions: {
     id: 'setting_key',
@@ -810,6 +811,161 @@ function adminUpdate_(request) {
   }
 }
 
+/*
+ * Firebase authorization bridge contract.
+ *
+ * The browser never receives the broker secret or a service account. The
+ * deployment owner must configure these Script Properties after the Firebase
+ * Auth/Storage Rules contract has been reviewed:
+ *   CI_FIREBASE_AUTH_BROKER_URL
+ *   CI_FIREBASE_AUTH_BROKER_SECRET
+ *
+ * The preferred broker is responsible for issuing a short-lived Firebase
+ * custom token with either avaAdmin=true or the exact avaUserScope claim.
+ * This GAS layer verifies the existing AVA Admin proof before forwarding an
+ * Admin request; User binding proof verification remains server-side in the
+ * broker.
+ *
+ * A direct Admin-only fallback is also supported when the existing AVA GAS
+ * deployment is configured with these Script Properties:
+ *   CI_FIREBASE_SERVICE_ACCOUNT_EMAIL
+ *   CI_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY
+ * The private key is read only on the server and is never returned to the
+ * browser. Direct User grants remain broker-only because this GAS layer does
+ * not independently verify the canonical AVA User binding proof.
+ */
+function base64Url_(value) {
+  const bytes = typeof value === 'string'
+    ? Utilities.newBlob(value).getBytes()
+    : value;
+
+  return Utilities
+    .base64EncodeWebSafe(bytes)
+    .replace(/=+$/g, '');
+}
+
+function firebaseServiceAccount_(properties) {
+  const email = String(properties.getProperty('CI_FIREBASE_SERVICE_ACCOUNT_EMAIL') || '').trim();
+  const privateKey = String(properties.getProperty('CI_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY') || '').trim();
+
+  if (!email || !/@/.test(email) || !privateKey || privateKey.indexOf('PRIVATE KEY') === -1) {
+    return null;
+  }
+
+  return { email: email, privateKey: privateKey };
+}
+
+function issueDirectFirebaseAdminToken_(properties) {
+  const serviceAccount = firebaseServiceAccount_(properties);
+
+  if (!serviceAccount) {
+    const error = new Error('Firebase custom-token service account is not configured');
+    error.code = 'FIREBASE_AUTH_CONFIGURATION_REQUIRED';
+    throw error;
+  }
+
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const expiresAt = issuedAt + 900;
+  const header = base64Url_(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const payload = base64Url_(JSON.stringify({
+    iss: serviceAccount.email,
+    sub: serviceAccount.email,
+    aud: CONFIG.FIREBASE_CUSTOM_TOKEN_AUDIENCE,
+    iat: issuedAt,
+    exp: expiresAt,
+    uid: CONFIG.APP_ID + ':admin',
+    claims: { avaAdmin: true }
+  }));
+  const unsigned = header + '.' + payload;
+  const signature = Utilities.computeRsaSha256Signature(unsigned, serviceAccount.privateKey);
+
+  return {
+    firebaseCustomToken: unsigned + '.' + base64Url_(signature),
+    expiresAt: new Date(expiresAt * 1000).toISOString(),
+    claims: { avaAdmin: true },
+    provider: 'gas-service-account-custom-token'
+  };
+}
+
+function issueFirebaseAuthorization_(request) {
+  if (String(request.appId || '') !== CONFIG.APP_ID) throw new Error('Wrong App ID');
+
+  const mode = String(request.mode || '').toLowerCase();
+  if (['admin', 'user'].indexOf(mode) === -1) throw new Error('Unsupported Firebase authorization mode');
+
+  if (mode === 'admin') {
+    verifyAdminSession_(request.adminSessionProof, CONFIG.APP_ID + ':official-write:Product_Content');
+  } else {
+    const binding = request.userBinding || {};
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(String(binding.opaqueUserScope || '')) || !String(binding.bindingProof || '').trim()) {
+      throw new Error('Canonical AVA User binding proof is required');
+    }
+  }
+
+  const properties = PropertiesService.getScriptProperties();
+  const brokerUrl = String(properties.getProperty('CI_FIREBASE_AUTH_BROKER_URL') || '').trim();
+  const brokerSecret = String(properties.getProperty('CI_FIREBASE_AUTH_BROKER_SECRET') || '').trim();
+
+  if (!brokerUrl || !brokerSecret) {
+    if (mode === 'admin' && firebaseServiceAccount_(properties)) {
+      const directGrant = issueDirectFirebaseAdminToken_(properties);
+      return success_({
+        firebaseCustomToken: directGrant.firebaseCustomToken,
+        expiresAt: directGrant.expiresAt,
+        claims: directGrant.claims,
+        contract: 'ava-ci-storage-v1',
+        provider: directGrant.provider
+      });
+    }
+
+    const error = new Error('Firebase authorization broker is not configured');
+    error.code = 'FIREBASE_AUTH_CONFIGURATION_REQUIRED';
+    throw error;
+  }
+
+  const payload = {
+    appId: CONFIG.APP_ID,
+    contract: 'ava-ci-storage-v1',
+    mode: mode,
+    claims: mode === 'admin'
+      ? { avaAdmin: true }
+      : { avaUserScope: String(request.userBinding.opaqueUserScope) },
+    bindingProof: mode === 'user' ? String(request.userBinding.bindingProof) : undefined
+  };
+
+  const response = UrlFetchApp.fetch(brokerUrl, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + brokerSecret },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+  const status = response.getResponseCode();
+  let result = {};
+  try { result = JSON.parse(response.getContentText() || '{}'); } catch (_) { result = {}; }
+
+  if (status < 200 || status >= 300 || result.success !== true) {
+    const error = new Error('Firebase authorization broker rejected the request');
+    error.code = 'FIREBASE_AUTH_BROKER_REJECTED';
+    throw error;
+  }
+
+  const token = String(result.firebaseCustomToken || '').trim();
+  const expiresAt = Date.parse(result.expiresAt || '');
+  const claims = result.claims || {};
+  if (!token || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('Firebase broker returned an invalid short-lived grant');
+  if (mode === 'admin' && claims.avaAdmin !== true) throw new Error('Firebase broker returned no Admin claim');
+  if (mode === 'user' && claims.avaUserScope !== String(request.userBinding.opaqueUserScope)) throw new Error('Firebase broker returned the wrong User scope');
+
+  return success_({
+    firebaseCustomToken: token,
+    expiresAt: result.expiresAt,
+    claims: claims,
+    contract: 'ava-ci-storage-v1',
+    provider: 'approved-server-side-broker'
+  });
+}
+
 function doPost(e) {
   const request = requestBody_(e);
 
@@ -825,6 +981,10 @@ function doPost(e) {
 
     if (action === 'exchangeAdminSession') {
       return json_(exchangeAdminSession_(request));
+    }
+
+    if (action === 'issueFirebaseAuthorization') {
+      return json_(issueFirebaseAuthorization_(request));
     }
 
     if (action === 'adminUpdate') {
@@ -844,6 +1004,14 @@ function doPost(e) {
 
     if (error && error.code === 'WRITE_ROLLED_BACK') {
       return failure_('WRITE_ROLLED_BACK', message, error.details || null);
+    }
+
+    if (error && error.code === 'FIREBASE_AUTH_CONFIGURATION_REQUIRED') {
+      return failure_('FIREBASE_AUTH_CONFIGURATION_REQUIRED', message);
+    }
+
+    if (error && error.code === 'FIREBASE_AUTH_BROKER_REJECTED') {
+      return failure_('FIREBASE_AUTH_BROKER_REJECTED', message);
     }
 
     if (/session|proof|authorization|platform/i.test(message)) {
