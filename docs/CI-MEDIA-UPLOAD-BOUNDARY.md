@@ -96,17 +96,34 @@ fail-closed until the Firebase-side bridge is configured:
   signing secret.
 - `gas/Code.gs` verifies the existing AVA Admin session before calling the
   server-side broker configured through Script Properties:
-  `CI_FIREBASE_AUTH_BROKER_URL` and `CI_FIREBASE_AUTH_BROKER_SECRET`.
+`CI_FIREBASE_AUTH_BROKER_URL` and `CI_FIREBASE_AUTH_BROKER_SECRET`.
+
+The CI GAS endpoint also contains a fail-closed Admin-only direct issuer for
+deployments that do not have a separate broker. It requires the server-only
+Script Properties `CI_FIREBASE_SERVICE_ACCOUNT_EMAIL` and
+`CI_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`, signs a 15-minute custom token with
+`avaAdmin=true`, and never returns the service-account material to the
+browser. It is not enabled by source code alone: Firebase Authentication must
+be initialized, the service-account properties must be configured by the
+deployment owner, and the shared Storage Rules must be reviewed first. User
+grants remain broker-only because the CI GAS endpoint does not independently
+verify the canonical AVA User binding proof.
 - `src/integration/firebase-user-media.js` provides cloud-only User
   `saveFile`, `replaceFile`, `resolveFile`, and `deleteFile` operations. It
   requires a canonical opaque AVA User binding plus a short-lived User claim.
 
-The deployed Firebase project currently has no Authentication provider and
+The deployed Firebase project currently has Authentication uninitialized and
 still has the unsafe global public rule. Therefore the code reports
 `OFFICIAL_STORAGE_AUTH_CONFIG_REQUIRED` and
 `USER_STORAGE_AUTH_CONFIG_REQUIRED`; it does not enable upload or attempt a
 production write. No browser credential, Firebase Admin key, or broker secret
 is stored in this repository.
+
+The direct issuer does not make the current live project safe by itself. The
+minimum activation sequence remains: initialize Firebase Authentication,
+configure the server-only service-account properties (or an approved broker),
+migrate Medical away from its current public-write upload, deploy reviewed
+namespace rules, then run authorized and unauthorized upload tests.
 
 ## Shared Medical bucket compatibility
 
