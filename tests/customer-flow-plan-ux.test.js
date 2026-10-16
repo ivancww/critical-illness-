@@ -130,8 +130,45 @@ test('disease resources are configured-data driven at the 17/18 boundary', () =>
   assert.equal(resourceKind({ resource_type: 'firebase', resource_ref: 'https://example.test/case.png' }), 'image/png');
   assert.equal(productBrochureForProduct(configured, 'OYS2').length, 1);
   assert.equal(claimCaseResourcesForProduct(configured, 'OYS2').length, 1);
-  assert.match(app, /查看產品小冊子|產品小冊子/);
-  assert.match(app, /賠償案例/);
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
+  const diseasePage = app.slice(app.indexOf('function diseaseResourcePage'), app.indexOf('function planProtectionDetail'));
+  assert.match(comparison, /brochureActionMarkup/);
+  assert.doesNotMatch(diseasePage, /產品小冊子|賠償案例/);
+});
+
+test('plan cards own one shared diagnosis-age input and one dynamic payout-effect card', () => {
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
+  const plansPage = app.slice(app.indexOf('function plansPage'), app.indexOf('function planProtection'));
+  assert.match(comparison, /data-diagnosis-age/);
+  assert.match(comparison, /主要危疾/);
+  assert.match(comparison, /早期疾病/);
+  assert.equal((comparison.match(/supportEffectMarkup/g) || []).length, 1);
+  assert.match(comparison, /postPayoutMarkup/);
+  assert.doesNotMatch(plansPage, /id="diagnosis-age"/);
+  assert.match(app, /frontstage\(\)\.diagnosisAge = value/);
+  assert.match(app, /getElementById\(inputId\)/);
+  assert.match(app, /nextInput\?\.focus\(\)/);
+});
+
+test('major and early scenarios share the payout card but have different outcomes', () => {
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
+  const postPayout = app.slice(app.indexOf('function postPayoutMarkup'), app.indexOf('function brochureActionMarkup'));
+  assert.match(comparison, /claimAmountMarkup\(summary, type\)/);
+  assert.match(comparison, /supportEffectMarkup\(outcome\.amount/);
+  assert.match(postPayout, /type === 'early'/);
+  assert.match(postPayout, /早期疾病賠償後，保障繼續/);
+  assert.match(postPayout, /完成主要危疾賠償後，合約完結/);
+  assert.match(postPayout, /仍然享有延續多重賠償保障/);
+});
+
+test('missing OYS2 diagnosis age stays pending instead of becoming zero support', () => {
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
+  const support = app.slice(app.indexOf('function supportEffectMarkup'), app.indexOf('function subsequentMajorMarkup'));
+  assert.match(comparison, /outcome\.status/);
+  assert.match(support, /status !== 'VERIFIED'/);
+  assert.match(support, /輸入確診歲數後顯示支持月份/);
+  assert.doesNotMatch(support, /0\.0 個月/);
+  assert.match(app, /首10年升級保障：請輸入確診歲數/);
 });
 
 test('issue age chooses enhancement band while diagnosis age only controls first-ten-year timing', () => {
