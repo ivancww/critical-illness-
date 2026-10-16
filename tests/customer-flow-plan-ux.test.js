@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
-import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, supportMonthsForPayout } from '../src/domain/plan-experience.js';
+import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout } from '../src/domain/plan-experience.js';
 import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochureForProduct, resourceKind } from '../src/data/content.js';
 import { cumulativePayout } from '../src/domain/frontstage-experience.js';
 import { FIREBASE_CONFIG, FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, OFFICIAL_STORAGE_AUTH_STATE, officialResourcePath, sanitizeMediaFilename, storageCapability, uploadOfficialMedia, uploadOfficialMediaWithProvider, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
@@ -159,6 +159,20 @@ test('major and early scenarios share the payout card but have different outcome
   assert.match(postPayout, /早期疾病賠償後，保障繼續/);
   assert.match(postPayout, /完成主要危疾賠償後，合約完結/);
   assert.match(postPayout, /仍然享有延續多重賠償保障/);
+});
+
+test('early illness advance leaves calculated base major protection', () => {
+  const sce = planProtectionSummary({ plan: plans[0], benefits, sumAssured: 500000, age: 40, diagnosisAge: 45 });
+  const early = claimOutcome(sce, 'early');
+  const remaining = remainingMajorProtectionAfterEarlyClaim(sce);
+  assert.equal(early.amount, 100000);
+  assert.equal(remaining.amount, 400000);
+  assert.equal(remaining.percent, 80);
+  assert.equal(remaining.amount, sce.baseAmount * (sce.basePercent - sce.early.percent) / 100);
+  assert.match(app, /餘下主要危疾保障/);
+  assert.match(app, /remainingMajorProtectionAfterEarlyClaim/);
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
+  assert.equal((comparison.match(/supportEffectMarkup/g) || []).length, 1);
 });
 
 test('missing OYS2 diagnosis age stays pending instead of becoming zero support', () => {
