@@ -185,16 +185,18 @@ test('Firebase media gate validates references without creating an unsafe upload
   assert.throws(() => validateMediaFile({ type: 'application/javascript', size: 10, name: 'bad.js' }));
   assert.equal(userMediaCapability().binaryStoredLocally, false);
   assert.equal(FIREBASE_UPLOAD_ENABLED, true);
-  assert.equal(FIREBASE_AUTH_METHOD, 'SERVER_SIDE_FIREBASE_CUSTOM_TOKEN_OR_APPROVED_BROKER');
+  assert.equal(FIREBASE_AUTH_METHOD, 'NONE_FOR_CI_OFFICIAL_MEDIA');
   assert.equal(userMediaCapability().status, 'USER_STORAGE_AUTH_CONFIG_REQUIRED');
-  assert.equal(OFFICIAL_STORAGE_AUTH_STATE, 'OFFICIAL_STORAGE_AUTH_READY');
-  assert.deepEqual(storageCapability().official, { status: OFFICIAL_STORAGE_AUTH_STATE, uploadEnabled: true, authMethod: FIREBASE_AUTH_METHOD, publicRead: true, publicWrite: false });
+  assert.equal(OFFICIAL_STORAGE_AUTH_STATE, 'PUBLIC_OFFICIAL_MEDIA_STORAGE');
+  assert.deepEqual(storageCapability().official, { status: OFFICIAL_STORAGE_AUTH_STATE, uploadEnabled: true, authMethod: FIREBASE_AUTH_METHOD, publicRead: true, publicWrite: true, publicDelete: false });
 });
 
-test('Firebase media upload requires Admin proof and no longer uses a static runtime block', async () => {
+test('Firebase Official media upload requires AVA Admin context but no Firebase custom-token auth', async () => {
   await assert.rejects(() => uploadOfficialMedia({ planId: 'OYS2', category: 'diseases', contentId: 'OYS2_DISEASES', file: { type: 'application/pdf', size: 10, name: 'guide.pdf' } }), error => error.code === 'ADMIN_PROOF_REQUIRED');
-  assert.equal(FIREBASE_UPLOAD_STATUS, 'FIREBASE_AUTH_REQUIRED');
+  assert.equal(FIREBASE_UPLOAD_STATUS, 'FIREBASE_UPLOAD_UNAVAILABLE');
   assert.doesNotMatch(fs.readFileSync('src/integration/firebase-media.js', 'utf8'), /if \(!FIREBASE_UPLOAD_ENABLED\)/);
+  assert.doesNotMatch(fs.readFileSync('src/integration/firebase-media.js', 'utf8'), /requestFirebaseAuthorization|signInWithCustomToken|firebase-auth/);
+  assert.doesNotMatch(fs.readFileSync('src/integration/firebase-media-module.js', 'utf8'), /firebase-auth|signInWithCustomToken|getAuth/);
 });
 
 test('mocked approved provider returns a usable reference without storing binaries locally', async () => {
@@ -206,11 +208,13 @@ test('mocked approved provider returns a usable reference without storing binari
     timestamp: 456,
     provider: {
       upload: async (path, file, metadata) => ({ ref: { path }, file, metadata }),
+      verify: async () => ({ size: 12, contentType: 'application/pdf' }),
       downloadUrl: async snapshot => 'https://storage.test/' + snapshot.ref.path,
       authorized: true
     }
   });
-  assert.equal(uploaded.resourceType, 'pdf');
+  assert.equal(uploaded.resourceType, 'firebase');
+  assert.equal(uploaded.verified, true);
   assert.match(uploaded.url, /^https:\/\/storage\.test\/critical-illness\/official\/SCE\/product\/brochure\/456_brochure\.pdf$/);
 });
 
@@ -220,7 +224,10 @@ test('Admin media controls keep AVA authorization and Firebase safety boundaries
   assert.match(app, /writeOfficialData\(request, adminSessionProof\)/);
   assert.doesNotMatch(app, /getAnalytics|firebase-admin|serviceAccount|allow write: if true/);
   assert.doesNotMatch(app, /FIREBASE_RUNTIME_BLOCKED/);
-  assert.match(app, /Firebase Admin 授權失敗/);
+  assert.match(app, /正在上載…/);
+  assert.match(app, /Firebase 上載失敗/);
+  assert.match(app, /官方資料更新失敗/);
+  assert.ok(app.indexOf('uploadOfficialMedia') < app.indexOf('writeOfficialData(request, adminSessionProof)'));
 });
 
 test('P9 information cards are display-only and the three choices route directly', () => {
