@@ -1,35 +1,29 @@
-// Firebase Web configuration is public client configuration. It is not upload
-// authority. Official writes still require the AVA Admin/GAS contract and an
-// approved Firebase Storage auth/rules or media-broker setup.
+// Firebase Web configuration is public client configuration. It is not Sheet
+// write authority. CI Official binaries intentionally use a public-write
+// Firebase namespace; Product_Content writes remain AVA Admin/GAS protected.
 export const FIREBASE_CONFIG = Object.freeze({
   apiKey: 'AIzaSyDBA5Iitb8X0qmbVfjVdYWw-M2D_9ZhFIg',
-  authDomain: 'medical-and-ci.firebaseapp.com',
   projectId: 'medical-and-ci',
   storageBucket: 'medical-and-ci.firebasestorage.app',
-  messagingSenderId: '857984223277',
-  appId: '1:857984223277:web:bd64aa72fc7e374c3450a4',
-  measurementId: 'G-VC775G3QRW'
+  appId: '1:857984223277:web:bd64aa72fc7e374c3450a4'
 });
 
 export const ALLOWED_MEDIA_TYPES = Object.freeze(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']);
 export const MAX_MEDIA_BYTES = 20 * 1024 * 1024;
 
-// The production path is enabled as a capability, but authorization is still
-// enforced per upload by the AVA Admin proof -> Firebase custom-token flow.
-// A public Web config never grants Storage write access by itself.
 export const FIREBASE_UPLOAD_ENABLED = true;
-export const FIREBASE_UPLOAD_STATUS = 'FIREBASE_AUTH_REQUIRED';
-export const OFFICIAL_STORAGE_AUTH_STATE = 'OFFICIAL_STORAGE_AUTH_READY';
+export const FIREBASE_UPLOAD_STATUS = 'FIREBASE_UPLOAD_UNAVAILABLE';
+export const OFFICIAL_STORAGE_AUTH_STATE = 'PUBLIC_OFFICIAL_MEDIA_STORAGE';
 export const USER_STORAGE_AUTH_STATE = 'USER_STORAGE_AUTH_CONFIG_REQUIRED';
-export const FIREBASE_AUTH_METHOD = 'SERVER_SIDE_FIREBASE_CUSTOM_TOKEN_OR_APPROVED_BROKER';
-
-const FIREBASE_SDK_URLS = Object.freeze({
-  app: 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js',
-  storage: 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js',
-  auth: 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'
-});
+export const FIREBASE_AUTH_METHOD = 'NONE_FOR_CI_OFFICIAL_MEDIA';
 
 let sdkPromise;
+
+function stageError(stage, error) {
+  const wrapped = error instanceof Error ? error : new Error(String(error || 'Firebase operation failed.'));
+  if (!wrapped.stage) wrapped.stage = stage;
+  return wrapped;
+}
 
 export function sanitizeMediaFilename(name = '') {
   const safe = String(name).normalize('NFKC').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
@@ -62,11 +56,9 @@ export function officialResourcePath({ planId, category, contentId, filename, ti
 
 export async function loadFirebaseStorageSdk() {
   if (!sdkPromise) {
-    sdkPromise = Promise.all([
-      import(FIREBASE_SDK_URLS.app),
-      import(FIREBASE_SDK_URLS.storage),
-      import(FIREBASE_SDK_URLS.auth)
-    ]).then(([appSdk, storageSdk, authSdk]) => ({ appSdk, storageSdk, authSdk }));
+    const ready = globalThis.__AVA_CI_FIREBASE_READY__
+      || import('./firebase-media-module.js?v=0.6.4').then(module => module.createFirebaseStorageClient());
+    sdkPromise = ready.catch(error => { throw stageError('firebase-module', error); });
   }
   return sdkPromise;
 }
@@ -77,34 +69,44 @@ export async function uploadOfficialMediaWithProvider({ provider, planId, catego
   }
   const validated = validateMediaFile(file);
   const path = officialResourcePath({ planId, category, contentId, contentType, filename: validated.name, timestamp });
-  const snapshot = await provider.upload(path, file, {
-    contentType: validated.type,
-    customMetadata: {
-      app: 'critical-illness',
-      assetType: 'official-resource',
-      planId: String(planId || ''),
-      contentId: String(contentId || ''),
-      category: String(category || '')
-    }
-  });
-  const url = await provider.downloadUrl(snapshot);
-  if (!/^https:\/\//i.test(String(url || ''))) throw new Error('Firebase did not return a usable HTTPS resource reference.');
-  return { path, url, resourceType: resourceTypeForMime(validated.type), mimeType: validated.type, name: validated.name };
+  let snapshot;
+  try {
+    snapshot = await provider.upload(path, file, {
+      contentType: validated.type,
+      customMetadata: {
+        app: 'critical-illness',
+        assetType: 'official-resource',
+        planId: String(planId || ''),
+        contentId: String(contentId || ''),
+        category: String(category || '')
+      }
+    });
+  } catch (error) {
+    throw stageError('firebase-upload', error);
+  }
+  try {
+    if (typeof provider.verify === 'function') await provider.verify(snapshot, { path, type: validated.type, size: validated.size });
+  } catch (error) {
+    throw stageError('firebase-object-verification', error);
+  }
+  let url;
+  try {
+    url = await provider.downloadUrl(snapshot);
+  } catch (error) {
+    throw stageError('firebase-download-url', error);
+  }
+  if (!/^https:\/\//i.test(String(url || ''))) throw stageError('firebase-download-url', new Error('Firebase did not return a usable HTTPS resource reference.'));
+  return { path, url, verified: true, resourceType: 'firebase', mimeType: validated.type, name: validated.name };
 }
 
-export async function uploadOfficialMedia({ planId, category, contentId, contentType, file, timestamp, adminSessionProof, authAdapter } = {}) {
+export async function uploadOfficialMedia({ planId, category, contentId, contentType, file, timestamp, adminSessionProof } = {}) {
   if (!adminSessionProof) {
     const error = new Error('有效的 AVA Admin session proof 是必要的。');
     error.code = 'ADMIN_PROOF_REQUIRED';
     throw error;
   }
-  const { appSdk, storageSdk, authSdk } = await loadFirebaseStorageSdk();
-  const app = appSdk.getApps().find(item => item.name === 'ava-critical-illness')
-    || appSdk.initializeApp(FIREBASE_CONFIG, 'ava-critical-illness');
-  const auth = authSdk.getAuth(app);
-  const adapter = authAdapter || (await import('./firebase-auth.js?v=0.6.3')).createFirebaseAuthAdapter({ authSdk, auth });
-  await adapter.authenticate({ mode: 'admin', adminSessionProof });
-  const storage = storageSdk.getStorage(app);
+  const client = await loadFirebaseStorageSdk();
+  const { storageSdk, storage } = client;
   return uploadOfficialMediaWithProvider({
     planId,
     category,
@@ -115,6 +117,7 @@ export async function uploadOfficialMedia({ planId, category, contentId, content
     provider: {
       authorized: true,
       upload: (path, data, metadata) => storageSdk.uploadBytes(storageSdk.ref(storage, path), data, metadata),
+      verify: snapshot => storageSdk.getMetadata(snapshot.ref),
       downloadUrl: snapshot => storageSdk.getDownloadURL(snapshot.ref)
     }
   });
@@ -136,7 +139,8 @@ export function storageCapability() {
       uploadEnabled: FIREBASE_UPLOAD_ENABLED,
       authMethod: FIREBASE_AUTH_METHOD,
       publicRead: true,
-      publicWrite: false
+      publicWrite: true,
+      publicDelete: false
     },
     user: userMediaCapability()
   };
