@@ -1,4 +1,4 @@
-import { resolveBenefits } from './product-engine.js?v=0.6.4';
+import { resolveBenefits } from './product-engine.js?v=0.6.5';
 
 const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const active = row => row?.enabled !== false && row?.active !== false;
@@ -76,6 +76,20 @@ export function supportMonthsForPayout(payout, monthlyNeed) {
   const amount = Number(payout);
   const need = Number(monthlyNeed);
   return Number.isFinite(amount) && amount >= 0 && Number.isFinite(need) && need > 0 ? amount / need : null;
+}
+
+// Early illness is presented as an advance from the base major-CI protection.
+// This derived presentation amount deliberately excludes any separate OYS2
+// enhancement; that enhancement remains governed by its own verified timing.
+export function remainingMajorProtectionAfterEarlyClaim(summary = {}) {
+  const baseAmount = number(summary.baseAmount);
+  const majorPercent = number(summary.basePercent);
+  const earlyPercent = number(summary.early?.percent);
+  if (baseAmount === null || majorPercent === null || earlyPercent === null || earlyPercent < 0 || majorPercent < earlyPercent) {
+    return { status: 'VERIFY_REQUIRED', amount: null, percent: null };
+  }
+  const percent = majorPercent - earlyPercent;
+  return { status: 'VERIFIED', amount: baseAmount * percent / 100, percent };
 }
 
 export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age, diagnosisAge } = {}) {

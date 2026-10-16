@@ -1,4 +1,4 @@
-import { normalizeUserResourceOverride } from '../domain/resource-layer.js?v=0.6.4';
+import { normalizeUserResourceOverride } from '../domain/resource-layer.js?v=0.6.5';
 
 const CACHE_KEY = 'AVA_CI_OFFICIAL_CACHE_V2';
 const USER_KEY = 'AVA_CI_USER_STATE_V1';
