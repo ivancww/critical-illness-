@@ -5,10 +5,6 @@ export const STORAGE_POLICY = Object.freeze({
   allowedMimeTypes: Object.freeze(['application/pdf', 'image/png', 'image/jpeg', 'image/webp'])
 });
 
-function isAdmin(auth) {
-  return auth?.token?.avaAdmin === true;
-}
-
 function userScopeFor(path) {
   const match = String(path || '').match(/^critical-illness\/users\/([^/]+)\//);
   return match ? match[1] : null;
@@ -26,8 +22,8 @@ export function storagePolicyDecision({ operation, path, auth = null, resource =
   const objectPath = String(path || '');
   if (objectPath.startsWith(STORAGE_POLICY.officialPrefix)) {
     if (action === 'read') return { allowed: true, reason: 'official-public-read' };
-    if (['create', 'update'].includes(action)) return { allowed: isAdmin(auth) && validMedia(resource), reason: isAdmin(auth) ? (validMedia(resource) ? 'admin-media-write' : 'invalid-media') : 'admin-claim-required' };
-    if (action === 'delete') return { allowed: isAdmin(auth), reason: isAdmin(auth) ? 'admin-delete' : 'admin-claim-required' };
+    if (['create', 'update'].includes(action)) return { allowed: validMedia(resource), reason: validMedia(resource) ? 'official-public-media-write' : 'invalid-media' };
+    if (action === 'delete') return { allowed: false, reason: 'official-delete-denied' };
     return { allowed: false, reason: 'unsupported-operation' };
   }
   const scope = userScopeFor(objectPath);

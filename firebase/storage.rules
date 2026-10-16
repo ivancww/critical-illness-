@@ -2,16 +2,12 @@ rules_version = '2';
 
 // Critical Illness Storage contract.
 // This file is a deployment artifact only; it is deliberately not published
-// by the GitHub Pages app. Firebase-side deployment requires the AVA security
-// bridge and a review of the shared Medical namespace first.
+// by the GitHub Pages app. Firebase-side deployment must preserve the shared
+// Medical namespace exactly as represented below.
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() {
       return request.auth != null;
-    }
-
-    function isAdmin() {
-      return signedIn() && request.auth.token.avaAdmin == true;
     }
 
     function ownsUserScope(userScope) {
@@ -31,10 +27,13 @@ service firebase.storage {
         ];
     }
 
+    // CI Official product documents are intentionally public-write. The
+    // namespace is limited to validated media; Product_Content remains
+    // protected by the AVA Admin/GAS write contract, and delete is denied.
     match /critical-illness/official/{planId}/{allPaths=**} {
       allow read: if true;
-      allow create, update: if isAdmin() && validMedia();
-      allow delete: if isAdmin();
+      allow create, update: if validMedia();
+      allow delete: if false;
     }
 
     match /critical-illness/users/{userScope}/{allPaths=**} {

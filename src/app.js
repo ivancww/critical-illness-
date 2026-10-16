@@ -1,16 +1,16 @@
-import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.3';
-import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.3';
-import { claimCaseResourcesForProduct, diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.3';
-import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.3';
-import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.3';
-import { verificationState } from './domain/verification.js?v=0.6.3';
-import { cancerTimeline, cumulativePayout, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.3';
-import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.3';
-import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.3';
-import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.3';
-import { FIREBASE_UPLOAD_STATUS, uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.3';
-import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.3';
-import { APP_VERSION } from './version.js?v=0.6.3';
+import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.4';
+import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.4';
+import { claimCaseResourcesForProduct, diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.4';
+import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.4';
+import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.4';
+import { verificationState } from './domain/verification.js?v=0.6.4';
+import { cancerTimeline, cumulativePayout, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.4';
+import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.4';
+import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.4';
+import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.4';
+import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.4';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.4';
+import { APP_VERSION } from './version.js?v=0.6.4';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -258,7 +258,7 @@ function adminControlMarkup(key, value) {
 function adminMediaUploadMarkup(record) {
   const id = adminRecordId('Product_Content', record);
   const ref = record.resource_ref || '';
-  return `<section class="admin-media-upload" data-media-upload-panel data-content-id="${escapeHtml(id)}"><h4>官方 PDF／圖片資源</h4><p class="muted">可選擇 PDF 或圖片後上載；按下上載時會先驗證 AVA Admin Firebase 授權。</p>${ref ? `<p class="muted">目前檔案：<a href="${escapeHtml(ref)}" target="_blank" rel="noopener">開啟目前資源</a></p>` : '<p class="muted">目前未配置資源。</p>'}<label class="admin-field admin-field--editable"><span>上載新檔案</span><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" data-media-file="${escapeHtml(id)}"></label><div class="actions"><button class="secondary" type="button" data-media-upload="${escapeHtml(id)}">上載／發布資源</button></div><p class="muted" data-media-status="${escapeHtml(id)}" role="status">尚未上載。</p></section>`;
+  return `<section class="admin-media-upload" data-media-upload-panel data-content-id="${escapeHtml(id)}"><h4>官方 PDF／圖片資源</h4><p class="muted">可選擇 PDF 或圖片後上載；Firebase 檔案上載只限 CI Official namespace，官方資料寫入仍需 AVA Admin 授權。</p>${ref ? `<p class="muted">目前檔案：<a href="${escapeHtml(ref)}" target="_blank" rel="noopener">開啟目前資源</a></p>` : '<p class="muted">目前未配置資源。</p>'}<label class="admin-field admin-field--editable"><span>上載新檔案</span><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" data-media-file="${escapeHtml(id)}"></label><div class="actions"><button class="secondary" type="button" data-media-upload="${escapeHtml(id)}">上載／發布資源</button></div><p class="muted" data-media-status="${escapeHtml(id)}" role="status">尚未上載。</p></section>`;
 }
 function adminRecordMarkup(record, dataset = '', index = 0, selected = false) {
   const safe = redactOfficialValue(record);
@@ -356,6 +356,16 @@ function bindAdmin() {
     if (panel) panel.dataset.adminSelectedRecord = select.value;
     select.addEventListener('change', () => activateAdminRecord(select));
   });
+  document.querySelectorAll('[data-media-file]').forEach(input => input.addEventListener('change', () => {
+    const panel = input.closest('[data-media-upload-panel]');
+    const id = input.dataset.mediaFile;
+    const statusNode = [...(panel?.querySelectorAll('[data-media-status]') || [])].find(item => item.dataset.mediaStatus === id);
+    const file = input.files?.[0];
+    if (statusNode && file) {
+      const size = file.size >= 1024 * 1024 ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+      statusNode.textContent = `已選擇檔案：${file.name} · ${file.type || '未知格式'} · ${size}`;
+    }
+  }));
   document.querySelectorAll('[data-media-upload]').forEach(button => button.addEventListener('click', async () => {
     const id = button.dataset.mediaUpload;
     const panel = button.closest('[data-media-upload-panel]');
@@ -367,10 +377,15 @@ function bindAdmin() {
     const file = input?.files?.[0];
     if (!file) { setMediaStatus('請先選擇 PDF 或圖片。', true); return; }
     try {
-      validateMediaFile(file);
-      setMediaStatus('正在驗證 Firebase Admin 授權…');
+      try {
+        validateMediaFile(file);
+      } catch (error) {
+        error.stage = 'file-validation';
+        throw error;
+      }
+      setMediaStatus('正在上載…');
       const result = await uploadOfficialMedia({ planId: record?.dataset.adminPlanId || '', category: record?.querySelector('[data-admin-field="category"]')?.value || 'documents', contentId: id, contentType: record?.dataset.adminContentType || '', file, adminSessionProof });
-      setMediaStatus('Firebase 上載完成，正在保存官方資源…');
+      setMediaStatus('Firebase 上載完成，正在更新官方資料…');
       const request = createAdminWriteRequest({ dataset: 'Product_Content', recordId: id, expectedVersion: record?.querySelector('.admin-form-version')?.textContent.replace('預期記錄版本：', '').trim(), fields: { resource_type: result.resourceType, resource_ref: result.url } });
       await writeOfficialData(request, adminSessionProof);
       const latest = await loadOfficialData();
@@ -382,7 +397,20 @@ function bindAdmin() {
       setStatus('官方資源已上載並由伺服器重新確認。');
       route();
     } catch (error) {
-      setMediaStatus(error.code === FIREBASE_UPLOAD_STATUS || error.code === 'ADMIN_PROOF_REQUIRED' ? `Firebase Admin 授權失敗：${error.message}` : `檔案已上載，但官方資料未完成更新：${error.message}`, true);
+      const message = error.code === 'ADMIN_PROOF_REQUIRED'
+        ? `AVA Admin 授權失敗：${error.message}`
+        : error.stage === 'file-validation'
+          ? `檔案驗證失敗：${error.message}`
+        : error.stage === 'firebase-module'
+          ? `Firebase 模組載入失敗：${error.message}`
+          : error.stage === 'firebase-upload'
+            ? `Firebase 上載失敗：${error.message}`
+            : error.stage === 'firebase-object-verification'
+              ? `Firebase 物件確認失敗：${error.message}`
+              : error.stage === 'firebase-download-url'
+                ? `Firebase 資源 URL 取得失敗：${error.message}`
+                : `官方資料更新失敗：${error.message}`;
+      setMediaStatus(message, true);
     }
   }));
   if (!globalThis.__ciAdminUnloadGuard) { globalThis.__ciAdminUnloadGuard = true; globalThis.addEventListener?.('beforeunload', event => { if (adminHasDirtyDraft()) { event.preventDefault(); event.returnValue = ''; } }); }

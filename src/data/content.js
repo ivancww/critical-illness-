@@ -1,4 +1,4 @@
-import { resolveEffectiveResource, resourceIdentity } from '../domain/resource-layer.js?v=0.6.3';
+import { resolveEffectiveResource, resourceIdentity } from '../domain/resource-layer.js?v=0.6.4';
 
 export function resourcesForProduct(productContent = [], planId) {
   return productContent.filter(item => item.plan_id === planId && item.active !== false)
