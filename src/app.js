@@ -5,7 +5,7 @@ import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowSte
 import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.5';
 import { verificationState } from './domain/verification.js?v=0.6.5';
 import { cancerTimeline, cumulativePayout, dementiaTimeline, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.5';
-import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.5';
+import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.5';
 import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.5';
 import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.5';
 import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.5';
@@ -140,10 +140,10 @@ function supportEffectMarkup(payout, monthlyNeed, desiredMonths, status = 'VERIF
   return `<div class="support-effect"><strong>可支持約 ${months.toFixed(1)} 個月</strong><div class="coverage-bar" role="progressbar" aria-label="本次保障可支持約 ${months.toFixed(1)} 個月" aria-valuenow="${months.toFixed(1)}" aria-valuemin="0" aria-valuemax="${target || months}"><span style="width:${width}%"></span></div><small>目標 ${target || '—'} 個月 · ${difference > 0 ? `仍差約 ${difference.toFixed(1)} 個月` : `本次保障可支持 ${months.toFixed(1)} 個月`}</small></div>`;
 }
 function subsequentMajorMarkup(summary) {
-  if (!summary.baseAmount || !summary.basePercent) return '<p class="verify">其後主要危疾保障尚待官方資料核實。</p>';
-  const baseMajor = summary.baseAmount * summary.basePercent / 100;
+  const remaining = remainingMajorProtectionAfterEarlyClaim(summary);
+  if (remaining.status !== 'VERIFIED') return '<p class="verify">餘下主要危疾保障尚待官方資料核實。</p>';
   const extraNote = summary.extra.status === 'VERIFY_REQUIRED' ? '；額外保障按確診歲數核實' : '';
-  return `<p>其後主要危疾保障：HK$${money(baseMajor)}（${summary.basePercent}% 基本保障${extraNote}）</p>`;
+  return `<p>餘下主要危疾保障：HK$${money(remaining.amount)}（${remaining.percent}% 基本保障${extraNote}）</p>`;
 }
 function postPayoutMarkup(summary, plan, type) {
   if (type === 'early') return `<div class="plan-outcome"><strong>賠償後</strong>${subsequentMajorMarkup(summary)}<p>早期疾病賠償後，保障繼續按產品條款提供。</p></div>`;
