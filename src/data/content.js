@@ -1,7 +1,8 @@
 import { resolveEffectiveResource, resourceIdentity } from '../domain/resource-layer.js?v=0.6.5';
 
 export function resourcesForProduct(productContent = [], planId) {
-  return productContent.filter(item => item.plan_id === planId && item.active !== false)
+  const targetPlanId = String(planId ?? '').trim().toUpperCase();
+  return productContent.filter(item => String(item.plan_id ?? item.plan_key ?? item.product_id ?? '').trim().toUpperCase() === targetPlanId && item.active !== false)
     .sort((a, b) => Number(a.display_order ?? a.sort_order ?? 0) - Number(b.display_order ?? b.sort_order ?? 0));
 }
 
@@ -36,6 +37,16 @@ function resourceReference(resource) {
   return /^https:\/\//i.test(String(reference || '')) ? reference : null;
 }
 
+function normalizedContentType(resource) {
+  return String(resource?.content_type ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+function isBrochureResource(resource) {
+  const contentType = normalizedContentType(resource);
+  const category = String(resource?.category ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return ['brochure', 'product_brochure'].includes(contentType) || ['brochure', 'product_brochure'].includes(category);
+}
+
 function layeredResourcesForProduct(productContent = [], planId, userOverrides = [], userBinding = null) {
   const official = resourcesForProduct(productContent, planId).filter(active);
   const user = Array.isArray(userOverrides) ? userOverrides.filter(item => item?.plan_id === planId) : [];
@@ -51,7 +62,7 @@ function layeredResourcesForProduct(productContent = [], planId, userOverrides =
 
 export function productBrochureForProduct(productContent = [], planId, userOverrides = [], userBinding = null) {
   return layeredResourcesForProduct(productContent, planId, userOverrides, userBinding)
-    .filter(resource => String(resource.content_type || '').toLowerCase() === 'brochure')
+    .filter(isBrochureResource)
     .filter(resource => resourceReference(resource))
     .map(resource => ({ ...resource, resourceReference: resourceReference(resource) }));
 }
