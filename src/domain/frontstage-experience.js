@@ -99,6 +99,11 @@ export function cumulativePayout(events = []) {
   return { amount, percent, eventCount: valid.length };
 }
 
+export function multiClaimGrandTotal(timelines = {}) {
+  const events = ['cancer', 'heart', 'dementia'].flatMap(key => Array.isArray(timelines?.[key]?.events) ? timelines[key].events : []);
+  return cumulativePayout(events);
+}
+
 function premiumAgeRow(matrix, age) {
   return matrix.find(row => Array.isArray(row) && Number.isFinite(Number(row[0])) && Number(row[0]) === Number(age));
 }
