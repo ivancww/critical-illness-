@@ -4,11 +4,13 @@ import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
 import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout } from '../src/domain/plan-experience.js';
 import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochureForProduct, resourceKind } from '../src/data/content.js';
-import { cumulativePayout } from '../src/domain/frontstage-experience.js';
+import { cumulativePayout, multiClaimGrandTotal } from '../src/domain/frontstage-experience.js';
 import { FIREBASE_CONFIG, FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, OFFICIAL_STORAGE_AUTH_STATE, officialResourcePath, sanitizeMediaFilename, storageCapability, uploadOfficialMedia, uploadOfficialMediaWithProvider, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
 import { formatMoneyText, parseMoneyText } from '../src/domain/input-format.js';
+import { renderPlanComparisonLayout } from '../src/domain/frontstage-render.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
+const styles = fs.readFileSync('src/styles.css', 'utf8');
 const header = fs.readFileSync('index.html', 'utf8').slice(fs.readFileSync('index.html', 'utf8').indexOf('<header'), fs.readFileSync('index.html', 'utf8').indexOf('</header>'));
 
 const plans = [
@@ -129,32 +131,83 @@ test('disease resources are configured-data driven at the 17/18 boundary', () =>
   assert.equal(resourceKind({ resource_type: 'image/png' }), 'image/png');
   assert.equal(resourceKind({ resource_type: 'firebase', resource_ref: 'https://example.test/case.png' }), 'image/png');
   assert.equal(productBrochureForProduct(configured, 'OYS2').length, 1);
+  const normalizedBrochure = [{ plan_key: 'oys2', category: 'product-brochure', resource_type: 'pdf', resource_ref: 'https://example.test/oys2-brochure.pdf', enabled: true }];
+  assert.equal(productBrochureForProduct(normalizedBrochure, 'OYS2')[0].resourceReference, 'https://example.test/oys2-brochure.pdf');
+  const orderedBrochures = [
+    { plan_id: 'OYS2', content_type: 'brochure', content_id: 'OYS2_B', sort_order: 2, resource_type: 'pdf', resource_ref: 'https://example.test/b.pdf', enabled: true },
+    { plan_id: 'OYS2', content_type: 'product_brochure', content_id: 'OYS2_A', sort_order: 1, resource_type: 'pdf', resource_ref: 'https://example.test/a.pdf', enabled: true }
+  ];
+  assert.equal(productBrochureForProduct(orderedBrochures, 'OYS2')[0].resourceReference, 'https://example.test/a.pdf');
+  assert.equal(productBrochureForProduct(orderedBrochures, 'OYS2')[1].resourceReference, 'https://example.test/b.pdf');
   assert.equal(claimCaseResourcesForProduct(configured, 'OYS2').length, 1);
   const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
   const diseasePage = app.slice(app.indexOf('function diseaseResourcePage'), app.indexOf('function planProtectionDetail'));
   assert.match(comparison, /brochureActionMarkup/);
+  assert.match(app, /function brochureActionMarkup[\s\S]*productBrochureForProduct/);
   assert.doesNotMatch(diseasePage, /產品小冊子|賠償案例/);
+  assert.doesNotMatch(app, /https:\/\/example\.test\/oys2-brochure\.pdf/);
 });
 
-test('plan cards own one shared diagnosis-age input and one dynamic payout-effect card', () => {
-  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
-  const plansPage = app.slice(app.indexOf('function plansPage'), app.indexOf('function planProtection'));
+test('plan cards own diagnosis controls while one shared full-width payout card owns the result', () => {
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function activePlanFor'));
+  const plansPage = app.slice(app.indexOf('function plansPage'), app.indexOf('function planProtection(id)'));
+  const shared = app.slice(app.indexOf('function sharedPayoutEffectCard'), app.indexOf('function bindPlanInputs'));
   assert.match(comparison, /data-diagnosis-age/);
   assert.match(comparison, /主要危疾/);
   assert.match(comparison, /早期疾病/);
-  assert.equal((comparison.match(/supportEffectMarkup/g) || []).length, 1);
-  assert.match(comparison, /postPayoutMarkup/);
+  assert.doesNotMatch(comparison, /selected-claim-card|supportEffectMarkup|postPayoutMarkup/);
+  assert.match(shared, /data-shared-payout-card/);
+  assert.match(shared, /payoutEffectBarMarkup/);
+  assert.match(shared, /supportEffectMarkup\(outcome\.amount/);
+  assert.match(plansPage, /sharedPayoutEffectCard\(visiblePlans/);
+  assert.match(styles, /shared-payout-effect/);
+  assert.match(styles, /payout-effect-bar/);
   assert.doesNotMatch(plansPage, /id="diagnosis-age"/);
   assert.match(app, /frontstage\(\)\.diagnosisAge = value/);
   assert.match(app, /getElementById\(inputId\)/);
   assert.match(app, /nextInput\?\.focus\(\)/);
 });
 
+test('rendered comparison output has exactly two plan cards, one shared payout card, and one bar', () => {
+  const rendered = renderPlanComparisonLayout({
+    planCards: [
+      '<div class="plan-input-wrap"><article class="card comparison-plan" data-plan-card="SCE"><button data-plan-claim="SCE">主要危疾</button></article></div>',
+      '<div class="plan-input-wrap"><article class="card comparison-plan" data-plan-card="OYS2"><button data-plan-claim="OYS2">早期疾病</button></article></div>'
+    ],
+    sharedPayoutCard: '<section class="card shared-payout-effect" data-shared-payout-card data-active-plan="SCE" data-active-claim="major"><div class="payout-effect-bar">主要危疾 100%</div></section>'
+  });
+  const count = (selector) => (rendered.match(new RegExp(selector, 'g')) || []).length;
+  assert.equal(count('data-plan-card='), 2);
+  assert.equal(count('data-shared-payout-card'), 1);
+  assert.equal(count('class="payout-effect-bar'), 1);
+  assert.equal(count('selected-claim-card'), 0);
+  assert.equal(count('data-per-plan-payout'), 0);
+});
+
+test('shared output keeps one card and one bar while active plan/scenario changes', () => {
+  for (const [plan, scenario] of [['SCE', 'major'], ['SCE', 'early'], ['OYS2', 'major'], ['OYS2', 'early']]) {
+    const rendered = renderPlanComparisonLayout({
+      planCards: ['<article data-plan-card="SCE"></article>', '<article data-plan-card="OYS2"></article>'],
+      sharedPayoutCard: `<section data-shared-payout-card data-active-plan="${plan}" data-active-claim="${scenario}"><div class="payout-effect-bar"></div></section>`
+    });
+    assert.equal((rendered.match(/data-shared-payout-card/g) || []).length, 1, `${plan} ${scenario}`);
+    assert.equal((rendered.match(/payout-effect-bar/g) || []).length, 1, `${plan} ${scenario}`);
+    assert.match(rendered, new RegExp(`data-active-plan="${plan}"`));
+    assert.match(rendered, new RegExp(`data-active-claim="${scenario}"`));
+  }
+});
+
 test('major and early scenarios share the payout card but have different outcomes', () => {
-  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function activePlanFor'));
+  const shared = app.slice(app.indexOf('function sharedPayoutEffectCard'), app.indexOf('function bindPlanInputs'));
+  const bar = app.slice(app.indexOf('function payoutEffectBarMarkup'), app.indexOf('function brochureActionMarkup'));
   const postPayout = app.slice(app.indexOf('function postPayoutMarkup'), app.indexOf('function brochureActionMarkup'));
-  assert.match(comparison, /claimAmountMarkup\(summary, type\)/);
-  assert.match(comparison, /supportEffectMarkup\(outcome\.amount/);
+  assert.doesNotMatch(comparison, /claimAmountMarkup|supportEffectMarkup|postPayoutMarkup/);
+  assert.match(shared, /claimAmountMarkup\(summary, type\)/);
+  assert.match(shared, /supportEffectMarkup\(outcome\.amount/);
+  assert.match(shared, /data-active-plan/);
+  assert.match(shared, /data-active-claim/);
+  assert.doesNotMatch(shared, /SCE 賠償|OYS2 賠償/);
   assert.match(postPayout, /type === 'early'/);
   assert.match(postPayout, /早期疾病賠償後，保障繼續/);
   assert.match(postPayout, /完成主要危疾賠償後，合約完結/);
@@ -171,8 +224,12 @@ test('early illness advance leaves calculated base major protection', () => {
   assert.equal(remaining.amount, sce.baseAmount * (sce.basePercent - sce.early.percent) / 100);
   assert.match(app, /餘下主要危疾保障/);
   assert.match(app, /remainingMajorProtectionAfterEarlyClaim/);
-  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
-  assert.equal((comparison.match(/supportEffectMarkup/g) || []).length, 1);
+  const shared = app.slice(app.indexOf('function sharedPayoutEffectCard'), app.indexOf('function bindPlanInputs'));
+  const bar = app.slice(app.indexOf('function payoutEffectBarMarkup'), app.indexOf('function brochureActionMarkup'));
+  assert.match(bar, /payout-effect-bar--segmented/);
+  assert.match(bar, /summary\.early\.percent/);
+  assert.match(bar, /remaining\.percent/);
+  assert.match(shared, /supportEffectMarkup\(outcome\.amount/);
 });
 
 test('missing OYS2 diagnosis age stays pending instead of becoming zero support', () => {
@@ -225,6 +282,19 @@ test('issue age chooses enhancement band while diagnosis age only controls first
 test('cumulative payout is derived from scenario events', () => {
   assert.deepEqual(cumulativePayout([{ amount: 500000, percent: 100 }, { amount: 500000, percent: 100 }, { amount: 25000, percent: 5 }]), { amount: 1025000, percent: 205, eventCount: 3 });
   assert.deepEqual(cumulativePayout([]), { amount: 0, percent: 0, eventCount: 0 });
+  assert.deepEqual(multiClaimGrandTotal({
+    cancer: { events: [{ amount: 500000, percent: 100 }] },
+    heart: { events: [{ amount: 500000, percent: 100 }] },
+    dementia: { events: [{ amount: 100000, percent: 20 }] }
+  }), { amount: 1100000, percent: 220, eventCount: 3 });
+  assert.deepEqual(multiClaimGrandTotal({ cancer: { events: [{ amount: 500000, percent: 100 }] }, heart: null, dementia: null }), { amount: 500000, percent: 100, eventCount: 1 });
+  assert.match(app, /multiClaimGrandTotal\(\{ cancer, heart, dementia \}\)/);
+  assert.match(app, /multiClaimGrandTotalMarkup\(total\)/);
+  assert.match(app, /const dementia = id === 'OYS2' && age && sum/);
+  assert.doesNotMatch(app, /insertAdjacentHTML\('afterbegin'/);
+  assert.match(app, /三類疾病累積賠償/);
+  assert.match(app, /<section class="scenario-body">\$\{body\}<\/section>\$\{multiClaimGrandTotalMarkup\(total\)\}/);
+  assert.doesNotMatch(app, /scenario-body">\$\{body\}\$\{multiClaimGrandTotalMarkup/);
 });
 
 test('Firebase media gate validates references without creating an unsafe upload path', () => {
