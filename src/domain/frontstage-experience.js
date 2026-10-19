@@ -1,6 +1,6 @@
-import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.6';
-import { translateProtectionToMonths } from './flow-state.js?v=0.6.6';
-import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.6';
+import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.7';
+import { translateProtectionToMonths } from './flow-state.js?v=0.6.7';
+import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.7';
 
 const positive = value => Number.isFinite(Number(value)) && Number(value) > 0;
 const active = row => row?.enabled !== false && row?.active !== false;
@@ -110,6 +110,44 @@ export function multiClaimGrandTotalFromSimulation(timelines = {}, simulation = 
     heart: simulation.heartStarted ? timelines.heart : null,
     dementia: simulation.dementiaStarted ? timelines.dementia : null
   });
+}
+
+export function combinedPlanPayout(results = [], claimType = 'major') {
+  const entries = Array.isArray(results) ? results : [];
+  const valid = entries.filter(Boolean);
+  const pending = valid.some(entry => entry.outcome?.status !== 'VERIFIED');
+  const amounts = valid.map(entry => Number(entry.outcome?.amount));
+  const percents = valid.map(entry => Number(entry.outcome?.percent));
+  const baseAmounts = valid.map(entry => Number(entry.baseAmount ?? entry.summary?.baseAmount));
+  const remaining = valid.map(entry => entry.remaining);
+  const remainingPending = claimType === 'early' && remaining.some(entry => entry?.status !== 'VERIFIED');
+  if (!valid.length || pending || remainingPending || amounts.some(amount => !Number.isFinite(amount)) || percents.some(percent => !Number.isFinite(percent)) || baseAmounts.some(amount => !Number.isFinite(amount)) || baseAmounts.reduce((total, amount) => total + amount, 0) <= 0) {
+    return { status: 'VERIFY_REQUIRED', claimType, amount: null, percent: null, remainingAmount: null, remainingPercent: null };
+  }
+  const result = {
+    status: 'VERIFIED',
+    claimType,
+    amount: amounts.reduce((total, amount) => total + amount, 0),
+    percent: null,
+    remainingAmount: null,
+    remainingPercent: null,
+    includesEnhancement: valid.some(entry => entry.outcome?.includesEnhancement)
+  };
+  const baseTotal = baseAmounts.reduce((total, amount) => total + amount, 0);
+  result.percent = result.amount / baseTotal * 100;
+  if (claimType === 'early') {
+    result.remainingAmount = remaining.reduce((total, entry) => total + Number(entry.amount), 0);
+    result.remainingPercent = result.remainingAmount / baseTotal * 100;
+  }
+  return result;
+}
+
+export function isNewMultiClaimEntry(previousRoute, nextRoute) {
+  return nextRoute === 'claims' && previousRoute !== 'claims';
+}
+
+export function emptyMultiClaimSimulation() {
+  return { cancerStarted: false, heartStarted: false, dementiaStarted: false };
 }
 
 function premiumAgeRow(matrix, age) {
