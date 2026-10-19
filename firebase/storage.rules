@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// Critical Illness Storage contract.
+// This file is a deployment artifact only; it is deliberately not published
+// by the GitHub Pages app. Firebase-side deployment must preserve the shared
+// Medical namespace exactly as represented below.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsUserScope(userScope) {
+      return signedIn()
+        && request.auth.token.avaUserScope == userScope;
+    }
+
+    function validMedia() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 20 * 1024 * 1024
+        && request.resource.contentType in [
+          'application/pdf',
+          'image/png',
+          'image/jpeg',
+          'image/webp'
+        ];
+    }
+
+    // CI Official product documents are intentionally public-write. The
+    // namespace is limited to validated media; Product_Content remains
+    // protected by the AVA Admin/GAS write contract, and delete is denied.
+    match /critical-illness/official/{planId}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if validMedia();
+      allow delete: if false;
+    }
+
+    match /critical-illness/users/{userScope}/{allPaths=**} {
+      allow read: if ownsUserScope(userScope);
+      allow create, update: if ownsUserScope(userScope) && validMedia();
+      allow delete: if ownsUserScope(userScope);
+    }
+
+    // Medical uses this shared bucket namespace. Keep published reads
+    // available, but do not publish a rule that grants writes until Medical
+    // has migrated to the same verified Admin claim/broker contract.
+    match /medical/official/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
