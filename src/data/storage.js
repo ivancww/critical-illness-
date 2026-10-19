@@ -1,4 +1,4 @@
-import { normalizeUserResourceOverride } from '../domain/resource-layer.js?v=0.6.6';
+import { normalizeUserResourceOverride } from '../domain/resource-layer.js?v=0.6.7';
 
 const CACHE_KEY = 'AVA_CI_OFFICIAL_CACHE_V2';
 const USER_KEY = 'AVA_CI_USER_STATE_V1';
@@ -71,13 +71,22 @@ function reference(value) {
 
 export function normalizeUserState(value = {}) {
   const input = value && typeof value === 'object' ? value : {};
+  const rawFrontstage = input.frontstage && typeof input.frontstage === 'object' ? input.frontstage : {};
+  const legacyClaimTypes = rawFrontstage.claimTypes && typeof rawFrontstage.claimTypes === 'object'
+    ? Object.values(rawFrontstage.claimTypes).filter(type => type === 'major' || type === 'early')
+    : [];
+  const comparisonClaimType = rawFrontstage.comparisonClaimType === 'early' || rawFrontstage.comparisonClaimType === 'major'
+    ? rawFrontstage.comparisonClaimType
+    : legacyClaimTypes.length && legacyClaimTypes.every(type => type === legacyClaimTypes[0])
+      ? legacyClaimTypes[0]
+      : 'major';
   const pages = Array.isArray(input.pages) ? input.pages.map(page).filter(Boolean).sort((a, b) => a.sortOrder - b.sortOrder) : [];
   const resourceOverrides = Array.isArray(input.resourceOverrides) ? input.resourceOverrides.map(normalizeUserResourceOverride).filter(Boolean) : [];
   return {
     schemaVersion: USER_DATA_SCHEMA_VERSION,
     flow: input.flow && typeof input.flow === 'object' ? { ...input.flow } : {},
     selectedPlanIds: Array.isArray(input.selectedPlanIds) ? input.selectedPlanIds.filter(item => typeof item === 'string') : [],
-    frontstage: input.frontstage && typeof input.frontstage === 'object' ? structured(input.frontstage) : {},
+    frontstage: { ...structured(rawFrontstage), comparisonClaimType },
     pagePreferences: input.pagePreferences && typeof input.pagePreferences === 'object' ? { ...input.pagePreferences } : { introTitle: '', introSubtitle: '', introSupport: '', showIntro: true },
     overrides: input.overrides && typeof input.overrides === 'object' ? structured(input.overrides) : {},
     resourceOverrides,

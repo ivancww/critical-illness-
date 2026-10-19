@@ -4,10 +4,11 @@ import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
 import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout } from '../src/domain/plan-experience.js';
 import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochureForProduct, resourceKind } from '../src/data/content.js';
-import { cumulativePayout, multiClaimGrandTotal, multiClaimGrandTotalFromSimulation } from '../src/domain/frontstage-experience.js';
+import { combinedPlanPayout, cumulativePayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, multiClaimGrandTotal, multiClaimGrandTotalFromSimulation } from '../src/domain/frontstage-experience.js';
+import { normalizeUserState } from '../src/data/storage.js';
 import { FIREBASE_CONFIG, FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, OFFICIAL_STORAGE_AUTH_STATE, officialResourcePath, sanitizeMediaFilename, storageCapability, uploadOfficialMedia, uploadOfficialMediaWithProvider, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
 import { formatMoneyText, parseMoneyText } from '../src/domain/input-format.js';
-import { renderPlanComparisonLayout } from '../src/domain/frontstage-render.js';
+import { renderBrochureAction, renderPlanComparisonLayout } from '../src/domain/frontstage-render.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
 const styles = fs.readFileSync('src/styles.css', 'utf8');
@@ -148,8 +149,24 @@ test('disease resources are configured-data driven at the 17/18 boundary', () =>
   assert.doesNotMatch(app, /https:\/\/example\.test\/oys2-brochure\.pdf/);
 });
 
+test('brochure action keeps a visible safe position for every plan', () => {
+  const valid = renderBrochureAction({ resourceReference: 'https://example.test/oys2.pdf' });
+  const unavailable = renderBrochureAction(null);
+  const invalid = renderBrochureAction({ resourceReference: 'javascript:alert(1)' });
+  assert.match(valid, /產品小冊子/);
+  assert.match(valid, /href="https:\/\/example\.test\/oys2\.pdf"/);
+  assert.doesNotMatch(valid, /尚未配置/);
+  assert.match(unavailable, /產品小冊子（尚未配置）/);
+  assert.match(unavailable, /aria-disabled="true"/);
+  assert.match(invalid, /產品小冊子（尚未配置）/);
+  assert.doesNotMatch(invalid, /javascript:/);
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function sharedPayoutEffectCard'));
+  assert.match(comparison, /brochureActionMarkup\(id\)/);
+  assert.doesNotMatch(comparison, /activePlanId|目前顯示：/);
+});
+
 test('plan cards own diagnosis controls while one shared full-width payout card owns the result', () => {
-  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function activePlanFor'));
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function sharedPayoutEffectCard'));
   const plansPage = app.slice(app.indexOf('function plansPage'), app.indexOf('function planProtection(id)'));
   const shared = app.slice(app.indexOf('function sharedPayoutEffectCard'), app.indexOf('function bindPlanInputs'));
   assert.match(comparison, /data-diagnosis-age/);
@@ -157,8 +174,8 @@ test('plan cards own diagnosis controls while one shared full-width payout card 
   assert.match(comparison, /早期疾病/);
   assert.doesNotMatch(comparison, /selected-claim-card|supportEffectMarkup|postPayoutMarkup/);
   assert.match(shared, /data-shared-payout-card/);
-  assert.match(shared, /payoutEffectBarMarkup/);
-  assert.match(shared, /supportEffectMarkup\(outcome\.amount/);
+  assert.match(shared, /combinedPayoutEffectBarMarkup/);
+  assert.match(shared, /supportEffectMarkup\(combined\.amount/);
   assert.match(plansPage, /sharedPayoutEffectCard\(visiblePlans/);
   assert.match(styles, /shared-payout-effect/);
   assert.match(styles, /payout-effect-bar/);
@@ -185,27 +202,87 @@ test('rendered comparison output has exactly two plan cards, one shared payout c
 });
 
 test('shared output keeps one card and one bar while active plan/scenario changes', () => {
-  for (const [plan, scenario] of [['SCE', 'major'], ['SCE', 'early'], ['OYS2', 'major'], ['OYS2', 'early']]) {
+  for (const scenario of ['major', 'early']) {
     const rendered = renderPlanComparisonLayout({
       planCards: ['<article data-plan-card="SCE"></article>', '<article data-plan-card="OYS2"></article>'],
-      sharedPayoutCard: `<section data-shared-payout-card data-active-plan="${plan}" data-active-claim="${scenario}"><div class="payout-effect-bar"></div></section>`
+      sharedPayoutCard: `<section data-shared-payout-card data-visible-plans="SCE,OYS2" data-active-claim="${scenario}"><div class="payout-effect-bar"></div></section>`
     });
-    assert.equal((rendered.match(/data-shared-payout-card/g) || []).length, 1, `${plan} ${scenario}`);
-    assert.equal((rendered.match(/payout-effect-bar/g) || []).length, 1, `${plan} ${scenario}`);
-    assert.match(rendered, new RegExp(`data-active-plan="${plan}"`));
+    assert.equal((rendered.match(/data-shared-payout-card/g) || []).length, 1, scenario);
+    assert.equal((rendered.match(/payout-effect-bar/g) || []).length, 1, scenario);
+    assert.match(rendered, /data-visible-plans="SCE,OYS2"/);
     assert.match(rendered, new RegExp(`data-active-claim="${scenario}"`));
   }
 });
 
-test('major and early scenarios share the payout card but have different outcomes', () => {
-  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function activePlanFor'));
+test('comparison scenario is one synchronized state and totals visible plans', () => {
+  const major = combinedPlanPayout([
+    { baseAmount: 500000, outcome: { status: 'VERIFIED', amount: 500000, percent: 100, includesEnhancement: false } },
+    { baseAmount: 500000, outcome: { status: 'VERIFIED', amount: 750000, percent: 100, includesEnhancement: true } }
+  ], 'major');
+  const early = combinedPlanPayout([
+    { baseAmount: 500000, outcome: { status: 'VERIFIED', amount: 100000, percent: 20 }, remaining: { status: 'VERIFIED', amount: 400000, percent: 80 } },
+    { baseAmount: 500000, outcome: { status: 'VERIFIED', amount: 100000, percent: 20 }, remaining: { status: 'VERIFIED', amount: 400000, percent: 80 } }
+  ], 'early');
+  assert.equal(major.amount, 1250000);
+  assert.equal(major.percent, 125);
+  assert.equal(early.amount, 200000);
+  assert.equal(early.percent, 20);
+  assert.equal(early.remainingAmount, 800000);
+  assert.equal(early.remainingPercent, 80);
+  assert.equal(supportMonthsForPayout(1250000, 30000), 41.666666666666664);
+  assert.equal(supportMonthsForPayout(200000, 30000), 6.666666666666667);
+  assert.match(app, /frontstage\(\)\.comparisonClaimType = button\.dataset\.claimType/);
+  assert.match(app, /data-claim-type="\$\{escapeHtml\(type\)\}"/);
+  assert.doesNotMatch(app, /frontstage\(\)\.activePlanId = button\.dataset\.planClaim/);
+});
+
+test('unverified visible plan keeps the combined result pending', () => {
+  const result = combinedPlanPayout([
+    { baseAmount: 500000, outcome: { status: 'VERIFIED', amount: 500000, percent: 100 } },
+    { baseAmount: 500000, outcome: { status: 'VERIFY_REQUIRED', amount: null, percent: null } }
+  ], 'major');
+  assert.equal(result.status, 'VERIFY_REQUIRED');
+  assert.equal(result.amount, null);
   const shared = app.slice(app.indexOf('function sharedPayoutEffectCard'), app.indexOf('function bindPlanInputs'));
-  const bar = app.slice(app.indexOf('function payoutEffectBarMarkup'), app.indexOf('function brochureActionMarkup'));
+  assert.match(shared, /兩份方案合計尚待資料完整後顯示/);
+});
+
+test('P9 information cards are neutral by default and only direction buttons are choices', () => {
+  const p9 = app.slice(app.indexOf('if (step === 8)'), app.indexOf('function flowPage()'));
+  assert.match(p9, /data-information-card="single"/);
+  assert.match(p9, /data-information-card="continuing"/);
+  assert.doesNotMatch(p9, /mode-card--continuing/);
+  assert.match(p9, /data-style="single"/);
+  assert.match(p9, /data-style="continuing"/);
+  assert.match(p9, /data-style="compare"/);
+});
+
+test('comparison state migration resolves legacy mismatched selectors to one major default', () => {
+  const migrated = normalizeUserState({ frontstage: { claimTypes: { SCE: 'major', OYS2: 'early' }, activePlanId: 'OYS2' } });
+  assert.equal(migrated.frontstage.comparisonClaimType, 'major');
+  const same = normalizeUserState({ frontstage: { claimTypes: { SCE: 'early', OYS2: 'early' } } });
+  assert.equal(same.frontstage.comparisonClaimType, 'early');
+});
+
+test('multi-claim resets only on a new route entry, not on same-visit rerenders', () => {
+  assert.equal(isNewMultiClaimEntry('plans', 'claims'), true);
+  assert.equal(isNewMultiClaimEntry('claims', 'claims'), false);
+  assert.equal(isNewMultiClaimEntry('claims', 'heart'), false);
+  assert.deepEqual(emptyMultiClaimSimulation(), { cancerStarted: false, heartStarted: false, dementiaStarted: false });
+  assert.match(app, /isNewMultiClaimEntry\(lastRouteKey, routeKey\)/);
+  assert.match(app, /resetMultiClaimSimulation\(\); persistUser\(\)/);
+  assert.doesNotMatch(app.slice(app.indexOf('function claimPage'), app.indexOf('function claimPage') + 500), /resetMultiClaimSimulation\(\);/);
+});
+
+test('major and early scenarios share the payout card but have different outcomes', () => {
+  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function sharedPayoutEffectCard'));
+  const shared = app.slice(app.indexOf('function sharedPayoutEffectCard'), app.indexOf('function bindPlanInputs'));
+  const bar = app.slice(app.indexOf('function combinedPayoutEffectBarMarkup'), app.indexOf('function combinedPostPayoutMarkup'));
   const postPayout = app.slice(app.indexOf('function postPayoutMarkup'), app.indexOf('function brochureActionMarkup'));
   assert.doesNotMatch(comparison, /claimAmountMarkup|supportEffectMarkup|postPayoutMarkup/);
-  assert.match(shared, /claimAmountMarkup\(summary, type\)/);
-  assert.match(shared, /supportEffectMarkup\(outcome\.amount/);
-  assert.match(shared, /data-active-plan/);
+  assert.match(shared, /combinedClaimAmountMarkup\(combined, type\)/);
+  assert.match(shared, /supportEffectMarkup\(combined\.amount/);
+  assert.doesNotMatch(shared, /data-active-plan/);
   assert.match(shared, /data-active-claim/);
   assert.doesNotMatch(shared, /SCE 賠償|OYS2 賠償/);
   assert.match(postPayout, /type === 'early'/);
@@ -225,17 +302,18 @@ test('early illness advance leaves calculated base major protection', () => {
   assert.match(app, /餘下主要危疾保障/);
   assert.match(app, /remainingMajorProtectionAfterEarlyClaim/);
   const shared = app.slice(app.indexOf('function sharedPayoutEffectCard'), app.indexOf('function bindPlanInputs'));
-  const bar = app.slice(app.indexOf('function payoutEffectBarMarkup'), app.indexOf('function brochureActionMarkup'));
+  const bar = app.slice(app.indexOf('function combinedPayoutEffectBarMarkup'), app.indexOf('function combinedPostPayoutMarkup'));
   assert.match(bar, /payout-effect-bar--segmented/);
-  assert.match(bar, /summary\.early\.percent/);
-  assert.match(bar, /remaining\.percent/);
-  assert.match(shared, /supportEffectMarkup\(outcome\.amount/);
+  assert.match(bar, /result\.percent/);
+  assert.match(bar, /result\.remainingPercent/);
+  assert.match(shared, /supportEffectMarkup\(combined\.amount/);
 });
 
 test('missing OYS2 diagnosis age stays pending instead of becoming zero support', () => {
-  const comparison = app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs'));
+  const comparison = app.slice(app.indexOf('function sharedPayoutEffectCard'), app.indexOf('function bindPlanInputs'));
   const support = app.slice(app.indexOf('function supportEffectMarkup'), app.indexOf('function subsequentMajorMarkup'));
-  assert.match(comparison, /outcome\.status/);
+  assert.match(comparison, /combined\.status/);
+  assert.match(comparison, /兩份方案合計尚待資料完整後顯示/);
   assert.match(support, /status !== 'VERIFIED'/);
   assert.match(support, /輸入確診歲數後顯示支持月份/);
   assert.doesNotMatch(support, /0\.0 個月/);

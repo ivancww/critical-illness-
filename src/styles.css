@@ -122,8 +122,8 @@ h3 { margin: 0; font-size: 17px; }
 .comparison-plan, .premium-plan { display: grid; align-content: start; gap: 8px; }
 .comparison-plan .tag, .premium-plan .tag { justify-self: start; }
 .comparison-plan .field { margin: 4px 0; }
-.comparison-plan--active { border-color: var(--ava-color-primary); box-shadow: 0 0 0 3px rgba(14, 116, 144, .14); }
 .active-result-note { margin: 0; color: var(--ava-color-primary); font-size: 14px; font-weight: 700; }
+.button--disabled { cursor: not-allowed; opacity: .62; pointer-events: none; }
 .plan-input-wrap { display: grid; align-content: start; gap: 0; min-width: 0; }
 .card-field { margin: 0; padding: 14px 20px 0; background: var(--ava-color-surface); border: 1px solid var(--ava-color-border); border-bottom: 0; border-radius: var(--ava-radius-card) var(--ava-radius-card) 0 0; }
 .card-field input { min-width: 0; }
