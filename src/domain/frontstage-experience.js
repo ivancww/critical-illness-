@@ -1,6 +1,6 @@
-import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.5';
-import { translateProtectionToMonths } from './flow-state.js?v=0.6.5';
-import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.5';
+import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.6';
+import { translateProtectionToMonths } from './flow-state.js?v=0.6.6';
+import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.6';
 
 const positive = value => Number.isFinite(Number(value)) && Number(value) > 0;
 const active = row => row?.enabled !== false && row?.active !== false;
@@ -97,6 +97,19 @@ export function cumulativePayout(events = []) {
   const amount = valid.reduce((total, event) => total + Number(event.amount), 0);
   const percent = valid.reduce((total, event) => total + (Number(event?.percent) || 0), 0);
   return { amount, percent, eventCount: valid.length };
+}
+
+export function multiClaimGrandTotal(timelines = {}) {
+  const events = ['cancer', 'heart', 'dementia'].flatMap(key => Array.isArray(timelines?.[key]?.events) ? timelines[key].events : []);
+  return cumulativePayout(events);
+}
+
+export function multiClaimGrandTotalFromSimulation(timelines = {}, simulation = {}) {
+  return multiClaimGrandTotal({
+    cancer: simulation.cancerStarted ? timelines.cancer : null,
+    heart: simulation.heartStarted ? timelines.heart : null,
+    dementia: simulation.dementiaStarted ? timelines.dementia : null
+  });
 }
 
 function premiumAgeRow(matrix, age) {

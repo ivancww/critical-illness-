@@ -122,6 +122,8 @@ h3 { margin: 0; font-size: 17px; }
 .comparison-plan, .premium-plan { display: grid; align-content: start; gap: 8px; }
 .comparison-plan .tag, .premium-plan .tag { justify-self: start; }
 .comparison-plan .field { margin: 4px 0; }
+.comparison-plan--active { border-color: var(--ava-color-primary); box-shadow: 0 0 0 3px rgba(14, 116, 144, .14); }
+.active-result-note { margin: 0; color: var(--ava-color-primary); font-size: 14px; font-weight: 700; }
 .plan-input-wrap { display: grid; align-content: start; gap: 0; min-width: 0; }
 .card-field { margin: 0; padding: 14px 20px 0; background: var(--ava-color-surface); border: 1px solid var(--ava-color-border); border-bottom: 0; border-radius: var(--ava-radius-card) var(--ava-radius-card) 0 0; }
 .card-field input { min-width: 0; }
@@ -136,7 +138,16 @@ h3 { margin: 0; font-size: 17px; }
 .claim-selector .choice { min-height: 44px; }
 .claim-selector .choice.is-selected { border-color: var(--ava-color-primary); background: var(--ava-color-selected); color: var(--ava-color-primary); }
 .claim-result { display: grid; gap: 6px; padding: 14px 0; border-block: 1px solid var(--ava-color-border); }
-.selected-claim-card { display: grid; gap: 12px; margin-top: 12px; padding: 16px; border: 2px solid var(--ava-color-primary); border-radius: var(--ava-radius-card); background: #f8fbff; }
+.shared-payout-effect { display: grid; gap: 14px; margin: 0 0 20px; border: 2px solid var(--ava-color-primary); background: #f8fbff; }
+.shared-payout-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.shared-payout-heading p { margin: 0; }
+.payout-effect-bar { display: flex; min-height: 52px; overflow: hidden; border-radius: 999px; background: #dbeafe; color: #fff; font-weight: 800; text-align: center; }
+.payout-effect-bar > span { display: grid; min-width: 0; place-items: center; padding: 8px 12px; background: var(--ava-color-primary); overflow-wrap: anywhere; }
+.payout-effect-bar--segmented { background: #fef3c7; }
+.payout-effect-bar--segmented .payout-segment--early { background: #0f766e; }
+.payout-effect-bar--segmented .payout-segment--remaining { background: #0369a1; }
+.payout-effect-bar--pending { color: var(--ava-color-muted); background: #e2e8f0; }
+.payout-effect-bar--pending > span { width: 100%; background: #94a3b8; }
 .plan-title-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .diagnosis-age-control { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 999px; background: #e0f2fe; color: #075985; font-weight: 700; white-space: nowrap; }
 .diagnosis-age-control input { width: 76px; min-height: 36px; border: 1px solid #0284c7; border-radius: 999px; padding: 6px 8px; background: #fff; color: #075985; font: inherit; text-align: center; }
@@ -187,7 +198,7 @@ textarea { width: 100%; min-height: 100px; resize: vertical; border: 1px solid #
 button:disabled, a.button[aria-disabled="true"] { cursor: not-allowed; opacity: .62; }
 @media (min-width: 651px) and (max-width: 1000px) { :root { --ava-space-page: 24px; } .choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .choice-grid--balanced { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 1001px) { :root { --ava-space-page: 42px; } }
-@media (max-width: 650px) { .app-header { align-items: flex-start; flex-direction: column; } .top-nav { width: 100%; } .top-nav a { flex: 1; text-align: center; } .grid, .choice-grid, .media-grid, .admin-record-list, .experience-grid, .claim-controls, .premium-inputs, .comparison, .mode-grid, .plan-scenario-inputs { grid-template-columns: 1fr !important; } .choice-grid--balanced { grid-template-columns: 1fr !important; } .admin-field { grid-template-columns: 1fr; gap: 2px; } .claim-event { grid-template-columns: 1fr; gap: 2px; } .page { padding-top: 22px; padding-bottom: max(60px, env(safe-area-inset-bottom)); } .hero { padding: 24px 20px; } }
+@media (max-width: 650px) { .app-header { align-items: flex-start; flex-direction: column; } .top-nav { width: 100%; } .top-nav a { flex: 1; text-align: center; } .grid, .choice-grid, .media-grid, .admin-record-list, .experience-grid, .claim-controls, .premium-inputs, .comparison, .mode-grid, .plan-scenario-inputs { grid-template-columns: 1fr !important; } .choice-grid--balanced { grid-template-columns: 1fr !important; } .admin-field { grid-template-columns: 1fr; gap: 2px; } .claim-event { grid-template-columns: 1fr; gap: 2px; } .payout-effect-bar { min-height: 64px; border-radius: 20px; } .payout-effect-bar > span { padding: 8px 6px; font-size: 12px; } .page { padding-top: 22px; padding-bottom: max(60px, env(safe-area-inset-bottom)); } .hero { padding: 24px 20px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 
 /* Saving V1.8 Admin reference: cards first, one domain workspace, selected
