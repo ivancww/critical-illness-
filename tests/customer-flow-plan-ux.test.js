@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
 import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout } from '../src/domain/plan-experience.js';
 import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochureForProduct, resourceKind } from '../src/data/content.js';
-import { cumulativePayout, multiClaimGrandTotal } from '../src/domain/frontstage-experience.js';
+import { cumulativePayout, multiClaimGrandTotal, multiClaimGrandTotalFromSimulation } from '../src/domain/frontstage-experience.js';
 import { FIREBASE_CONFIG, FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, OFFICIAL_STORAGE_AUTH_STATE, officialResourcePath, sanitizeMediaFilename, storageCapability, uploadOfficialMedia, uploadOfficialMediaWithProvider, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
 import { formatMoneyText, parseMoneyText } from '../src/domain/input-format.js';
 import { renderPlanComparisonLayout } from '../src/domain/frontstage-render.js';
@@ -288,13 +288,58 @@ test('cumulative payout is derived from scenario events', () => {
     dementia: { events: [{ amount: 100000, percent: 20 }] }
   }), { amount: 1100000, percent: 220, eventCount: 3 });
   assert.deepEqual(multiClaimGrandTotal({ cancer: { events: [{ amount: 500000, percent: 100 }] }, heart: null, dementia: null }), { amount: 500000, percent: 100, eventCount: 1 });
-  assert.match(app, /multiClaimGrandTotal\(\{ cancer, heart, dementia \}\)/);
   assert.match(app, /multiClaimGrandTotalMarkup\(total\)/);
   assert.match(app, /const dementia = id === 'OYS2' && age && sum/);
   assert.doesNotMatch(app, /insertAdjacentHTML\('afterbegin'/);
   assert.match(app, /三類疾病累積賠償/);
   assert.match(app, /<section class="scenario-body">\$\{body\}<\/section>\$\{multiClaimGrandTotalMarkup\(total\)\}/);
   assert.doesNotMatch(app, /scenario-body">\$\{body\}\$\{multiClaimGrandTotalMarkup/);
+  assert.match(app, /目前尚未加入賠償模擬/);
+  assert.match(app, /multiClaimGrandTotalFromSimulation\(\{ cancer, heart, dementia \}, simulation\)/);
+});
+
+test('grand total starts at zero until an explicit simulation is activated', () => {
+  const timelines = {
+    cancer: { events: [{ amount: 500000, percent: 100 }] },
+    heart: { events: [{ amount: 500000, percent: 100 }] },
+    dementia: { events: [{ amount: 100000, percent: 20 }] }
+  };
+  assert.deepEqual(multiClaimGrandTotalFromSimulation(timelines, {}), { amount: 0, percent: 0, eventCount: 0 });
+  assert.deepEqual(multiClaimGrandTotalFromSimulation(timelines, { cancerStarted: true }), { amount: 500000, percent: 100, eventCount: 1 });
+  const cancerWithAddedOption = { cancer: { events: [{ amount: 500000, percent: 100 }, { amount: 500000, percent: 100 }] } };
+  assert.equal(multiClaimGrandTotalFromSimulation(cancerWithAddedOption, { cancerStarted: true }).amount, 1000000);
+});
+
+test('only explicit cancer, heart/stroke, and dementia events contribute and reset independently', () => {
+  const timelines = {
+    cancer: { events: [{ amount: 500000, percent: 100 }] },
+    heart: { events: [{ amount: 500000, percent: 100 }] },
+    dementia: { events: [{ amount: 100000, percent: 20 }] }
+  };
+  const active = { cancerStarted: true, heartStarted: true, dementiaStarted: true };
+  assert.deepEqual(multiClaimGrandTotalFromSimulation(timelines, active), { amount: 1100000, percent: 220, eventCount: 3 });
+  assert.deepEqual(multiClaimGrandTotalFromSimulation(timelines, { ...active, heartStarted: false }), { amount: 600000, percent: 120, eventCount: 2 });
+  assert.deepEqual(multiClaimGrandTotalFromSimulation(timelines, { ...active, heartStarted: false, cancerStarted: false }), { amount: 100000, percent: 20, eventCount: 1 });
+  assert.deepEqual(multiClaimGrandTotalFromSimulation(timelines, { ...active, heartStarted: false, cancerStarted: false, dementiaStarted: false }), { amount: 0, percent: 0, eventCount: 0 });
+});
+
+test('heart/stroke activation has exactly first, second, and third actual claims', () => {
+  const one = { heart: { events: [{ amount: 500000, percent: 100 }] } };
+  const two = { heart: { events: [{ amount: 500000, percent: 100 }, { amount: 500000, percent: 100 }] } };
+  const three = { heart: { events: [{ amount: 500000, percent: 100 }, { amount: 500000, percent: 100 }, { amount: 500000, percent: 100 }] } };
+  assert.equal(multiClaimGrandTotalFromSimulation(one, { heartStarted: false }).amount, 0);
+  assert.equal(multiClaimGrandTotalFromSimulation(one, { heartStarted: true }).amount, 500000);
+  assert.equal(multiClaimGrandTotalFromSimulation(two, { heartStarted: true }).amount, 1000000);
+  assert.equal(multiClaimGrandTotalFromSimulation(three, { heartStarted: true }).amount, 1500000);
+  assert.equal(multiClaimGrandTotalFromSimulation(three, { heartStarted: false }).amount, 0);
+});
+
+test('dementia future years are excluded until explicitly added', () => {
+  const preview = { dementia: { events: [{ amount: 500000, percent: 100 }, { amount: 30000, percent: 6 }, { amount: 30000, percent: 6 }, { amount: 30000, percent: 6 }] } };
+  assert.equal(multiClaimGrandTotalFromSimulation(preview, { dementiaStarted: false }).amount, 0);
+  assert.equal(multiClaimGrandTotalFromSimulation({ dementia: { events: preview.dementia.events.slice(0, 1) } }, { dementiaStarted: true }).amount, 500000);
+  assert.equal(multiClaimGrandTotalFromSimulation({ dementia: { events: preview.dementia.events.slice(0, 2) } }, { dementiaStarted: true }).amount, 530000);
+  assert.equal(multiClaimGrandTotalFromSimulation(preview, { dementiaStarted: true }).amount, 590000);
 });
 
 test('Firebase media gate validates references without creating an unsafe upload path', () => {

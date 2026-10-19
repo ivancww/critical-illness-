@@ -104,6 +104,14 @@ export function multiClaimGrandTotal(timelines = {}) {
   return cumulativePayout(events);
 }
 
+export function multiClaimGrandTotalFromSimulation(timelines = {}, simulation = {}) {
+  return multiClaimGrandTotal({
+    cancer: simulation.cancerStarted ? timelines.cancer : null,
+    heart: simulation.heartStarted ? timelines.heart : null,
+    dementia: simulation.dementiaStarted ? timelines.dementia : null
+  });
+}
+
 function premiumAgeRow(matrix, age) {
   return matrix.find(row => Array.isArray(row) && Number.isFinite(Number(row[0])) && Number(row[0]) === Number(age));
 }

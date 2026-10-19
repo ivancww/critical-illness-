@@ -4,7 +4,7 @@ import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProd
 import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.6';
 import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.6';
 import { verificationState } from './domain/verification.js?v=0.6.6';
-import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotal, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.6';
+import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.6';
 import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.6';
 import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.6';
 import { renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.6';
@@ -221,35 +221,59 @@ function ageLabel(months) { const years = Math.floor(months / 12); const remaind
 function claimEvent(event, ageText) { return `<li class="claim-event"><span class="event-age">${escapeHtml(ageText)}</span><div><strong>${escapeHtml(event.label)}</strong><p>本次 ${event.percent}% · HK$${money(event.amount)}</p><small>累計 ${event.cumulativePercent}% · HK$${money(event.cumulativeAmount)}</small>${event.remainingPercent !== undefined ? `<small>癌症延續保障餘額 ${event.remainingPercent}%</small>` : ''}</div></li>`; }
 // Multi-claim Frontstage markup is composed once in claimPage() so the cross-disease total stays at the bottom.
 function multiClaimGrandTotalMarkup(total) {
-  return `<article class="card cumulative-payout-card cumulative-payout-card--grand"><span class="eyebrow">已模擬 ${total.eventCount} 次賠償</span><h2>三類疾病累積賠償</h2><strong>HK$${money(total.amount)}</strong><p>癌症＋心臟病／中風＋腦退化症，目前已模擬賠償合計${total.percent ? ` · 累積 ${total.percent}%` : ''}</p></article>`;
+  const status = total.eventCount ? `已模擬 ${total.eventCount} 次賠償` : '目前尚未加入賠償模擬';
+  return `<article class="card cumulative-payout-card cumulative-payout-card--grand"><span class="eyebrow">${status}</span><h2>三類疾病累積賠償</h2><strong>HK$${money(total.amount)}</strong><p>癌症＋心臟病／中風＋腦退化症，目前已模擬賠償合計${total.percent ? ` · 累積 ${total.percent}%` : ''}</p></article>`;
+}
+
+function multiClaimSimulationState() {
+  const current = frontstage().multiClaimSimulation ||= {};
+  if (current.cancerStarted === undefined) current.cancerStarted = Array.isArray(frontstage().cancerActions) && frontstage().cancerActions.length > 0;
+  // Legacy defaults (one heart claim and age + three dementia years) are
+  // previews, not user-simulated events. Only an explicit marker, or a
+  // legacy value that could only have come from an added event, is active.
+  if (current.heartStarted === undefined) current.heartStarted = Number(frontstage().heartClaims) > 1;
+  if (current.dementiaStarted === undefined) current.dementiaStarted = false;
+  return current;
+}
+
+function resetMultiClaimSimulation() {
+  frontstage().multiClaimSimulation = { cancerStarted: false, heartStarted: false, dementiaStarted: false };
+  frontstage().cancerActions = [];
+  frontstage().heartClaims = 0;
+  delete frontstage().throughAge;
 }
 
 function claimPage() {
   const plan = continuingPlan(); const id = plan && planKey(plan); const sum = Number(frontstage().sums?.[id]) || 0; const age = savedAge();
   const scenario = ['cancer', 'heart', 'dementia'].includes(frontstage().scenario) ? frontstage().scenario : 'cancer';
   const rules = datasets().Claim_Rules;
+  const simulation = multiClaimSimulationState();
   const cancer = id && cancerTimeline({ rules, planId: id, sumAssured: sum, age, actions: frontstage().cancerActions || [] });
-  const heart = id && heartStrokeTimeline({ rules, planId: id, sumAssured: sum, age, claims: Number(frontstage().heartClaims) || 1 });
+  const heartClaims = simulation.heartStarted ? Math.max(1, Number(frontstage().heartClaims) || 1) : 1;
+  const heart = id && heartStrokeTimeline({ rules, planId: id, sumAssured: sum, age, claims: heartClaims });
   const throughAge = Math.max(age || 0, Number(frontstage().throughAge) || (age || 0) + 3);
   const dementia = id === 'OYS2' && age && sum ? dementiaTimeline({ sumAssured: sum, age, throughAge }) : null;
   let body;
   if (!id || !age || !sum) body = '<p class="empty">先輸入客戶目前年齡及延續保障方案基本保額，便可查看以實際年齡呈現的情境。</p>';
-  else if (scenario === 'cancer') body = cancer ? `<div class="card result-panel"><small>癌症累積賠償模擬</small><strong>600%</strong><p>首次 100% ＋ 後續延續保障最高 500%；兩種後續選項共用同一保障池。</p><p>現時延續保障餘額 ${cancer.remainingPercent}% · 若選 B，尚可 ${cancer.remainingBMonths} 個月</p></div><ol class="claim-timeline">${cancer.events.slice(-8).map(event => claimEvent(event, ageLabel(event.ageMonths))).join('')}</ol><div class="actions"><button class="secondary" data-cancer-action="A" ${cancer.optionBActivated || cancer.remainingPercent < 100 ? 'disabled' : ''}>加入選項 A · 相隔 3 年 100%</button><button class="secondary" data-cancer-action="B" ${cancer.remainingPercent < 5 ? 'disabled' : ''}>加入選項 B · 下個 5% 月份</button><button class="subtle" id="cancer-reset">重設情境</button></div><p class="muted">時間線僅展示已確認的間隔與金額模型；實際合約資格及等待條款須另行核實。</p>` : '<p class="verify">癌症官方規則未能完整核對，模擬暫不可用。</p>';
-  else if (scenario === 'heart') body = heart ? `<div class="card result-panel"><small>心臟病／中風累積賠償</small><strong>累計 ${heart.events.at(-1).cumulativePercent}%</strong><p>已展示 ${heart.events.length} / ${heart.maxClaims} 次 · 尚餘 ${heart.remainingClaims} 次機會</p></div><ol class="claim-timeline">${heart.events.map(event => claimEvent(event, `${event.age}歲`)).join('')}</ol><div class="actions"><button class="secondary" id="heart-next" ${heart.remainingClaims ? '' : 'disabled'}>加入下一次 · 相隔 1 年</button><button class="subtle" id="heart-reset">返回首次保障</button></div><p class="muted">僅展示已核實數字；實際合約資格須另行核實。</p>` : `<div class="card"><h2>心臟病／中風</h2><p class="verify">VERIFY REQUIRED：目前官方 Claim_Rules 這筆資料欄位錯位，賠償百分比、次數與間隔暫不能作為正式計算。</p><p>客戶目前 ${age} 歲。待官方規則修正後，這裡會以實際年齡顯示每次賠償、累計及餘下機會。</p></div>`;
-  else body = id === 'OYS2' && dementia ? `<div class="card result-panel"><small>腦退化症累積賠償 · 使用已確認業務規則</small><strong>首次 100%</strong><p>其後每年 6% 基本保額，終身。以下只展示到所選年齡，並非賠償上限。</p><p>到 ${throughAge} 歲累計 ${dementia.events.at(-1).cumulativePercent}% · HK$${money(dementia.events.at(-1).cumulativeAmount)}</p></div><ol class="claim-timeline">${dementia.events.slice(-8).map(event => claimEvent(event, `${event.age}歲`)).join('')}</ol><div class="actions"><button class="secondary" data-dementia-years="1">再看 1 年</button><button class="secondary" data-dementia-years="10">再看 10 年</button><button class="subtle" id="dementia-reset">返回首次保障</button></div><p class="muted">合約資格與付款時間仍須核實。</p>` : '<p class="verify">此方案的腦退化症規則尚待核實。</p>';
-  const total = multiClaimGrandTotal({ cancer, heart, dementia });
+  else if (scenario === 'cancer') body = cancer ? `<div class="card result-panel"><small>${simulation.cancerStarted ? '癌症累積賠償模擬' : '癌症賠償預覽'}</small><strong>600%</strong><p>首次 100% ＋ 後續延續保障最高 500%；兩種後續選項共用同一保障池。</p><p>現時延續保障餘額 ${cancer.remainingPercent}% · 若選 B，尚可 ${cancer.remainingBMonths} 個月</p></div><ol class="claim-timeline">${cancer.events.slice(-8).map(event => claimEvent(event, ageLabel(event.ageMonths))).join('')}</ol><div class="actions">${!simulation.cancerStarted ? '<button class="secondary" id="cancer-start">加入首次癌症賠償模擬</button>' : ''}<button class="secondary" data-cancer-action="A" ${!simulation.cancerStarted || cancer.optionBActivated || cancer.remainingPercent < 100 ? 'disabled' : ''}>加入選項 A · 相隔 3 年 100%</button><button class="secondary" data-cancer-action="B" ${!simulation.cancerStarted || cancer.remainingPercent < 5 ? 'disabled' : ''}>加入選項 B · 下個 5% 月份</button><button class="subtle" id="cancer-reset">重設情境</button></div><p class="muted">${simulation.cancerStarted ? '只計入已加入模擬的賠償事件。' : '以上為計算預覽，尚未計入三類疾病累積賠償。'}</p>` : '<p class="verify">癌症官方規則未能完整核對，模擬暫不可用。</p>';
+  else if (scenario === 'heart') body = heart ? `<div class="card result-panel"><small>${simulation.heartStarted ? '心臟病／中風累積賠償' : '心臟病／中風賠償預覽'}</small><strong>累計 ${heart.events.at(-1).cumulativePercent}%</strong><p>${simulation.heartStarted ? `已加入 ${heart.events.length} / ${heart.maxClaims} 次 · 尚餘 ${heart.remainingClaims} 次機會` : '首次賠償只作預覽，尚未計入三類疾病累積賠償。'}</p></div><ol class="claim-timeline">${heart.events.map(event => claimEvent(event, `${event.age}歲`)).join('')}</ol><div class="actions">${!simulation.heartStarted ? '<button class="secondary" id="heart-start">加入首次心臟病／中風模擬</button>' : `<button class="secondary" id="heart-next" ${heart.remainingClaims ? '' : 'disabled'}>加入下一次 · 相隔 1 年</button>`}<button class="subtle" id="heart-reset">重設情境</button></div><p class="muted">僅展示已核實數字；實際合約資格須另行核實。</p>` : `<div class="card"><h2>心臟病／中風</h2><p class="verify">VERIFY REQUIRED：目前官方 Claim_Rules 這筆資料欄位錯位，賠償百分比、次數與間隔暫不能作為正式計算。</p><p>客戶目前 ${age} 歲。待官方規則修正後，這裡會以實際年齡顯示每次賠償、累計及餘下機會。</p></div>`;
+  else body = id === 'OYS2' && dementia ? `<div class="card result-panel"><small>${simulation.dementiaStarted ? '腦退化症累積賠償' : '腦退化症賠償預覽'} · 使用已確認業務規則</small><strong>首次 100%</strong><p>其後每年 6% 基本保額，${simulation.dementiaStarted ? `目前顯示到 ${throughAge} 歲；只計入已選擇的期間。` : '預設顯示到約三年後，但未加入累積總額。'}</p><p>到 ${throughAge} 歲累計 ${dementia.events.at(-1).cumulativePercent}% · HK$${money(dementia.events.at(-1).cumulativeAmount)}</p></div><ol class="claim-timeline">${dementia.events.slice(-8).map(event => claimEvent(event, `${event.age}歲`)).join('')}</ol><div class="actions">${!simulation.dementiaStarted ? '<button class="secondary" id="dementia-start">加入首次腦退化症模擬</button>' : ''}<button class="secondary" data-dementia-years="1" ${!simulation.dementiaStarted ? 'disabled' : ''}>再看 1 年</button><button class="secondary" data-dementia-years="10" ${!simulation.dementiaStarted ? 'disabled' : ''}>再看 10 年</button><button class="subtle" id="dementia-reset">重設情境</button></div><p class="muted">合約資格與付款時間仍須核實。</p>` : '<p class="verify">此方案的腦退化症規則尚待核實。</p>';
+  const total = multiClaimGrandTotalFromSimulation({ cancer, heart, dementia }, simulation);
   render(`<section class="hero"><span class="eyebrow">多重賠償</span><h1>第一次之後，保障怎樣延續？</h1><div class="ava-comparison experience-grid"><div class="card"><h2>一次保障</h2><p>確診 → 首次保障 → 合約完結</p></div><div class="card"><h2>延續保障</h2><p>確診 → 首次保障 → 治療／康復 → 延續保障</p></div></div>${experienceNav()}</section><div class="claim-controls">${continuingPlans().length > 1 ? `<div class="field"><label for="claim-plan">延續保障方案</label><select id="claim-plan">${continuingPlans().map(item => `<option value="${escapeHtml(planKey(item))}" ${planKey(item) === id ? 'selected' : ''}>${escapeHtml(planName(item))}</option>`).join('')}</select></div>` : ''}<div class="field"><label for="claim-age">客戶目前年齡</label><input id="claim-age" type="number" min="1" step="1" value="${age || ''}"></div><div class="field"><label for="claim-sum">${escapeHtml(plan ? planName(plan) : '延續保障方案')}基本保額（HK$）</label><input id="claim-sum" data-money-input="claim-sum" type="text" inputmode="numeric" value="${moneyInputValue(sum)}"></div></div><div class="scenario-nav" role="group" aria-label="選擇情境">${[['cancer','癌症'],['heart','心臟病／中風'],['dementia','腦退化症']].map(([key,label]) => `<button class="${scenario === key ? 'primary' : 'secondary'}" data-scenario="${key}" aria-pressed="${scenario === key}">${label}</button>`).join('')}</div><section class="scenario-body">${body}</section>${multiClaimGrandTotalMarkup(total)}`);
-  document.querySelector('#claim-plan')?.addEventListener('change', event => { frontstage().claimPlanId = event.target.value; frontstage().cancerActions = []; persistUser(); claimPage(); });
-  document.querySelector('#claim-age')?.addEventListener('change', event => { frontstage().age = Math.max(0, Math.trunc(Number(event.target.value) || 0)); frontstage().cancerActions = []; delete frontstage().throughAge; persistUser(); claimPage(); });
+  document.querySelector('#claim-plan')?.addEventListener('change', event => { frontstage().claimPlanId = event.target.value; resetMultiClaimSimulation(); persistUser(); claimPage(); });
+  document.querySelector('#claim-age')?.addEventListener('change', event => { frontstage().age = Math.max(0, Math.trunc(Number(event.target.value) || 0)); resetMultiClaimSimulation(); persistUser(); claimPage(); });
   document.querySelector('#claim-sum')?.addEventListener('input', event => { const value = formatMoneyInput(event.target); if (id) { frontstage().sums ||= {}; frontstage().sums[id] = value; } persistUser(); });
-  document.querySelector('#claim-sum')?.addEventListener('change', () => claimPage());
+  document.querySelector('#claim-sum')?.addEventListener('change', () => { resetMultiClaimSimulation(); persistUser(); claimPage(); });
   document.querySelectorAll('[data-scenario]').forEach(button => button.addEventListener('click', () => { frontstage().scenario = button.dataset.scenario; persistUser(); claimPage(); }));
-  document.querySelectorAll('[data-cancer-action]').forEach(button => button.addEventListener('click', () => { frontstage().cancerActions ||= []; frontstage().cancerActions.push(button.dataset.cancerAction); persistUser(); claimPage(); }));
-  document.querySelector('#cancer-reset')?.addEventListener('click', () => { frontstage().cancerActions = []; persistUser(); claimPage(); });
-  document.querySelector('#heart-next')?.addEventListener('click', () => { frontstage().heartClaims = (Number(frontstage().heartClaims) || 1) + 1; persistUser(); claimPage(); });
-  document.querySelector('#heart-reset')?.addEventListener('click', () => { frontstage().heartClaims = 1; persistUser(); claimPage(); });
-  document.querySelectorAll('[data-dementia-years]').forEach(button => button.addEventListener('click', () => { frontstage().throughAge = throughAge + Number(button.dataset.dementiaYears); persistUser(); claimPage(); }));
-  document.querySelector('#dementia-reset')?.addEventListener('click', () => { frontstage().throughAge = age; persistUser(); claimPage(); });
+  document.querySelector('#cancer-start')?.addEventListener('click', () => { simulation.cancerStarted = true; persistUser(); claimPage(); });
+  document.querySelectorAll('[data-cancer-action]').forEach(button => button.addEventListener('click', () => { simulation.cancerStarted = true; frontstage().cancerActions ||= []; frontstage().cancerActions.push(button.dataset.cancerAction); persistUser(); claimPage(); }));
+  document.querySelector('#cancer-reset')?.addEventListener('click', () => { simulation.cancerStarted = false; frontstage().cancerActions = []; persistUser(); claimPage(); });
+  document.querySelector('#heart-start')?.addEventListener('click', () => { simulation.heartStarted = true; frontstage().heartClaims = 1; persistUser(); claimPage(); });
+  document.querySelector('#heart-next')?.addEventListener('click', () => { simulation.heartStarted = true; frontstage().heartClaims = Math.min(3, Math.max(1, Number(frontstage().heartClaims) || 1) + 1); persistUser(); claimPage(); });
+  document.querySelector('#heart-reset')?.addEventListener('click', () => { simulation.heartStarted = false; frontstage().heartClaims = 0; persistUser(); claimPage(); });
+  document.querySelector('#dementia-start')?.addEventListener('click', () => { simulation.dementiaStarted = true; frontstage().throughAge = age; persistUser(); claimPage(); });
+  document.querySelectorAll('[data-dementia-years]').forEach(button => button.addEventListener('click', () => { simulation.dementiaStarted = true; frontstage().throughAge = throughAge + Number(button.dataset.dementiaYears); persistUser(); claimPage(); }));
+  document.querySelector('#dementia-reset')?.addEventListener('click', () => { simulation.dementiaStarted = false; frontstage().throughAge = age; persistUser(); claimPage(); });
 }
 
 function premiumMoney(value) { return Number(value).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
