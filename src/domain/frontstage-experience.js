@@ -1,6 +1,6 @@
-import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.7';
-import { translateProtectionToMonths } from './flow-state.js?v=0.6.7';
-import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.7';
+import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.8';
+import { translateProtectionToMonths } from './flow-state.js?v=0.6.8';
+import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.8';
 
 const positive = value => Number.isFinite(Number(value)) && Number(value) > 0;
 const active = row => row?.enabled !== false && row?.active !== false;
