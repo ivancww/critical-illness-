@@ -46,11 +46,32 @@ test('actual premium route renders figures from customer state and keeps total p
   const app=await import('../src/app.js?render-test');
   assert.match(main.innerHTML,/HK\$90\.00/); assert.match(main.innerHTML,/約 HK\$7\.95/);
   assert.match(main.innerHTML,/HK\$300\.00/); assert.match(main.innerHTML,/約 HK\$26\.50/);
-  assert.match(main.innerHTML,/總保費：VERIFY REQUIRED/);
+  assert.match(main.innerHTML,/<summary>查看逐年保費<\/summary>/);
+  assert.match(main.innerHTML,/請輸入投保年齡及顯示年數/);
+  handlers['#premium-horizon:change']({target:{value:'2'}});
+  assert.match(main.innerHTML,/<th>保單年度<\/th>/);
+  assert.match(main.innerHTML,/按目前官方費率推算/);
+  assert.match(main.innerHTML,/HK\$600\.00/);
+  assert.match(main.innerHTML,/基礎保費|保費表沒有此投保年齡/);
+  assert.match(main.innerHTML,/所選期間預計總保費/);
+  const cards = [...main.innerHTML.matchAll(/<article class="card premium-plan">([\s\S]*?)<\/article>/g)];
+  assert.equal(cards.length,2);
+  for (const card of cards) {
+    assert.match(card[1],/基本保額/); assert.match(card[1],/每年保費/); assert.match(card[1],/每月保費/);
+    assert.doesNotMatch(card[1],/總保費|VERIFY REQUIRED|健康程式|年供/);
+  }
+  assert.doesNotMatch(main.innerHTML,/payment-timeline|官方方案資料：|重新載入官方資料/);
   handlers['#premium-gender:change']({target:{value:'F'}});
   assert.match(main.innerHTML,/HK\$180\.00/); assert.match(main.innerHTML,/約 HK\$15\.90/);
   handlers['#premium-vitality:change']({target:{value:'no'}});
   assert.match(main.innerHTML,/HK\$200\.00/);
+  globalThis.location.hash='#/plans'; handlers.hashchange();
+  assert.equal((main.innerHTML.match(/data-plan-card=/g) || []).length,2);
+  assert.doesNotMatch(main.innerHTML,/premium-summary|年繳保費|原年繳保費|id="health-program"/);
+  assert.match(main.innerHTML,/主要危疾/); assert.match(main.innerHTML,/查看保障疾病種類/);
+  globalThis.location.hash='#/premiums'; handlers.hashchange();
+  assert.match(main.innerHTML,/HK\$200\.00/);
+  assert.equal(app.state.user.frontstage.vitality,false);
   handlers['#premium-age:change']({target:{value:'41'}});
   assert.doesNotMatch(main.innerHTML,/HK\$0\.00/); assert.match(main.innerHTML,/每月保費：VERIFY REQUIRED/);
 });

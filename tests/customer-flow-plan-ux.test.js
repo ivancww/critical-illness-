@@ -114,7 +114,7 @@ test('valid official Sheet premium data is displayable without a secondary appro
   assert.ok(sce.annualPremium > 0);
   assert.ok(oys2.annualPremium > 0);
   assert.doesNotMatch(app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function sharedPayoutEffectCard')), /approval|verified approval|premiumEvidence\([^)]*\)\.status === 'VERIFIED'/i);
-  assert.match(app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function sharedPayoutEffectCard')), /premiumDisplayMarkup/);
+  assert.doesNotMatch(app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function sharedPayoutEffectCard')), /premiumDisplayMarkup|年繳保費|原年繳保費/);
 });
 
 test('health program feeds the combined payout through the same plan summaries', () => {
