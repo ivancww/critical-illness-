@@ -1,17 +1,17 @@
-import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.7';
-import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.7';
-import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.7';
-import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.7';
-import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.7';
-import { verificationState } from './domain/verification.js?v=0.6.7';
-import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.7';
-import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.7';
-import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.7';
-import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.7';
-import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.7';
-import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.7';
-import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.7';
-import { APP_VERSION } from './version.js?v=0.6.7';
+import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.8';
+import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.8';
+import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.8';
+import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.8';
+import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.8';
+import { verificationState } from './domain/verification.js?v=0.6.8';
+import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.8';
+import { claimOutcome, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.8';
+import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.8';
+import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.8';
+import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.8';
+import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.8';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.8';
+import { APP_VERSION } from './version.js?v=0.6.8';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -295,12 +295,11 @@ function premiumPage() {
   const age = savedAge(); const gender = frontstage().gender === 'F' ? 'F' : 'M'; const smoker = frontstage().smoker === 'smoker' ? 'smoker' : 'non-smoker';
   const term = [10,18,25].includes(Number(frontstage().payTerm)) ? Number(frontstage().payTerm) : 18;
   const cards = plans().map(plan => { const id = planKey(plan); const sum = Number(frontstage().sums?.[id]) || 0;
-    const evidence = premiumEvidence(state.official?.premium, plan, gender, age, smoker, term, sum);
     const isContinuing = ['continuing', 'continuing_multiple_claim'].includes(plan.protection_style);
-    const annual = evidence.status === 'AVAILABLE' ? `HK$${premiumMoney(evidence.annualPremium)}` : 'VERIFY REQUIRED';
-    return `<article class="card premium-plan"><span class="tag">${escapeHtml(plan.plan_category || plan.badge || '方案')}</span><h2>${escapeHtml(planName(plan))}</h2><p>${isContinuing ? '延續保障' : '一次保障'} · 基本保額 ${sum ? `HK$${money(sum)}` : '待輸入'}</p><p>${isContinuing ? `${term} 年供` : '官方年繳費率'}</p><div class="premium-figure"><small>每年保費</small><strong>${annual}</strong></div><p>每月保費：VERIFY REQUIRED（官方月繳換算未核實）</p><p>總保費：VERIFY REQUIRED（供款總額次序未核實）</p><small class="verify">${escapeHtml(evidence.reason)}</small></article>`; }).join('');
-  const continuing = continuingPlan(); const endAge = age && continuing ? paymentEndAge(age, term) : null;
-  render(`<section class="hero"><span class="eyebrow">方案保費</span><h1>並排看保障與供款</h1><p class="support">保費金額需以核實的官方費率映射及計算次序為準。</p>${experienceNav()}</section><section class="premium-inputs card"><div class="field"><label for="premium-age">投保年齡</label><input id="premium-age" type="number" min="1" step="1" value="${age || ''}"></div><div class="field"><label for="premium-gender">性別</label><select id="premium-gender"><option value="M" ${gender === 'M' ? 'selected' : ''}>男</option><option value="F" ${gender === 'F' ? 'selected' : ''}>女</option></select></div><div class="field"><label for="premium-smoker">吸煙狀態</label><select id="premium-smoker"><option value="non-smoker" ${smoker === 'non-smoker' ? 'selected' : ''}>非吸煙</option><option value="smoker" ${smoker === 'smoker' ? 'selected' : ''}>吸煙</option></select></div><div class="field"><label for="premium-vitality">AIA Vitality</label><select id="premium-vitality"><option value="no" ${!frontstage().vitality ? 'selected' : ''}>未參加</option><option value="yes" ${frontstage().vitality ? 'selected' : ''}>參加</option></select></div><div class="field"><label for="premium-term">延續保障方案供款期</label><select id="premium-term">${[10,18,25].map(years => `<option value="${years}" ${term === years ? 'selected' : ''}>${years} 年</option>`).join('')}</select></div></section><section class="ava-comparison experience-grid">${cards || '<p class="empty">官方方案資料尚未提供。</p>'}</section><section class="card payment-timeline"><h2>供款時間線</h2><p>一次保障方案：供款終點 VERIFY REQUIRED</p><p>${continuing ? escapeHtml(planName(continuing)) : '延續保障方案'}：${age ? `${age} 歲 → ${endAge} 歲 · ${term} 年供款完成` : '輸入投保年齡後顯示'}</p><p class="muted">終點只表示所選供款期的年齡換算，不代表已核實總保費或保障終止年齡。</p></section><details class="card"><summary>查看逐年保費</summary><p class="verify">逐年保費及合計仍須 VERIFY；目前不顯示推算或填補的數字。</p></details>`);
+    const annual = 'VERIFY REQUIRED';
+    return `<article class="card premium-plan"><span class="tag">${escapeHtml(plan.plan_category || plan.badge || '方案')}</span><h2>${escapeHtml(planName(plan))}</h2><p>${isContinuing ? '延續保障' : '一次保障'} · 基本保額 ${sum ? `HK$${money(sum)}` : '待輸入'}</p><p>${isContinuing ? `${term} 年供` : '官方年繳費率'}</p><div class="premium-figure"><small>每年保費</small><strong>${annual}</strong></div><p>每月保費：VERIFY REQUIRED（官方月繳換算未核實）</p><p>總保費：VERIFY REQUIRED（供款總額次序未核實）</p><small class="verify">官方年繳計算的適用規則及取整次序尚待核實。</small></article>`; }).join('');
+  const continuing = continuingPlan();
+  render(`<section class="hero"><span class="eyebrow">方案保費</span><h1>並排看保障與供款</h1><p class="support">保費金額需以核實的官方費率映射及計算次序為準。</p>${experienceNav()}</section><section class="card"><p>官方方案資料：${escapeHtml(state.official?.freshness?.structured?.status || '舊快取，來源時間未確認')}（最近成功：${escapeHtml(state.official?.freshness?.structured?.fetchedAt || '未確認')}；${escapeHtml(state.official?.freshness?.structured?.error || '無錯誤')}）；保費資料：${escapeHtml(state.official?.freshness?.premium?.status || '舊快取，來源時間未確認')}（最近成功：${escapeHtml(state.official?.freshness?.premium?.fetchedAt || '未確認')}；${escapeHtml(state.official?.freshness?.premium?.error || '無錯誤')}）。兩組資料的共同版本尚未確認。</p><button type="button" id="retry-official">重新載入官方資料</button></section><section class="premium-inputs card"><div class="field"><label for="premium-age">投保年齡</label><input id="premium-age" type="number" min="1" step="1" value="${age || ''}"></div><div class="field"><label for="premium-gender">性別</label><select id="premium-gender"><option value="M" ${gender === 'M' ? 'selected' : ''}>男</option><option value="F" ${gender === 'F' ? 'selected' : ''}>女</option></select></div><div class="field"><label for="premium-smoker">吸煙狀態</label><select id="premium-smoker"><option value="non-smoker" ${smoker === 'non-smoker' ? 'selected' : ''}>非吸煙</option><option value="smoker" ${smoker === 'smoker' ? 'selected' : ''}>吸煙</option></select></div><div class="field"><label for="premium-vitality">AIA Vitality</label><select id="premium-vitality"><option value="no" ${!frontstage().vitality ? 'selected' : ''}>未參加</option><option value="yes" ${frontstage().vitality ? 'selected' : ''}>參加</option></select></div><div class="field"><label for="premium-term">延續保障方案供款期</label><select id="premium-term">${[10,18,25].map(years => `<option value="${years}" ${term === years ? 'selected' : ''}>${years} 年</option>`).join('')}</select></div></section><section class="ava-comparison experience-grid">${cards || '<p class="empty">官方方案資料尚未提供。</p>'}</section><section class="card payment-timeline"><h2>供款時間線</h2><p>一次保障方案：供款終點 VERIFY REQUIRED</p><p>${continuing ? escapeHtml(planName(continuing)) : '延續保障方案'}：${age ? `投保年齡 ${age} 歲 · 已選 ${term} 年供；最後繳費年度及年齡待核實` : '輸入投保年齡後顯示'}</p><p class="muted">供款完成與保障終止是不同時間；資料未核實前不顯示結束年齡。</p></section><details class="card"><summary>查看逐年保費</summary><p class="verify">逐年保費及合計仍須 VERIFY；目前不顯示推算或填補的數字。</p></details>`);
   for (const [selector, key, convert] of [['#premium-age','age',value => Math.max(0, Math.trunc(Number(value) || 0))],['#premium-gender','gender',String],['#premium-smoker','smoker',String],['#premium-vitality','vitality',value => value === 'yes'],['#premium-term','payTerm',Number]]) document.querySelector(selector)?.addEventListener('change', event => { frontstage()[key] = convert(event.target.value); persistUser(); premiumPage(); });
 }
 
@@ -534,7 +533,14 @@ function adminDeniedPage() { render(`<section class="hero" data-ava-mode="admin"
 function unsupportedEntryPage() { render('<section class="hero"><span class="eyebrow">AVA Entry unavailable</span><h1>此入口未配置</h1><p class="support">這個 avaEntry 尚未由 AVA Platform 啟用。請從 AVA 以 Frontstage 或 User 入口重新開啟。</p></section>'); }
 let lastRouteKey = null;
 function route() { const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean); const routeKey = parts[0] || 'home'; if (isNewMultiClaimEntry(lastRouteKey, routeKey)) { resetMultiClaimSimulation(); persistUser(); } lastRouteKey = routeKey; if (unsupportedEntry) return unsupportedEntryPage(); if (canAdmin) return adminPage(); if (!parts.length) return home(); if (parts[0] === 'flow') return flowPage(); if (parts[0] === 'plans' && parts[1] && parts[2] === 'diseases') return diseaseResourcePage(parts[1]); if (parts[0] === 'plans' && parts[1] && parts[2] === 'protection' && parts[3] === 'detail') return diseaseResourcePage(parts[1]); if (parts[0] === 'plans' && parts[1] && parts[2] === 'protection') return planProtection(parts[1]); if (parts[0] === 'plans' && parts[1] && parts[2] === 'claim') return planClaim(parts[1]); if (parts[0] === 'plans' && parts[1]) return planDetail(parts[1]); if (parts[0] === 'plans') return plansPage(); if (parts[0] === 'comparison') return comparisonPage(); if (parts[0] === 'claims') return claimPage(); if (parts[0] === 'premiums') return premiumPage(); if (parts[0] === 'presentation') return presentation(); if (parts[0] === 'edit') return editPage(); return home(); }
-async function refreshOfficial() { try { const data = await loadOfficialData(); const normalized = { ...data, structured: normalizeStructuredData(data.structured) }; validateOfficialData(normalized); state.official = normalized; saveOfficialCache(normalized); setStatus('官方資料已更新。'); route(); } catch (e) { setStatus(`官方資料暫時未能更新：${e.message}`, true); }
+async function refreshOfficial() {
+  const data = await refreshOfficialData(state.official);
+  state.official = data;
+  if (data.structured || data.premium) saveOfficialCache(data);
+  const f = data.freshness;
+  const label = key => `${key === 'structured' ? '方案資料' : '保費資料'}：${f[key].status === 'fresh' ? '已取得' : f[key].status === 'stale' ? '使用舊資料' : '未取得'}${f[key].error ? `（${f[key].error}）` : ''}`;
+  setStatus(`${label('structured')}；${label('premium')}。兩者版本未能共同確認。`, f.structured.status !== 'fresh' || f.premium.status !== 'fresh');
+  route();
 }
 async function establishAdminAuthorization() {
   if (!canAdmin) return;
@@ -596,5 +602,6 @@ function registerServiceWorker() {
   }).catch(() => setStatus('離線外殼未能啟用。', true));
 }
 
+document.addEventListener('click', event => { if (event.target?.id === 'retry-official') refreshOfficial(); });
 document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); window.addEventListener('hashchange', route); route(); if (!state.official) setStatus('官方資料正在載入；未配置資料會安全顯示 pending。'); refreshOfficial(); establishAdminAuthorization(); registerServiceWorker(); window.__AVA_CI_BOOT_OK__ = true; window.__AVA_CI_MARK_BOOT_OK__?.();
 export { supportSummary, state, verificationState };

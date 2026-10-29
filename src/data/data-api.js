@@ -25,17 +25,59 @@ function parseResponse(payload) {
 export async function fetchDataset(action = 'all', fetchImpl = fetch) {
   const url = new URL(GAS_DATA_API_URL);
   if (action) url.searchParams.set('action', action);
-  const response = await fetchImpl(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new DataApiError(`GAS request failed (${response.status}).`, 'HTTP_ERROR');
-  return parseResponse(await response.json());
+  let response;
+  try { response = await fetchImpl(url, { cache: 'no-store', headers: { Accept: 'application/json' } }); }
+  catch (_) { throw new DataApiError(`${action}: 網絡、CORS 或重新導向失敗`, 'NETWORK_OR_CORS_ERROR'); }
+  if (!response.ok) throw new DataApiError(`${action}: HTTP ${response.status}`, 'HTTP_ERROR');
+  let payload;
+  try { payload = await response.json(); } catch (_) { throw new DataApiError(`${action}: 回應不是有效 JSON`, 'INVALID_JSON'); }
+  if (payload?.success === false) throw new DataApiError(`${action}: GAS 回報錯誤`, 'GAS_REMOTE_ERROR');
+  return parseResponse(payload);
+}
+
+const STRUCTURED_KEYS = ['Plans', 'Benefits', 'Claim_Rules', 'Health_Program', 'Product_Content', 'Settings_Versions'];
+function validateStructuredPayload(data) {
+  if (!data || STRUCTURED_KEYS.some(key => !Array.isArray(data[key])) || !data.Plans.length)
+    throw new DataApiError('官方方案資料格式不完整', 'SCHEMA_MISMATCH');
+  return data;
+}
+function validatePremiumPayload(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new DataApiError('保費資料格式不正確', 'SCHEMA_MISMATCH');
+  for (const key of Object.keys(PREMIUM_SOURCE_NAMES)) {
+    const raw = data[key]; const values = Array.isArray(raw) ? raw : raw?.values;
+    if (!Array.isArray(values) || !values.some(row => Array.isArray(row) && row.length > 1 && row[0] !== '' && Number.isInteger(Number(row[0])) && row.slice(1, 7).some(n => Number(n) > 0)))
+      throw new DataApiError(`保費表 ${key} 缺少有效資料`, 'PREMIUM_MATRIX_MISSING');
+  }
+  return normalizePremiumData(data);
+}
+
+// Per-dataset timestamps do not imply an atomic, version-matched snapshot.
+export async function refreshOfficialData(previous = null, fetchImpl = fetch, now = () => new Date().toISOString()) {
+  const outcomes = await Promise.allSettled([
+    fetchDataset('all', fetchImpl).then(validateStructuredPayload),
+    fetchDataset('premiumSheets', fetchImpl).then(validatePremiumPayload)
+  ]);
+  const keys = ['structured', 'premium'];
+  const result = { ...(previous || {}), freshness: { ...(previous?.freshness || {}) } };
+  keys.forEach((key, i) => {
+    const outcome = outcomes[i];
+    if (outcome.status === 'fulfilled') {
+      result[key] = outcome.value;
+      result.freshness[key] = { status: 'fresh', fetchedAt: now(), error: null };
+    } else {
+      result.freshness[key] = { status: result[key] ? 'stale' : 'unavailable', fetchedAt: previous?.freshness?.[key]?.fetchedAt || previous?.fetchedAt || null, error: outcome.reason?.code || 'NETWORK_ERROR' };
+    }
+  });
+  result.freshness.versionMatched = false; // GAS premium response carries no matching snapshot identity.
+  if (outcomes.every(o => o.status === 'fulfilled')) result.fetchedAt = now();
+  return result;
 }
 
 export async function loadOfficialData(fetchImpl = fetch) {
-  const [structured, premium] = await Promise.all([
-    fetchDataset('all', fetchImpl),
-    fetchDataset('premiumSheets', fetchImpl)
-  ]);
-  return { structured, premium: normalizePremiumData(premium), fetchedAt: new Date().toISOString() };
+  const data = await refreshOfficialData(null, fetchImpl);
+  const failure = Object.values(data.freshness).find(item => item && typeof item === 'object' && item.status !== 'fresh');
+  if (failure) throw new DataApiError('官方資料未能完整載入', failure.error);
+  return data;
 }
 
 // GAS readPremium_ returns each premium sheet directly as a matrix. Keep the

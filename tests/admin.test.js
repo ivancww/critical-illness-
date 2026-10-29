@@ -118,7 +118,7 @@ test('deployed GAS source implements only the browser-bound unified Admin sessio
 
 test('Admin save path refreshes Official cache only after confirmed write and never saves User state', () => {
   assert.match(app, /await writeOfficialData\(request, adminSessionProof\)/);
-  assert.match(app, /validateOfficialData\(normalized\); state\.official = normalized; saveOfficialCache\(normalized\)/);
+  assert.match(app, /validateOfficialData\(normalized\);\s*state\.official = normalized;\s*saveOfficialCache\(normalized\)/);
   assert.doesNotMatch(app.slice(app.indexOf('function bindAdmin()'), app.indexOf('function adminPage()')), /saveUserState|persistUser/);
 });
 
