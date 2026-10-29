@@ -1,4 +1,4 @@
-import { CI_APP_ID, GAS_DATA_API_URL } from '../data/data-api.js?v=0.6.8';
+import { CI_APP_ID, GAS_DATA_API_URL } from '../data/data-api.js?v=0.6.9';
 
 export const FIREBASE_CLAIM_CONTRACT = Object.freeze({
   admin: 'avaAdmin',

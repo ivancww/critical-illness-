@@ -1,4 +1,4 @@
-import { resolveBenefits } from './product-engine.js?v=0.6.8';
+import { resolveBenefits } from './product-engine.js?v=0.6.9';
 
 const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const active = row => row?.enabled !== false && row?.active !== false;
