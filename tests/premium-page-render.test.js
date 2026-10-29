@@ -50,8 +50,10 @@ test('actual premium route renders figures from customer state and keeps total p
   assert.match(main.innerHTML,/請輸入投保年齡及顯示年數/);
   handlers['#premium-horizon:change']({target:{value:'2'}});
   assert.match(main.innerHTML,/<th>保單年度<\/th>/);
-  assert.match(main.innerHTML,/固定年繳規則未確認/);
-  assert.match(main.innerHTML,/所選期間總保費/);
+  assert.match(main.innerHTML,/按目前官方費率推算/);
+  assert.match(main.innerHTML,/HK\$600\.00/);
+  assert.match(main.innerHTML,/基礎保費|保費表沒有此投保年齡/);
+  assert.match(main.innerHTML,/所選期間預計總保費/);
   const cards = [...main.innerHTML.matchAll(/<article class="card premium-plan">([\s\S]*?)<\/article>/g)];
   assert.equal(cards.length,2);
   for (const card of cards) {

@@ -71,7 +71,7 @@ export function renderPremiumFigures(quote) {
 }
 
 // Schedules use a chosen display horizon; the horizon does not assert coverage termination.
-export function calculatePremiumSchedule({ issueAge, horizon, term, vitality, premium, plans, sums, healthProgram, gender, smoker, lookup, healthEffect, levelContractVerified = false, vitalityDurationYears = null }) {
+export function calculatePremiumSchedule({ issueAge, horizon, term, vitality, premium, plans, sums, healthProgram, gender, smoker, lookup, healthEffect, vitalityDurationYears = null }) {
   const age = Number(issueAge), years = Number(horizon), payTerm = Number(term);
   if (issueAge === null || issueAge === undefined || issueAge === '' || !Number.isInteger(age) || age < 0 || !Number.isInteger(years) || years < 1 || years > 100) return { rows: [], reason: '請輸入投保年齡及顯示年數（1至100年）。', totals: {} };
   const rows = [], totals = { SCE: 0, OYS2: 0 }, complete = { SCE: true, OYS2: true };
@@ -82,15 +82,22 @@ export function calculatePremiumSchedule({ issueAge, horizon, term, vitality, pr
       let value = null, reason = '';
       if (!plan) reason = '方案資料未提供';
       else if (id === 'OYS2' && ![10,18,25].includes(payTerm)) reason = '供款期未確認';
-      else if (id === 'OYS2' && year > payTerm) { item[id] = { value: null, cumulative: complete[id] ? totals[id] : null, reason: '已過所選供款期' }; continue; }
-      else if (id === 'OYS2' && year > 1 && !levelContractVerified) reason = '固定年繳規則未確認';
-      else if (id === 'SCE' && vitality && year > 1 && !(Number.isInteger(vitalityDurationYears) && vitalityDurationYears >= year)) reason = '健康程式續年折扣未確認';
+      else if (id === 'OYS2' && year > payTerm) { item[id] = { value: null, cumulative: complete[id] ? totals[id] : null, reason: '所選供款期後無預定保費', afterTerm: true }; continue; }
       else {
         const quoteAge = id === 'SCE' ? attainedAge : age;
         const evidence = lookup(premium, plan, gender, quoteAge, smoker, payTerm, sums?.[id]);
         const health = healthEffect(healthProgram, id, vitality, sums?.[id]);
-        const quote = premiumQuote(evidence, health, vitality);
-        if (quote.status === 'AVAILABLE') value = quote.annual; else reason = quote.reason;
+        const baseQuote = premiumQuote(evidence, health, false);
+        if (baseQuote.status !== 'AVAILABLE') reason = baseQuote.reason;
+        else if (vitality && id === 'SCE' && (year === 1 || (Number.isInteger(vitalityDurationYears) && year <= vitalityDurationYears))) {
+          const adjusted = premiumQuote(evidence, health, true);
+          if (adjusted.status === 'AVAILABLE') { value = adjusted.annual; reason = '已按現時適用折扣計算'; }
+          else { value = baseQuote.annual; reason = '基礎保費，折扣待確認'; }
+        } else {
+          value = baseQuote.annual;
+          if (vitality && id === 'SCE') reason = '基礎保費，未計未確認的續年折扣';
+          else if (vitality && health.status !== 'VERIFIED') reason = '基礎保費，健康程式待確認';
+        }
       }
       if (value === null) complete[id] = false; else totals[id] += value;
       item[id] = { value, reason, cumulative: complete[id] ? totals[id] : null };
@@ -104,6 +111,7 @@ export function renderPremiumSchedule(schedule) {
   if (!schedule.rows.length) return `<p>${schedule.reason || '請選擇顯示年數。'}</p>`;
   const money = n => n === null ? '未能計算' : `HK$${Number(n).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const cell = v => v.value === null ? esc(v.reason || '未能計算') : money(v.value);
-  return `<p>顯示年數只用於比較，不代表保障終止時間。</p><div class="premium-schedule-scroll"><table class="premium-schedule"><thead><tr><th>保單年度</th><th>當時年齡</th><th>簡護每年保費</th><th>簡護累積</th><th>愛伴航2每年保費</th><th>愛伴航2累積</th></tr></thead><tbody>${schedule.rows.map(r => `<tr><td>${r.year}</td><td>${r.attainedAge}</td><td>${cell(r.SCE)}</td><td>${money(r.SCE.cumulative)}</td><td>${cell(r.OYS2)}</td><td>${money(r.OYS2.cumulative)}</td></tr>`).join('')}</tbody></table></div><p>所選期間總保費：簡護 ${money(schedule.totals.SCE)}；愛伴航2 ${money(schedule.totals.OYS2)}</p>`;
+  const cell = v => v.value === null ? esc(v.reason || '未能計算') : `${money(v.value)}${v.reason ? `<small class="premium-schedule-note">${esc(v.reason)}</small>` : ''}`;
+  const vitalityNote = schedule.rows.some(r => r.SCE.reason?.includes('未確認的續年折扣')) ? '<p>簡護續年使用基礎保費，未計未確認的 Vitality 折扣；總額按表內數字累計。</p>' : '';
+  return `<p>按目前官方費率推算，實際續期保費以保單及保險公司當時適用安排為準。顯示年數只用於比較，不代表保障終止時間。</p>${vitalityNote}<div class="premium-schedule-scroll"><table class="premium-schedule"><thead><tr><th>保單年度</th><th>當時年齡</th><th>簡護每年保費</th><th>簡護累積</th><th>愛伴航2每年保費</th><th>愛伴航2累積</th></tr></thead><tbody>${schedule.rows.map(r => `<tr><td>${r.year}</td><td>${r.attainedAge}</td><td>${cell(r.SCE)}</td><td>${money(r.SCE.cumulative)}</td><td>${cell(r.OYS2)}</td><td>${money(r.OYS2.cumulative)}</td></tr>`).join('')}</tbody></table></div><p>所選期間預計總保費：簡護 ${money(schedule.totals.SCE)}；愛伴航2 ${money(schedule.totals.OYS2)}</p>`;
 }
