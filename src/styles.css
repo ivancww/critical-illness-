@@ -262,3 +262,7 @@ html, body { overflow-x: hidden; }
   .admin-section, .admin-record { padding: 12px; }
   .admin-system-grid { grid-template-columns: 1fr; }
 }
+
+.premium-schedule-scroll { overflow-x: auto; max-width: 100%; }
+.premium-schedule { width: 100%; border-collapse: collapse; }
+.premium-schedule th, .premium-schedule td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
