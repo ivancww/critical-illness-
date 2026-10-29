@@ -104,8 +104,8 @@ test('production Health_Program rows drive distinct SCE and OYS2 effects', () =>
 
 test('valid official Sheet premium data is displayable without a secondary approval flag', () => {
   const premium = normalizePremiumData({
-    SCE_MALE: [['SCE'], ['Age', 'Non-Smoker', 'Smoker'], [40, 15.8, 20]],
-    OYS2_MALE: [['OYS2'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], [40, 188.5, 0, 115, 0, 91.6, 0]]
+    SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age', 'Non-Smoker', 'Smoker'], [40, 15.8, 20]],
+    OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [40, 188.5, 0, 115, 0, 91.6, 0]]
   });
   const sce = premiumEvidence(premium, { plan_id: 'SCE', rate_basis: 7800 }, 'M', 40, 'non-smoker', 18, 500000);
   const oys2 = premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 40, 'non-smoker', 10, 500000);

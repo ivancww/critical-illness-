@@ -57,7 +57,7 @@ export function healthProgramEffect(healthProgram = [], id, participating = fals
   const row = healthProgram.find(candidate => candidate?.plan_id === id && active(candidate));
   if (!participating) return { status: 'NOT_APPLICABLE', effectType: row?.effect_type || null, premiumMultiplier: 1, coverageMultiplier: 1, coverageBonusAmount: 0, row: row || null };
   const effectValue = number(row?.effect_value);
-  if (!row || effectValue === null || effectValue < 0) return { status: 'VERIFY_REQUIRED', effectType: row?.effect_type || null, premiumMultiplier: null, coverageMultiplier: null, coverageBonusAmount: null, row: row || null };
+  if (!row || effectValue === null || effectValue < 0 || (id === 'SCE' && row.effect_type !== 'premium_multiplier') || (id === 'OYS2' && row.effect_type !== 'coverage_bonus')) return { status: 'VERIFY_REQUIRED', effectType: row?.effect_type || null, premiumMultiplier: null, coverageMultiplier: null, coverageBonusAmount: null, row: row || null };
   if (row.effect_type === 'premium_multiplier') return { status: 'VERIFIED', effectType: row.effect_type, premiumMultiplier: effectValue, coverageMultiplier: 1, coverageBonusAmount: 0, row };
   if (row.effect_type === 'coverage_bonus') return { status: 'VERIFIED', effectType: row.effect_type, premiumMultiplier: 1, coverageMultiplier: 1 + effectValue, coverageBonusAmount: number(baseAmount) === null ? null : number(baseAmount) * effectValue, row };
   return { status: 'VERIFY_REQUIRED', effectType: row.effect_type || null, premiumMultiplier: null, coverageMultiplier: null, coverageBonusAmount: null, row };

@@ -1,3 +1,4 @@
+import { premiumMatrixHasExpectedHeaders } from '../data/data-api.js?v=0.6.8';
 import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.8';
 import { translateProtectionToMonths } from './flow-state.js?v=0.6.8';
 import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.8';
@@ -168,12 +169,17 @@ export function premiumEvidence(premium, plan, gender, age, smokerStatus, paymen
   if (!['SCE', 'OYS2'].includes(id) || !['M', 'F'].includes(gender) || !['smoker', 'non-smoker'].includes(smokerStatus) || age === null || age === undefined || age === '') return { status: 'VERIFY_REQUIRED', reason: '方案或投保資料未提供' };
   const key = `${id}_${gender === 'F' ? 'FEMALE' : 'MALE'}`;
   const matrix = premium?.[key]?.values;
-  if (!Array.isArray(matrix) || !Number.isInteger(Number(age))) return { status: 'VERIFY_REQUIRED', reason: '官方保費資料或年齡未提供' };
+  if (!Array.isArray(matrix) || matrix.length === 0) return { status: 'VERIFY_REQUIRED', reason: '此產品及性別的官方保費表未提供' };
+  if (!premiumMatrixHasExpectedHeaders(key, matrix)) return { status: 'VERIFY_REQUIRED', reason: '官方保費表的產品、性別或欄位不相符' };
+  if (!Number.isInteger(Number(age)) || Number(age) < 0) return { status: 'VERIFY_REQUIRED', reason: '投保年齡未提供或無效' };
   const row = premiumAgeRow(matrix, age);
   const column = premiumColumn(id, paymentTerm, smokerStatus);
   const rate = column === undefined ? null : Number(row?.[column]);
   const basis = Number(plan?.rate_basis);
-  if (column === undefined || !row || !positive(rate) || !positive(basis)) return { status: 'VERIFY_REQUIRED', reason: '此年齡、吸煙狀態、供款期或保額沒有可用官方資料', source: premium[key]?.sheetName };
+  if (column === undefined) return { status: 'VERIFY_REQUIRED', reason: '此產品的供款期未提供或不適用', source: premium[key]?.sheetName };
+  if (!row) return { status: 'VERIFY_REQUIRED', reason: '保費表沒有此投保年齡', source: premium[key]?.sheetName };
+  if (!positive(rate)) return { status: 'VERIFY_REQUIRED', reason: '此年齡、吸煙狀態及供款期沒有可用費率', source: premium[key]?.sheetName };
+  if (basis !== 7800) return { status: 'VERIFY_REQUIRED', reason: '官方費率基準未確認', source: premium[key]?.sheetName };
   if (!positive(sumAssured)) return { status: 'VERIFY_REQUIRED', reason: '請先輸入有效基本保額', source: premium[key]?.sheetName, rawRate: rate, rateBasis: basis };
   return {
     status: 'AVAILABLE',

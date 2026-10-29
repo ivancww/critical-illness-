@@ -30,6 +30,10 @@ const steps = [
 ];
 const concernOptions = ['治療要幾多錢？', '要停工／休養幾耐？', '生活開支點安排？', '其實未諗過'];
 const state = { official: loadOfficialCache(), user: normalizeUserState(loadUserState()) };
+// A persisted success is a cached snapshot, not proof of a successful fetch in this session.
+if (state.official?.freshness) for (const key of ['structured', 'premium']) {
+  if (state.official.freshness[key]?.status === 'fresh') state.official.freshness[key].status = 'stale';
+}
 state.user.flow = createFlowState(state.user.flow);
 const requestedEntry = new URLSearchParams(location.search).get('avaEntry') || '';
 const appEntry = requestedEntry || 'frontend';
@@ -551,7 +555,11 @@ function adminDeniedPage() { render(`<section class="hero" data-ava-mode="admin"
 function unsupportedEntryPage() { render('<section class="hero"><span class="eyebrow">AVA Entry unavailable</span><h1>此入口未配置</h1><p class="support">這個 avaEntry 尚未由 AVA Platform 啟用。請從 AVA 以 Frontstage 或 User 入口重新開啟。</p></section>'); }
 let lastRouteKey = null;
 function route() { const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean); const routeKey = parts[0] || 'home'; if (isNewMultiClaimEntry(lastRouteKey, routeKey)) { resetMultiClaimSimulation(); persistUser(); } lastRouteKey = routeKey; if (unsupportedEntry) return unsupportedEntryPage(); if (canAdmin) return adminPage(); if (!parts.length) return home(); if (parts[0] === 'flow') return flowPage(); if (parts[0] === 'plans' && parts[1] && parts[2] === 'diseases') return diseaseResourcePage(parts[1]); if (parts[0] === 'plans' && parts[1] && parts[2] === 'protection' && parts[3] === 'detail') return diseaseResourcePage(parts[1]); if (parts[0] === 'plans' && parts[1] && parts[2] === 'protection') return planProtection(parts[1]); if (parts[0] === 'plans' && parts[1] && parts[2] === 'claim') return planClaim(parts[1]); if (parts[0] === 'plans' && parts[1]) return planDetail(parts[1]); if (parts[0] === 'plans') return plansPage(); if (parts[0] === 'comparison') return comparisonPage(); if (parts[0] === 'claims') return claimPage(); if (parts[0] === 'premiums') return premiumPage(); if (parts[0] === 'presentation') return presentation(); if (parts[0] === 'edit') return editPage(); return home(); }
+let officialRefreshRunning = false;
 async function refreshOfficial() {
+  if (officialRefreshRunning) return;
+  officialRefreshRunning = true;
+  try {
   const data = await refreshOfficialData(state.official);
   state.official = data;
   if (data.structured || data.premium) saveOfficialCache(data);
@@ -559,6 +567,7 @@ async function refreshOfficial() {
   const label = key => `${key === 'structured' ? '方案資料' : '保費資料'}：${f[key].status === 'fresh' ? '已取得' : f[key].status === 'stale' ? '使用舊資料' : '未取得'}${f[key].error ? `（${f[key].error}）` : ''}`;
   setStatus(`${label('structured')}；${label('premium')}。兩者版本未能共同確認。`, f.structured.status !== 'fresh' || f.premium.status !== 'fresh');
   route();
+  } finally { officialRefreshRunning = false; }
 }
 async function establishAdminAuthorization() {
   if (!canAdmin) return;

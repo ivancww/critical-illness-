@@ -4,7 +4,10 @@ import { refreshOfficialData } from '../src/data/data-api.js';
 
 // Synthetic fixtures, not product rates.
 const structured = { Plans: [{ plan_id: 'fixture' }], Benefits: [], Claim_Rules: [], Health_Program: [], Product_Content: [], Settings_Versions: [] };
-const matrices = Object.fromEntries(['OYS2_MALE', 'OYS2_FEMALE', 'SCE_MALE', 'SCE_FEMALE'].map(k => [k, [['Age', 'Rate'], [30, 123]]]));
+const matrices = Object.fromEntries(['OYS2_MALE', 'OYS2_FEMALE', 'SCE_MALE', 'SCE_FEMALE'].map(k => {
+  const gender = k.endsWith('FEMALE') ? 'Female' : 'Male';
+  return [k, k.startsWith('SCE') ? [[`Simple Care Essence - ${gender} (per hk$7800)`], ['Age', 'Non-Smoker', 'Smoker'], [30, 123, 150]] : [[`OYS2 Premium Rate Table (Per hk$7800) - ${gender}`], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [30, 123, 150, 100, 120, 90, 110]]];
+}));
 const response = data => ({ ok: true, json: async () => ({ success: true, data }) });
 const fetcher = (a, b) => async url => { const value = url.searchParams.get('action') === 'all' ? a : b; if (value instanceof Error) throw value; return value; };
 const old = { structured, premium: { old: 'preserved' }, fetchedAt: 'old', freshness: { structured: { fetchedAt: 'old' }, premium: { fetchedAt: 'old' } } };
@@ -30,4 +33,22 @@ test('invalid JSON, schema and empty matrices never overwrite cache', async () =
   const badStructured = await refreshOfficialData(old,fetcher(response({Plans:[]}),response(matrices)),now);
   assert.equal(badStructured.freshness.structured.error,'SCHEMA_MISMATCH');
   assert.deepEqual(badStructured.structured,old.structured);
+});
+
+test('swapped matrices fail safely; a later retry restores fresh data', async () => {
+  const bad = { ...matrices, SCE_MALE: matrices.SCE_FEMALE };
+  const failed = await refreshOfficialData(old, fetcher(response(structured), response(bad)), now);
+  assert.equal(failed.freshness.premium.error, 'SCHEMA_MISMATCH');
+  assert.deepEqual(failed.premium, old.premium);
+  const retried = await refreshOfficialData(failed, fetcher(response(structured), response(matrices)), () => 'retry');
+  assert.equal(retried.freshness.premium.status, 'fresh');
+  assert.equal(retried.freshness.premium.fetchedAt, 'retry');
+});
+test('HTTP and GAS errors are distinct and missing fetch time is not borrowed', async () => {
+  const prior = { ...old, fetchedAt: 'other', freshness: { structured: { fetchedAt: 'other' }, premium: {} } };
+  const http = await refreshOfficialData(prior, fetcher(response(structured), {ok:false,status:503}), now);
+  assert.equal(http.freshness.premium.error, 'HTTP_ERROR');
+  assert.equal(http.freshness.premium.fetchedAt, null);
+  const gas = await refreshOfficialData(old, fetcher(response(structured), {ok:true,json:async()=>({success:false})}), now);
+  assert.equal(gas.freshness.premium.error, 'GAS_REMOTE_ERROR');
 });

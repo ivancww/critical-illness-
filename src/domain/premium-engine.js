@@ -62,7 +62,10 @@ export function premiumQuote(evidence, health, participating = false) {
 }
 
 export function renderPremiumFigures(quote) {
-  if (quote?.status !== 'AVAILABLE' || !(quote.annual > 0) || !(quote.monthly > 0)) return '<div class="premium-figure"><small>每年保費</small><strong>VERIFY REQUIRED</strong></div><p>每月保費：VERIFY REQUIRED（年繳保費未確認）</p>';
+  if (quote?.status !== 'AVAILABLE' || !(quote.annual > 0) || !(quote.monthly > 0)) {
+    const reason = String(quote?.reason || '年繳保費未確認').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    return `<div class="premium-figure"><small>每年保費</small><strong>VERIFY REQUIRED</strong></div><p>每月保費：VERIFY REQUIRED（${reason}）</p>`;
+  }
   const fmt = n => Number(n).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `<div class="premium-figure"><small>每年保費</small><strong>HK$${fmt(quote.annual)}</strong></div><p>每月保費：約 HK$${fmt(quote.monthly)}</p>`;
 }

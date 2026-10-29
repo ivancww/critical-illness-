@@ -70,10 +70,10 @@ test('heart/stroke runs only with a well-formed Official rule and uses customer 
 
 test('premium normalizes the actual GAS matrix payload and looks up all production mappings', () => {
   const gasPremium = {
-    OYS2_MALE: [['OYS2 title'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [25, 44.2, 55, 27.5, 33, 18.5, 22]],
-    OYS2_FEMALE: [['OYS2 title'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [25, 45.2, 56, 28.5, 34, 19.5, 23]],
-    SCE_MALE: [['SCE title'], ['Age (年齡)', 'Non-Smoker (非吸煙者)', 'Smoker (吸煙者)'], ['25', 15.8, 20.1]],
-    SCE_FEMALE: [['SCE title'], ['Age (年齡)', 'Non-Smoker (非吸煙者)', 'Smoker (吸煙者)'], ['25', 15.3, 19.6]]
+    OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [25, 44.2, 55, 27.5, 33, 18.5, 22]],
+    OYS2_FEMALE: [['OYS2 Premium Rate Table (Per hk$7800) - Female'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [25, 45.2, 56, 28.5, 34, 19.5, 23]],
+    SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age (年齡)', 'Non-Smoker (非吸煙者)', 'Smoker (吸煙者)'], ['25', 15.8, 20.1]],
+    SCE_FEMALE: [['Simple Care Essence - Female (per hk$7800)'], ['Age (年齡)', 'Non-Smoker (非吸煙者)', 'Smoker (吸煙者)'], ['25', 15.3, 19.6]]
   };
   const premium = normalizePremiumData(gasPremium);
   assert.deepEqual(Object.keys(premium), ['OYS2_MALE', 'OYS2_FEMALE', 'SCE_MALE', 'SCE_FEMALE']);
