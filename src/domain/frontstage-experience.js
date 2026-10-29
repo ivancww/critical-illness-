@@ -151,7 +151,7 @@ export function emptyMultiClaimSimulation() {
 }
 
 function premiumAgeRow(matrix, age) {
-  return matrix.find(row => Array.isArray(row) && Number.isFinite(Number(row[0])) && Number(row[0]) === Number(age));
+  return matrix.find(row => Array.isArray(row) && row[0] !== '' && row[0] !== null && row[0] !== undefined && Number.isInteger(Number(row[0])) && Number(row[0]) === Number(age));
 }
 
 function premiumColumn(planId, paymentTerm, smokerStatus) {
@@ -165,6 +165,7 @@ function premiumColumn(planId, paymentTerm, smokerStatus) {
 
 export function premiumEvidence(premium, plan, gender, age, smokerStatus, paymentTerm, sumAssured) {
   const id = String(planId(plan) || '').toUpperCase();
+  if (!['SCE', 'OYS2'].includes(id) || !['M', 'F'].includes(gender) || !['smoker', 'non-smoker'].includes(smokerStatus) || age === null || age === undefined || age === '') return { status: 'VERIFY_REQUIRED', reason: '方案或投保資料未提供' };
   const key = `${id}_${gender === 'F' ? 'FEMALE' : 'MALE'}`;
   const matrix = premium?.[key]?.values;
   if (!Array.isArray(matrix) || !Number.isInteger(Number(age))) return { status: 'VERIFY_REQUIRED', reason: '官方保費資料或年齡未提供' };

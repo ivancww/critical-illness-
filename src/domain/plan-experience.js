@@ -53,6 +53,16 @@ export function premiumWaiverText(benefits = [], id) {
   return text || null;
 }
 
+export function healthProgramEffect(healthProgram = [], id, participating = false, baseAmount = 0) {
+  const row = healthProgram.find(candidate => candidate?.plan_id === id && active(candidate));
+  if (!participating) return { status: 'NOT_APPLICABLE', effectType: row?.effect_type || null, premiumMultiplier: 1, coverageMultiplier: 1, coverageBonusAmount: 0, row: row || null };
+  const effectValue = number(row?.effect_value);
+  if (!row || effectValue === null || effectValue < 0) return { status: 'VERIFY_REQUIRED', effectType: row?.effect_type || null, premiumMultiplier: null, coverageMultiplier: null, coverageBonusAmount: null, row: row || null };
+  if (row.effect_type === 'premium_multiplier') return { status: 'VERIFIED', effectType: row.effect_type, premiumMultiplier: effectValue, coverageMultiplier: 1, coverageBonusAmount: 0, row };
+  if (row.effect_type === 'coverage_bonus') return { status: 'VERIFIED', effectType: row.effect_type, premiumMultiplier: 1, coverageMultiplier: 1 + effectValue, coverageBonusAmount: number(baseAmount) === null ? null : number(baseAmount) * effectValue, row };
+  return { status: 'VERIFY_REQUIRED', effectType: row.effect_type || null, premiumMultiplier: null, coverageMultiplier: null, coverageBonusAmount: null, row };
+}
+
 export function claimOutcome(summary, claimType = 'major') {
   if (claimType === 'early') {
     return {
@@ -92,9 +102,11 @@ export function remainingMajorProtectionAfterEarlyClaim(summary = {}) {
   return { status: 'VERIFIED', amount: baseAmount * percent / 100, percent };
 }
 
-export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age, diagnosisAge } = {}) {
+export function planProtectionSummary({ plan, benefits = [], healthProgram = [], healthProgramParticipating = false, sumAssured = 0, age, diagnosisAge } = {}) {
   const id = planId(plan);
-  const base = number(sumAssured);
+  const rawBase = number(sumAssured);
+  const health = healthProgramEffect(healthProgram, id, healthProgramParticipating, rawBase);
+  const base = rawBase === null || health.status === 'VERIFY_REQUIRED' || health.coverageMultiplier === null ? null : rawBase * health.coverageMultiplier;
   const major = resolveBenefits(benefits, id).find(row => row.benefit_type === 'major_ci' && active(row) && number(row.payout_percent) === 100);
   const early = resolveBenefits(benefits, id).find(row => row.benefit_type === 'early_ci' && active(row));
   const enhancement = ageDependentEnhancement(benefits, id, age);
@@ -125,6 +137,7 @@ export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age
 
   return {
     planId: id,
+    rawBaseAmount: rawBase,
     baseAmount: base,
     basePercent: major ? number(major.payout_percent) : null,
     extra: { status: effectiveEnhancement.status, percent: extraPercent, amount: extraAmount, row: enhancement.row, reason: effectiveEnhancement.reason, bandStatus: enhancement.status },
@@ -132,7 +145,8 @@ export function planProtectionSummary({ plan, benefits = [], sumAssured = 0, age
     totalApplicable: total,
     early: { status: early && earlyPercent !== null ? 'VERIFIED' : 'VERIFY_REQUIRED', percent: earlyPercent, amount: earlyAmount, row: early },
     major: { status: majorVerified ? 'VERIFIED' : 'VERIFY_REQUIRED', row: major },
-    premiumWaiver: { status: waiverText ? 'VERIFIED' : 'NOT_VERIFIED', text: waiverText }
+    premiumWaiver: { status: waiverText ? 'VERIFIED' : 'NOT_VERIFIED', text: waiverText },
+    health
   };
 }
 

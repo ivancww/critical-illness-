@@ -50,3 +50,19 @@ export function monthlyFromAnnual(annual, factor) {
   }
   return Number(annual) * Number(factor) / 12;
 }
+
+// The product owner confirmed annual × 1.06 / 12; final illustration rounding remains to be checked.
+export function premiumQuote(evidence, health, participating = false) {
+  if (evidence?.status !== 'AVAILABLE' || !(Number(evidence.annualPremium) > 0)) return { status: 'VERIFY_REQUIRED', reason: evidence?.reason || '官方年繳費率未提供' };
+  if (participating && health?.status !== 'VERIFIED') return { status: 'VERIFY_REQUIRED', reason: '健康程式資料未確認' };
+  const multiplier = participating && health?.effectType === 'premium_multiplier' ? Number(health.premiumMultiplier) : 1;
+  if (!Number.isFinite(multiplier) || multiplier <= 0) return { status: 'VERIFY_REQUIRED', reason: '健康程式折扣未確認' };
+  const annual = evidence.annualPremium * multiplier;
+  return { status: 'AVAILABLE', annual, monthly: monthlyFromAnnual(annual, 1.06), multiplier };
+}
+
+export function renderPremiumFigures(quote) {
+  if (quote?.status !== 'AVAILABLE' || !(quote.annual > 0) || !(quote.monthly > 0)) return '<div class="premium-figure"><small>每年保費</small><strong>VERIFY REQUIRED</strong></div><p>每月保費：VERIFY REQUIRED（年繳保費未確認）</p>';
+  const fmt = n => Number(n).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `<div class="premium-figure"><small>每年保費</small><strong>HK$${fmt(quote.annual)}</strong></div><p>每月保費：約 HK$${fmt(quote.monthly)}</p>`;
+}
