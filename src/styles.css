@@ -191,6 +191,9 @@ h3 { margin: 0; font-size: 17px; }
 .event-age { color: var(--ava-color-primary); font-weight: 800; }
 .premium-figure { display: grid; gap: 2px; padding: 12px 0; border-block: 1px solid var(--ava-color-border); }
 .premium-figure strong { font-size: clamp(18px, 2.5vw, 24px); color: var(--ava-color-warning); }
+.premium-summary { display: grid; gap: 3px; padding: 10px 0; border-block: 1px solid var(--ava-color-border); }
+.premium-summary strong { font-size: clamp(17px, 2.2vw, 22px); color: var(--ava-color-warning); }
+.premium-summary small, .health-program-note { color: var(--ava-color-muted); }
 .payment-timeline { margin: 20px 0; }
 details.card { margin-bottom: 24px; }
 details.card summary { min-height: 44px; cursor: pointer; font-weight: 700; }

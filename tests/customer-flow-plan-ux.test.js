@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
-import { ageDependentEnhancement, claimOutcome, diagnosisTiming, planProtectionSummary, premiumWaiverText, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout } from '../src/domain/plan-experience.js';
+import { ageDependentEnhancement, claimOutcome, diagnosisTiming, healthProgramEffect, planProtectionSummary, premiumWaiverText, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout } from '../src/domain/plan-experience.js';
 import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochureForProduct, resourceKind } from '../src/data/content.js';
-import { combinedPlanPayout, cumulativePayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, multiClaimGrandTotal, multiClaimGrandTotalFromSimulation } from '../src/domain/frontstage-experience.js';
+import { combinedPlanPayout, cumulativePayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, multiClaimGrandTotal, multiClaimGrandTotalFromSimulation, premiumEvidence } from '../src/domain/frontstage-experience.js';
 import { normalizeUserState } from '../src/data/storage.js';
 import { FIREBASE_CONFIG, FIREBASE_AUTH_METHOD, FIREBASE_UPLOAD_ENABLED, FIREBASE_UPLOAD_STATUS, OFFICIAL_STORAGE_AUTH_STATE, officialResourcePath, sanitizeMediaFilename, storageCapability, uploadOfficialMedia, uploadOfficialMediaWithProvider, userMediaCapability, validateMediaFile } from '../src/integration/firebase-media.js';
 import { formatMoneyText, parseMoneyText } from '../src/domain/input-format.js';
 import { renderBrochureAction, renderPlanComparisonLayout } from '../src/domain/frontstage-render.js';
+import { normalizePremiumData } from '../src/data/data-api.js';
 
 const app = fs.readFileSync('src/app.js', 'utf8');
 const styles = fs.readFileSync('src/styles.css', 'utf8');
@@ -81,6 +82,56 @@ test('age-dependent and early-illness amounts use verified benefit rows', () => 
   assert.equal(noWaiver.premiumWaiver.status, 'NOT_VERIFIED');
   assert.doesNotMatch(app.slice(app.indexOf('function planProtection'), app.indexOf('function planProtectionDetail')), /豁免往後保費/);
   assert.match(app.slice(app.indexOf('function planClaim'), app.indexOf('function planDetail')), /premiumWaiverCopy\(summary\)/);
+});
+
+test('production Health_Program rows drive distinct SCE and OYS2 effects', () => {
+  const health = [
+    { plan_id: 'SCE', effect_type: 'premium_multiplier', effect_value: 0.9, enabled: true },
+    { plan_id: 'OYS2', effect_type: 'coverage_bonus', effect_value: 0.1, enabled: true }
+  ];
+  assert.equal(healthProgramEffect(health, 'SCE', false, 500000).premiumMultiplier, 1);
+  assert.equal(healthProgramEffect(health, 'SCE', true, 500000).premiumMultiplier, 0.9);
+  assert.equal(healthProgramEffect(health, 'OYS2', true, 500000).coverageBonusAmount, 50000);
+  assert.equal(10000 * healthProgramEffect(health, 'SCE', true, 500000).premiumMultiplier, 9000);
+  assert.equal(10000 * healthProgramEffect(health, 'OYS2', true, 500000).premiumMultiplier, 10000);
+  const sce = planProtectionSummary({ plan: plans[0], benefits, healthProgram: health, healthProgramParticipating: true, sumAssured: 500000, age: 40, diagnosisAge: 45 });
+  const oys2 = planProtectionSummary({ plan: plans[1], benefits, healthProgram: health, healthProgramParticipating: true, sumAssured: 500000, age: 40, diagnosisAge: 45 });
+  assert.equal(sce.baseAmount, 500000, 'SCE health benefit must not change protection');
+  assert.equal(oys2.baseAmount, 550000, 'OYS2 health benefit adds 10% protection');
+  assert.equal(sce.health.effectType, 'premium_multiplier');
+  assert.equal(oys2.health.effectType, 'coverage_bonus');
+});
+
+test('valid official Sheet premium data is displayable without a secondary approval flag', () => {
+  const premium = normalizePremiumData({
+    SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age', 'Non-Smoker', 'Smoker'], [40, 15.8, 20]],
+    OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [40, 188.5, 0, 115, 0, 91.6, 0]]
+  });
+  const sce = premiumEvidence(premium, { plan_id: 'SCE', rate_basis: 7800 }, 'M', 40, 'non-smoker', 18, 500000);
+  const oys2 = premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 40, 'non-smoker', 10, 500000);
+  assert.equal(sce.status, 'AVAILABLE');
+  assert.equal(oys2.status, 'AVAILABLE');
+  assert.ok(sce.annualPremium > 0);
+  assert.ok(oys2.annualPremium > 0);
+  assert.doesNotMatch(app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function sharedPayoutEffectCard')), /approval|verified approval|premiumEvidence\([^)]*\)\.status === 'VERIFIED'/i);
+  assert.match(app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function sharedPayoutEffectCard')), /premiumDisplayMarkup/);
+});
+
+test('health program feeds the combined payout through the same plan summaries', () => {
+  const health = [
+    { plan_id: 'SCE', effect_type: 'premium_multiplier', effect_value: 0.9, enabled: true },
+    { plan_id: 'OYS2', effect_type: 'coverage_bonus', effect_value: 0.1, enabled: true }
+  ];
+  const sce = planProtectionSummary({ plan: plans[0], benefits, healthProgram: health, healthProgramParticipating: true, sumAssured: 500000, age: 40, diagnosisAge: 45 });
+  const oys2 = planProtectionSummary({ plan: plans[1], benefits, healthProgram: health, healthProgramParticipating: true, sumAssured: 500000, age: 40, diagnosisAge: 45 });
+  const combined = combinedPlanPayout([
+    { baseAmount: sce.baseAmount, summary: sce, outcome: claimOutcome(sce, 'major') },
+    { baseAmount: oys2.baseAmount, summary: oys2, outcome: claimOutcome(oys2, 'major') }
+  ], 'major');
+  assert.equal(combined.status, 'VERIFIED');
+  assert.equal(sce.baseAmount + oys2.baseAmount, 1050000, 'base combined protection reflects OYS2 health coverage bonus');
+  assert.equal(combined.amount, 1242500, 'existing OYS2 +35% enhancement applies after the health-adjusted base');
+  assert.equal(supportMonthsForPayout(combined.amount, 30000), 1242500 / 30000);
 });
 
 test('customer plan UX removes the comparison basket and hides backend rule fields', () => {
