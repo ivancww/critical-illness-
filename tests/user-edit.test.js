@@ -12,3 +12,27 @@ test('readback mismatch fails, preserves draft, and does not claim success', () 
 test('concurrent edits are rejected and cancelling uses last saved copy', () => { const {user,storage}=fixture(); const saved=createDraft(user),draft=createDraft(user); draft[0].title='new'; const remote=JSON.parse(storage.getItem(key)); remote.pages[0].title='other'; storage.setItem(key,JSON.stringify(remote)); assert.throws(()=>savePagesVerified({storage,user,savedPages:saved,draft,normalize:normalizeUserState}),/另一個視窗/); assert.equal(createDraft({pages:saved})[0].title,'舊標題'); });
 
 test('first save retains current customer state even before prior storage exists', () => { const user=normalizeUserState({flow:{monthlyNeed:456},pages:[]}); const storage=createMemoryStorage(); const draft=[{...page, id:'new',type:'content',media:[],overrides:{}}]; const result=savePagesVerified({storage,user,savedPages:[],draft,normalize:normalizeUserState}); assert.equal(result.flow.monthlyNeed,456); });
+
+test('legacy personal intro fields preview independently and save without deleting other preference keys', async () => {
+  const {createIntro} = await import('../src/user-edit.js');
+  const {user,storage}=fixture(); user.pagePreferences.unknown='retain'; storage.setItem(key,JSON.stringify(user));
+  const snapshot=createIntro(user), draftIntro={...snapshot,introTitle:'新主訊息',introSubtitle:'新標題',introSupport:'新說明',showIntro:true};
+  assert.equal(JSON.parse(storage.getItem(key)).pagePreferences.introTitle,'legacy');
+  const result=savePagesVerified({storage,user,savedPages:createDraft(user),draft:createDraft(user),savedIntro:snapshot,draftIntro,normalize:normalizeUserState});
+  assert.deepEqual(createIntro(result),draftIntro); assert.equal(result.pagePreferences.unknown,'retain');
+  assert.equal(restoreUserBackup(createUserBackup(result)).pagePreferences.introTitle,'新主訊息');
+});
+test('intro conflicts are detected and pending changes survive', async () => {
+  const {createIntro}=await import('../src/user-edit.js'); const {user,storage}=fixture(); const snapshot=createIntro(user); const draftIntro={...snapshot,introSupport:'草稿'};
+  const other=JSON.parse(storage.getItem(key)); other.pagePreferences.introTitle='另一個視窗'; storage.setItem(key,JSON.stringify(other));
+  assert.throws(()=>savePagesVerified({storage,user,savedPages:createDraft(user),draft:createDraft(user),savedIntro:snapshot,draftIntro,normalize:normalizeUserState}),/另一個視窗/);
+  assert.equal(draftIntro.introSupport,'草稿'); assert.equal(JSON.parse(storage.getItem(key)).pagePreferences.introTitle,'另一個視窗');
+});
+test('scenario navigation does not overwrite another tab presentation data', async () => {
+  const {saveScenario}=await import('../src/user-edit.js'); const {user,storage}=fixture(); const remote=JSON.parse(storage.getItem(key)); remote.pages[0].title='遠端'; remote.pagePreferences.introTitle='新介紹'; remote.unknownLegacy.x=3; storage.setItem(key,JSON.stringify(remote)); user.flow.monthlyNeed=999;
+  saveScenario({storage,user}); const actual=JSON.parse(storage.getItem(key)); assert.equal(actual.pages[0].title,'遠端'); assert.equal(actual.pagePreferences.introTitle,'新介紹'); assert.equal(actual.flow.monthlyNeed,999); assert.equal(actual.unknownLegacy.x,3);
+});
+test('invalid intro data never reaches storage', async () => {
+  const {createIntro}=await import('../src/user-edit.js'); const {user,storage}=fixture(); const before=storage.getItem(key); const draftIntro={...createIntro(user),showIntro:'no'};
+  assert.throws(()=>savePagesVerified({storage,user,savedPages:createDraft(user),draft:createDraft(user),draftIntro,normalize:normalizeUserState}),/無效/); assert.equal(storage.getItem(key),before);
+});

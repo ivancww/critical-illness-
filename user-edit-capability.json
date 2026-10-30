@@ -4,7 +4,7 @@
   "entries": { "frontend": true, "user": true, "admin": true },
   "userEdit": {
     "status": "supported",
-    "editableFields": ["user-pages.title", "user-pages.subtitle", "user-pages.content", "user-pages.visibility", "user-pages.order", "user-pages.create", "user-pages.delete"],
+    "editableFields": ["intro.title", "intro.subtitle", "intro.support", "intro.visible", "user-pages.title", "user-pages.subtitle", "user-pages.content", "user-pages.visibility", "user-pages.order", "user-pages.create", "user-pages.delete"],
     "userStorage": "AVA_CI_USER_STATE_V1 localStorage"
   }
 }

@@ -287,3 +287,7 @@ textarea:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .discard-dialog { width: min(460px, calc(100% - 32px)); border: 1px solid #e7ebf1; border-radius: 16px; padding: 20px; color: #172033; }
 .discard-dialog::backdrop { background: rgba(15, 23, 42, .55); }
 .danger { background: #dc2626; color: #fff; font-weight: 700; }
+.personal-intro { border-left: 3px solid var(--ava-color-secondary); padding: 12px 16px; overflow-wrap: anywhere; }
+.personal-intro p { white-space: pre-wrap; }
+.intro-toggle { display: flex; gap: 8px; align-items: center; min-height: 44px; }
+.intro-toggle input { width: 20px; height: 20px; }
