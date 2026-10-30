@@ -36,3 +36,5 @@ test('invalid intro data never reaches storage', async () => {
   const {createIntro}=await import('../src/user-edit.js'); const {user,storage}=fixture(); const before=storage.getItem(key); const draftIntro={...createIntro(user),showIntro:'no'};
   assert.throws(()=>savePagesVerified({storage,user,savedPages:createDraft(user),draft:createDraft(user),draftIntro,normalize:normalizeUserState}),/無效/); assert.equal(storage.getItem(key),before);
 });
+
+test('raw legacy page metadata survives editing and reorder', () => { const {user,storage}=fixture(); const raw=JSON.parse(storage.getItem(key)); raw.pages[0].legacyMetadata={x:'preserve'}; storage.setItem(key,JSON.stringify(raw)); const draft=createDraft(user); draft[0].title='changed'; const result=savePagesVerified({storage,user,savedPages:createDraft(user),draft,normalize:normalizeUserState}); assert.deepEqual(result.pages[0].legacyMetadata,{x:'preserve'}); });

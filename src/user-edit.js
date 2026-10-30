@@ -36,9 +36,10 @@ export function savePagesVerified({ storage, user, savedPages, draft, normalize,
   if (draftChanged(current.pages, savedPages) || draftChanged(createIntro(current), savedIntro)) throw new Error('本機個人內容已在另一個視窗變更；請先下載草稿備份，然後重新載入。');
   // Preserve the current customer/session fields and every legacy override.
   const prior = new Map(savedPages.map(p => [p.id, p]));
+  const originalPages = new Map((Array.isArray(raw.pages) ? raw.pages : []).map((p, index) => [typeof p?.id === 'string' && p.id ? p.id : `ci-user-page-${index + 1}`, p]));
   const pages = draft.map((page, index) => {
     const original = prior.get(page.id);
-    if (original) return { ...copy(original), title: page.title, subtitle: page.subtitle, content: page.content, visible: page.visible, sortOrder: index };
+    if (original) return { ...copy(originalPages.get(page.id) || original), id: page.id, title: page.title, subtitle: page.subtitle, content: page.content, visible: page.visible, sortOrder: index };
     if (page.media.length || Object.keys(page.overrides || {}).length) throw new Error('新增頁面包含未允許的資料。');
     return { id: page.id, type: page.type, title: page.title, subtitle: page.subtitle, content: page.content, visible: page.visible, sortOrder: index, flowPosition: index, createdAt: page.createdAt, updatedAt: page.updatedAt, overrides: {}, media: [] };
   });
