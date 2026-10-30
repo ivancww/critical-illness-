@@ -72,6 +72,7 @@ const fs = require('node:fs');
  assert.equal(await first.locator('#intro-title').inputValue(),'保留的跨頁草稿');
  assert.equal(await first.evaluate(()=>JSON.parse(localStorage.getItem('AVA_CI_USER_STATE_V1')).pagePreferences.introTitle),'另一分頁已儲存');
  await first.locator('#cancel-edit').click(); await first.locator('[data-discard]').click();
+ await first.waitForFunction(() => document.querySelector('.personal-intro')?.textContent.includes('另一分頁已儲存'));
  assert.match(await first.locator('.personal-intro').innerText(),/另一分頁已儲存/);
  await ctx.close();
  const recovery=await browser.newContext({serviceWorkers:'block'}); const rp=await recovery.newPage();
