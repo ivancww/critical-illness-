@@ -1,18 +1,18 @@
-import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, premiumMatrixHasExpectedHeaders, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.10';
-import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.10';
-import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.10';
-import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.10';
-import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.10';
-import { verificationState } from './domain/verification.js?v=0.6.10';
-import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.10';
-import { claimOutcome, healthProgramEffect, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.10';
-import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.10';
-import { premiumQuote, renderPremiumFigures, calculatePremiumSchedule, renderPremiumSchedule } from './domain/premium-engine.js?v=0.6.10';
-import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.10';
-import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.10';
-import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.10';
-import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.10';
-import { APP_VERSION } from './version.js?v=0.6.10';
+import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, premiumMatrixHasExpectedHeaders, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.11';
+import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.11';
+import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.11';
+import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.11';
+import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.11';
+import { verificationState } from './domain/verification.js?v=0.6.11';
+import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.11';
+import { claimOutcome, healthProgramEffect, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.11';
+import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.11';
+import { premiumQuote, renderPremiumFigures, calculatePremiumSchedule, renderPremiumSchedule } from './domain/premium-engine.js?v=0.6.11';
+import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.11';
+import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.11';
+import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.11';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.11';
+import { APP_VERSION } from './version.js?v=0.6.11';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -143,7 +143,7 @@ function supportEffectMarkup(payout, monthlyNeed, desiredMonths, status = 'VERIF
   if (months === null) return '<div class="support-effect"><strong>輸入每月生活需要後顯示支持月份</strong></div>';
   const target = Number(desiredMonths) > 0 ? Number(desiredMonths) : null;
   const difference = target ? target - months : 0;
-  return `<div class="support-effect"><strong>可支持約 ${months.toFixed(1)} 個月</strong><small>目標 ${target || '—'} 個月 · ${difference > 0 ? `仍差約 ${difference.toFixed(1)} 個月` : `本次保障可支持 ${months.toFixed(1)} 個月`}</small></div>`;
+  return `<div class="support-effect"><strong>可支持約 ${Math.round(months)} 個月</strong><small>目標 ${target ? Math.round(target) : '—'} 個月 · ${difference > 0 ? `仍差約 ${Math.round(difference)} 個月` : `本次保障可支持 ${Math.round(months)} 個月`}</small></div>`;
 }
 function subsequentMajorMarkup(summary) {
   const remaining = remainingMajorProtectionAfterEarlyClaim(summary);
@@ -190,21 +190,40 @@ function sharedPayoutEffectCard(visiblePlans, age, diagnosisAge) {
   const bar = combined.status === 'VERIFIED' ? combinedPayoutEffectBarMarkup(combined, type) : '<div class="payout-effect-bar payout-effect-bar--pending"><span>兩份方案合計尚待資料完整後顯示</span></div>';
   const amount = combined.status === 'VERIFIED' ? combinedClaimAmountMarkup(combined, type) : '<div class="claim-result claim-result--pending"><span class="tag">保障賠償效果</span><strong>VERIFY REQUIRED</strong><p class="verify">兩份方案合計尚待資料完整後顯示。</p></div>';
   const outcome = combined.status === 'VERIFIED' ? supportEffectMarkup(combined.amount, flow().monthlyNeed, flow().desiredMonths, combined.status) : '';
-  const post = combined.status === 'VERIFIED' ? combinedPostPayoutMarkup(visiblePlans, type) : '';
-  return `<section class="card shared-payout-effect" data-shared-payout-card data-visible-plans="${escapeHtml(visiblePlans.map(planKey).join(','))}" data-active-claim="${escapeHtml(type)}"><div class="shared-payout-heading"><span class="eyebrow">保障賠償效果</span><p class="muted">${escapeHtml(scope)} · ${claimLabel(type)}</p></div>${amount}${bar}${outcome}${post}</section>`;
+  const details = combined.status === 'VERIFIED' ? payoutBreakdownMarkup(entries, type) : '';
+  const post = combined.status === 'VERIFIED' ? combinedPostPayoutMarkup(visiblePlans, type, entries) : '';
+  return `<section class="card shared-payout-effect" data-shared-payout-card data-visible-plans="${escapeHtml(visiblePlans.map(planKey).join(','))}" data-active-claim="${escapeHtml(type)}"><div class="shared-payout-heading"><span class="eyebrow">保障賠償效果</span><p class="muted">${escapeHtml(scope)} · ${claimLabel(type)}</p></div>${amount}${details}${bar}${outcome}${post}</section>`;
 }
 function combinedClaimAmountMarkup(result, type) {
-  if (type === 'early') return `<div class="claim-result"><span class="tag">早期疾病賠償</span><strong>HK$${money(result.amount)}</strong><p>${result.percent}% 基本保障 · 兩份方案合計</p><p>餘下主要危疾基本保障：HK$${money(result.remainingAmount)}（${result.remainingPercent}%）</p></div>`;
-  return `<div class="claim-result"><span class="tag">主要危疾賠償</span><strong>HK$${money(result.amount)}</strong><p>${result.percent}% 基本保障 · 兩份方案合計</p></div>`;
+  if (type === 'early') return `<div class="claim-result"><span class="tag">早期疾病賠償</span><strong>HK$${money(result.amount)}</strong><p>${Math.round(result.percent)}% 基本保障 · 兩份方案合計</p><p>餘下主要危疾基本保障：HK$${money(result.remainingAmount)}（${Math.round(result.remainingPercent)}%）</p></div>`;
+  return `<div class="claim-result"><span class="tag">主要危疾賠償</span><strong>HK$${money(result.amount)}</strong><p>100% 基本保障 · 另加適用額外保障</p></div>`;
 }
 function combinedPayoutEffectBarMarkup(result, type) {
-  if (type === 'early') return `<div class="payout-effect-bar payout-effect-bar--segmented" role="img" aria-label="早期疾病 ${result.percent}% 已支付，餘下主要危疾保障 ${result.remainingPercent}%"><span class="payout-segment payout-segment--early" style="width:${result.percent / (result.percent + result.remainingPercent) * 100}%">已支付 ${result.percent}%</span><span class="payout-segment payout-segment--remaining" style="width:${result.remainingPercent / (result.percent + result.remainingPercent) * 100}%">餘下 ${result.remainingPercent}%</span></div>`;
-  return `<div class="payout-effect-bar" role="img" aria-label="主要危疾 ${result.percent}% 基本保障"><span style="width:100%">主要危疾 ${result.percent}%</span></div>`;
+  if (type === 'early') return `<div class="payout-effect-bar payout-effect-bar--segmented" role="img" aria-label="早期疾病 ${Math.round(result.percent)}% 已支付，餘下主要危疾保障 ${Math.round(result.remainingPercent)}%"><span class="payout-segment payout-segment--early" style="width:${result.percent / (result.percent + result.remainingPercent) * 100}%">已支付 ${Math.round(result.percent)}%</span><span class="payout-segment payout-segment--remaining" style="width:${result.remainingPercent / (result.percent + result.remainingPercent) * 100}%">餘下 ${Math.round(result.remainingPercent)}%</span></div>`;
+  return `<div class="payout-effect-bar" role="img" aria-label="主要危疾 100% 基本保障"><span style="width:100%">主要危疾 100%</span></div>`;
 }
-function combinedPostPayoutMarkup(visiblePlans, type) {
+function payoutBreakdownMarkup(entries, type) {
+  const rows = entries.map(({ plan, summary, outcome }) => {
+    const extra = type === 'major' && summary.extra.status === 'VERIFIED' && summary.extra.amount > 0 ? ` <small>額外保障 +HK$${money(summary.extra.amount)}</small>` : '';
+    return `<div class="protection-row"><span>${escapeHtml(planName(plan))} · ${Math.round(type === 'early' ? summary.early.percent : summary.basePercent)}%</span><strong>HK$${money(outcome.amount)}${extra}</strong></div>`;
+  }).join('');
+  if (type !== 'early') return `<div class="claim-breakdown"><strong>賠償明細</strong>${rows}</div>`;
+  const early = entries.reduce((sum, entry) => sum + entry.outcome.amount, 0);
+  const remaining = entries.reduce((sum, entry) => sum + entry.remaining.amount, 0);
+  // A later diagnosis has no separate date in the current scenario. A bonus
+  // that could expire between claims cannot be attributed to that later claim.
+  const laterKnown = entries.every(({ summary }) => summary.extra.status === 'NOT_APPLICABLE');
+  const later = laterKnown ? remaining : null;
+  return `<div class="claim-breakdown"><strong>賠償明細</strong>${rows}<div class="payout-path"><strong>先早期，後主要危疾 · 情境示例</strong><p>第一次 · 早期疾病賠償：HK$${money(early)}（20%）</p><p>第二次 · 主要危疾賠償：${later === null ? '未能確認（需確認較後確診時額外保障）' : `HK$${money(later)}（餘下基本保障 80%）`}</p><p>累計總賠償：${later === null ? '未能確認' : `HK$${money(early + later)}`}</p></div></div>`;
+}
+function combinedPostPayoutMarkup(visiblePlans, type, entries) {
   if (type === 'early') return '<div class="plan-outcome"><strong>賠償後</strong><p>早期疾病賠償後，兩份方案的餘下保障按各自產品條款繼續提供。</p></div>';
-  if (visiblePlans.length === 1) return postPayoutMarkup(planProtectionSummary({ plan: visiblePlans[0], benefits: datasets().Benefits, sumAssured: Number(frontstage().sums?.[planKey(visiblePlans[0])]) || 0, age: savedAge(), diagnosisAge: savedDiagnosisAge() }), visiblePlans[0], type);
-  return '<div class="plan-outcome"><strong>賠償後</strong><p>兩份方案按各自產品條款提供後續保障安排。</p></div>';
+  const rows = entries.map(({ plan, summary }) => {
+    if (planKey(plan) === 'SCE') return '<p>簡護危疾保：主要危疾賠償後，合約完結。</p>';
+    const waiver = summary.premiumWaiver.status === 'VERIFIED' ? '往後保費獲豁免，' : '保費豁免安排待確認，';
+    return `<p>${escapeHtml(planName(plan))}：符合適用條款的主要危疾賠償後，${waiver}延續多重賠償保障按條款繼續有效。</p>`;
+  }).join('');
+  return `<div class="plan-outcome"><strong>賠償後</strong>${rows}</div>`;
 }
 function bindPlanInputs() {
   document.querySelector('#plan-age')?.addEventListener('change', event => { const value = Math.max(0, Math.trunc(Number(event.target.value) || 0)); frontstage().age = value || null; frontstage().claimDemo = {}; persistUser(); plansPage(); });
