@@ -298,3 +298,4 @@ textarea:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .edit-tools { margin-top: 8px; }
 .edit-tools select { min-height: 44px; max-width: 100%; }
 .ava-mode-bar:not([hidden]) { position: sticky; top: 0; z-index: 10; background: var(--ava-color-background); padding-bottom: 12px; }
+.file-button { min-height: 44px; padding: 10px 16px; border-radius: var(--ava-radius-control); cursor: pointer; }
