@@ -129,8 +129,8 @@ h3 { margin: 0; font-size: 17px; }
 .card-field input { min-width: 0; }
 .protection-rows { display: grid; gap: 0; margin: 8px 0; border-top: 1px solid var(--ava-color-border); }
 .protection-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--ava-color-border); }
-.protection-row span { color: var(--ava-color-muted); }
-.protection-row strong { color: var(--ava-color-primary); font-size: 20px; text-align: right; }
+.protection-row span { min-width: 0; overflow-wrap: anywhere; color: var(--ava-color-muted); }
+.protection-row strong { min-width: 0; overflow-wrap: anywhere; color: var(--ava-color-primary); font-size: 20px; text-align: right; }
 .protection-row strong small { display: block; color: var(--ava-color-muted); font-size: 13px; font-weight: 600; }
 .protection-row--total strong { font-size: clamp(24px, 4vw, 34px); }
 .claim-breakdown { display: grid; gap: 0; width: 100%; }
@@ -150,7 +150,7 @@ h3 { margin: 0; font-size: 17px; }
 .payout-effect-bar--pending > span { width: 100%; background: #94a3b8; }
 .plan-title-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .diagnosis-age-control { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 999px; background: #e0f2fe; color: #075985; font-weight: 700; white-space: nowrap; }
-.diagnosis-age-control input { width: 76px; min-height: 36px; border: 1px solid #0284c7; border-radius: 999px; padding: 6px 8px; background: #fff; color: #075985; font: inherit; text-align: center; }
+.diagnosis-age-control input { width: 76px; min-height: 44px; border: 1px solid #0284c7; border-radius: 999px; padding: 6px 8px; background: #fff; color: #075985; font: inherit; text-align: center; }
 .age-badge { padding: 8px 10px; border-radius: 999px; background: #e0f2fe; color: #075985; font-weight: 700; white-space: nowrap; }
 .plan-scenario-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
 .cumulative-payout-card { display: grid; gap: 6px; border: 2px solid var(--ava-color-primary); background: #f8fbff; }
@@ -206,7 +206,6 @@ button:disabled, a.button[aria-disabled="true"] { cursor: not-allowed; opacity: 
 
 /* Saving V1.8 Admin reference: cards first, one domain workspace, selected
    record editor, and technical information at the bottom. */
-html, body { overflow-x: hidden; }
 .admin-shell, .admin-surface { min-width: 0; }
 .admin-surface { display: grid; gap: 14px; max-width: 1080px; }
 .admin-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px; color: var(--ava-color-muted); font-size: 12px; }

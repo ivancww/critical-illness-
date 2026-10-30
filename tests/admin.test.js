@@ -172,7 +172,7 @@ test('Saving V1.8 Admin alignment keeps CI domains data-driven and separates edi
 
 test('Admin responsive contract wraps cards and prevents page overflow', () => {
   const styles = fs.readFileSync('src/styles.css', 'utf8');
-  assert.match(styles, /html, body \{ overflow-x: hidden; \}/);
+  assert.doesNotMatch(styles, /html, body \{ overflow-x: hidden; \}/);
   assert.match(styles, /\.admin-section-nav \{ display: grid; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(styles, /@media \(max-width: 760px\)/);
   assert.match(styles, /@media \(max-width: 430px\)/);
@@ -189,4 +189,12 @@ test('official records retain product history, verify premium mappings, and prot
   assert.deepEqual(premiumSheetStatus({ '男愛伴航2保費': [['Age', 'Rate']] }), [{ name: '男愛伴航2保費', rows: 1, columns: 2, status: 'VERIFY REQUIRED' }]);
   assert.deepEqual(resourceStatus([{ resource_ref: 'firebase/ref' }, { content_type: 'brochure' }]), { total: 2, linked: 1, unlinked: 1 });
   assert.deepEqual(redactOfficialValue({ display_name: 'SCE', password: 'hidden', nested: { token: 'hidden' } }), { display_name: 'SCE', nested: {} });
+});
+
+test('responsive controls avoid document clipping and preserve local premium-table scrolling', () => {
+  const styles = fs.readFileSync('src/styles.css', 'utf8');
+  assert.doesNotMatch(styles, /(?:html|body)[^{]*\{[^}]*overflow-x\s*:\s*(?:hidden|clip)/);
+  assert.match(styles, /\.diagnosis-age-control input\s*\{[^}]*min-height:\s*44px/);
+  assert.match(styles, /\.premium-schedule-scroll\s*\{[^}]*overflow-x:\s*auto/);
+  assert.match(styles, /\.protection-row strong\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere/);
 });
