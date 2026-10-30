@@ -57,7 +57,7 @@ export function officialResourcePath({ planId, category, contentId, filename, ti
 export async function loadFirebaseStorageSdk() {
   if (!sdkPromise) {
     const ready = globalThis.__AVA_CI_FIREBASE_READY__
-      || import('./firebase-media-module.js?v=0.6.11').then(module => module.createFirebaseStorageClient());
+      || import('./firebase-media-module.js?v=0.6.12').then(module => module.createFirebaseStorageClient());
     sdkPromise = ready.catch(error => { throw stageError('firebase-module', error); });
   }
   return sdkPromise;

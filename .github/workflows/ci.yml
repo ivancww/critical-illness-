@@ -19,3 +19,23 @@ jobs:
           node-version: 22
       - name: Run tests
         run: npm test
+  user-edit-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - name: Run browser QA against local build
+        run: |
+          python3 -m http.server 8765 > /tmp/ci-http.log 2>&1 &
+          node tests/user-edit-browser.cjs
+      - name: Upload browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-user-edit-browser-screenshots
+          path: test-screenshots/
+          if-no-files-found: warn

@@ -83,5 +83,5 @@ test('startup guard and static Return-to-AVA work before app.js executes', () =>
   assert.match(html, /__AVA_CI_MARK_BOOT_OK__ = \(\) =>/);
   assert.match(html, /clearTimeout\(timer\)/);
   assert.match(app, /window\.__AVA_CI_MARK_BOOT_OK__\?\.\(\)/);
-  assert.match(app, /window\.location\.assign\(context \|\| 'https:\/\/ivancww\.github\.io\/avaplatform\/'\)/);
+  assert.match(app, /window\.location\.assign\(context \|\| fallback\)/);
 });

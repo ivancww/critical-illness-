@@ -1,18 +1,19 @@
-import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, premiumMatrixHasExpectedHeaders, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.11';
-import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.11';
-import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.11';
-import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.11';
-import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.11';
-import { verificationState } from './domain/verification.js?v=0.6.11';
-import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.11';
-import { claimOutcome, healthProgramEffect, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.11';
-import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.11';
-import { premiumQuote, renderPremiumFigures, calculatePremiumSchedule, renderPremiumSchedule } from './domain/premium-engine.js?v=0.6.11';
-import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.11';
-import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.11';
-import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.11';
-import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.11';
-import { APP_VERSION } from './version.js?v=0.6.11';
+import { createDraft, draftChanged, savePagesVerified } from './user-edit.js?v=0.6.12';
+import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, premiumMatrixHasExpectedHeaders, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.12';
+import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.12';
+import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.12';
+import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.12';
+import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.12';
+import { verificationState } from './domain/verification.js?v=0.6.12';
+import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.12';
+import { claimOutcome, healthProgramEffect, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.12';
+import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.12';
+import { premiumQuote, renderPremiumFigures, calculatePremiumSchedule, renderPremiumSchedule } from './domain/premium-engine.js?v=0.6.12';
+import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.12';
+import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.12';
+import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.12';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.12';
+import { APP_VERSION } from './version.js?v=0.6.12';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -39,6 +40,12 @@ const requestedEntry = new URLSearchParams(location.search).get('avaEntry') || '
 const appEntry = requestedEntry || 'frontend';
 const unsupportedEntry = Boolean(requestedEntry) && !['frontend', 'user', 'admin'].includes(requestedEntry);
 const canEdit = appEntry === 'user' && !unsupportedEntry;
+let editMode = canEdit ? 'edit' : 'use';
+let savedPages = createDraft(state.user);
+let draftPages = createDraft(state.user);
+let editNotice = true;
+const dirty = () => canEdit && editMode !== 'use' && draftChanged(draftPages, savedPages);
+
 const adminLaunch = new URLSearchParams(location.search).get('avaAdminLaunch') || '';
 let adminSessionProof = null;
 let adminAuthorizationError = adminLaunch ? '正在向 AVA Platform 驗證 Admin 授權…' : '必須由 AVA Studio 啟動並授權此 Admin 入口。';
@@ -62,7 +69,12 @@ function formatMoneyInput(input) {
 }
 function setStatus(message, error = false) { status.textContent = message; status.className = `status is-visible${error ? ' is-error' : ''}`; window.clearTimeout(setStatus.timer); setStatus.timer = window.setTimeout(() => { status.className = 'status'; }, 4000); }
 function persistUser() { state.user = saveUserState(state.user); }
-function render(html, mode = 'use') { document.body.classList.toggle('presentation-active', mode === 'presentation'); document.body.classList.toggle('admin-active', mode === 'admin'); main.innerHTML = `<div class="page" data-ava-mode="${mode}">${html}</div>`; main.focus(); }
+function render(html, mode = 'use') {
+  const effectiveMode = canEdit && editMode !== 'use' && mode !== 'admin' ? editMode : mode;
+  document.body.classList.toggle('presentation-active', mode === 'presentation'); document.body.classList.toggle('admin-active', mode === 'admin');
+  main.innerHTML = `<div class="page" data-ava-mode="${effectiveMode}">${html}</div>`;
+  renderModeBar(); main.focus();
+}
 function flow() { return state.user.flow; }
 function supportSummary() { const f = flow(); const desired = calculateSupportReserve(f); const existing = Number(f.existingProtection) || 0; return { desired, existing, months: translateProtectionToMonths({ existingProtection: existing, monthlyNeed: f.monthlyNeed }) }; }
 function datasets() { return normalizeStructuredData(state.official?.structured || {}); }
@@ -77,13 +89,21 @@ function continuingPlan() { return continuingPlans().find(plan => planKey(plan) 
 function planName(plan) { return plan.plan_name || plan.name_zh || plan.display_name || plan.plan_id || plan.plan_key; }
 function planKey(plan) { return plan.plan_id ?? plan.plan_key; }
 function moneyOrPending(value) { return Number.isFinite(value) ? `HK$${money(value)}` : 'VERIFY REQUIRED'; }
-function userPagesMarkup() { return state.user.pages.filter(p => p.visible).map(p => `<article class="card"><span class="eyebrow">${escapeHtml(p.type)} Page</span><h2>${escapeHtml(p.title)}</h2><p class="support">${escapeHtml(p.subtitle)}</p><p>${escapeHtml(p.content)}</p>${p.type === 'image' || p.type === 'video' ? mediaMarkup(p) : ''}</article>`).join(''); }
+function userPagesMarkup() {
+  const pages = canEdit && editMode !== 'use' ? draftPages : state.user.pages;
+  return pages.map((p, i) => {
+    if (!p.visible && editMode !== 'edit') return '';
+    const form = canEdit && editMode === 'edit' ? `<div class="ava-editable"><strong><svg class="edit-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg> 編輯自訂頁面</strong><div class="field"><label for="page-title-${i}">標題</label><input id="page-title-${i}" data-page-field="title" data-index="${i}" value="${escapeHtml(p.title)}" maxlength="10000"></div><div class="field"><label for="page-subtitle-${i}">副標題</label><input id="page-subtitle-${i}" data-page-field="subtitle" data-index="${i}" value="${escapeHtml(p.subtitle)}" maxlength="10000"></div><div class="field"><label for="page-content-${i}">個人說明</label><textarea id="page-content-${i}" data-page-field="content" data-index="${i}" maxlength="10000">${escapeHtml(p.content)}</textarea></div><div class="actions"><button type="button" class="secondary" data-page-action="toggle" data-index="${i}">${p.visible ? '隱藏' : '顯示'}</button><button type="button" class="secondary" data-page-action="up" data-index="${i}" ${i === 0 ? 'disabled' : ''}>上移</button><button type="button" class="secondary" data-page-action="down" data-index="${i}" ${i === pages.length - 1 ? 'disabled' : ''}>下移</button><button type="button" class="secondary" data-page-action="delete" data-index="${i}">刪除</button></div>${p.type !== 'content' ? '<p>現有雲端媒體參照會保留；目前未配置 User 雲端上載服務。</p>' : ''}</div>` : '';
+    return `<article class="card user-page"><span class="eyebrow">自訂頁面${p.visible ? '' : ' · 已隱藏'}</span><h2>${escapeHtml(p.title)}</h2><p class="support">${escapeHtml(p.subtitle)}</p><p class="user-copy">${escapeHtml(p.content)}</p>${p.type === 'image' || p.type === 'video' ? mediaMarkup(p) : ''}${form}</article>`;
+  }).join('') + (canEdit && editMode === 'edit' ? `<section class="card user-page"><h2>新增自訂頁面</h2><p>請只加入個人銷售說明；官方產品資料和條款保持不變。</p><label for="new-page-type">頁面類型</label> <select id="new-page-type"><option value="content">文字</option><option value="image">圖片</option><option value="video">影片</option></select> <button type="button" class="secondary" id="add-user-page">新增頁面</button><div class="actions"><button class="secondary" id="backup-user">下載資料備份</button><label class="button secondary file-button" for="restore-user">還原資料備份</label><input id="restore-user" type="file" accept="application/json" hidden></div></section>` : '');
+}
 function mediaMarkup(page) { if (!page.media?.length) return '<p class="media-fallback" role="status">媒體暫時無法使用。<br>Cloud Storage 未配置。</p>'; if (page.type === 'video') return `<div class="media-frame"><video controls preload="metadata" src="${escapeHtml(page.media[0].cloudFileRef)}"></video></div>`; return `<div class="media-grid">${page.media.slice(0, 6).map(m => `<div class="media-frame"><img loading="lazy" src="${escapeHtml(m.cloudFileRef)}" alt="${escapeHtml(m.name || page.title)}"></div>`).join('')}</div>`; }
 
 function home() {
   const p = composeOfficialAndUser(state.official || {}, state.user).presentation;
-  const intro = p.showIntro === false ? '' : `<section class="hero ava-concept"><span class="eyebrow">AVA Critical Illness</span><h1>${escapeHtml(p.introSubtitle || '生活支援預備金')}</h1><p class="support">${escapeHtml(p.introTitle || '一場大病，需要面對嘅往往唔只係醫療費。')}</p><div class="concept-flow"><span>治療</span><b>＋</b><span>需要時間休養</span><b>＋</b><span>生活仍然繼續</span><b>→</b><strong>一筆可以靈活運用嘅生活支援預備金</strong></div><p class="support">${escapeHtml(p.introSupport || '由你希望保留的時間開始，慢慢理解保障。')}</p><div class="actions actions--end"><a class="button primary" href="#/flow">開始了解</a><a class="button secondary" href="#/plans">直接查看方案</a>${canEdit ? '<a class="button subtle" href="#/edit">編輯／預覽</a>' : ''}</div></section>`;
+  const intro = p.showIntro === false ? '' : `<section class="hero ava-concept"><span class="eyebrow">AVA Critical Illness</span><h1>${escapeHtml(p.introSubtitle || '生活支援預備金')}</h1><p class="support">${escapeHtml(p.introTitle || '一場大病，需要面對嘅往往唔只係醫療費。')}</p><div class="concept-flow"><span>治療</span><b>＋</b><span>需要時間休養</span><b>＋</b><span>生活仍然繼續</span><b>→</b><strong>一筆可以靈活運用嘅生活支援預備金</strong></div><p class="support">${escapeHtml(p.introSupport || '由你希望保留的時間開始，慢慢理解保障。')}</p><div class="actions actions--end"><a class="button primary" href="#/flow">開始了解</a><a class="button secondary" href="#/plans">直接查看方案</a></div></section>`;
   render(`${intro}${userPagesMarkup()}`);
+  bindUserPages();
 }
 
 function flowBody(step) {
@@ -343,18 +363,53 @@ function premiumPage() {
 
 function presentation() { const s = supportSummary(); const chosen = plans(); const result = selectedProtection(chosen, datasets().Benefits, chosen.map(planKey), frontstage().sums || {}, flow().monthlyNeed); const scenario = frontstage().scenario; const age = savedAge(); const continuing = continuingPlan(); const sum = Number(frontstage().sums?.[continuing && planKey(continuing)]) || 0; const cancer = scenario === 'cancer' && continuing && age && sum ? cancerTimeline({ rules: datasets().Claim_Rules, planId: planKey(continuing), sumAssured: sum, age, actions: frontstage().cancerActions || [] }) : null; const dementia = scenario === 'dementia' && age && sum ? dementiaTimeline({ sumAssured: sum, age, throughAge: Math.max(age, Number(frontstage().throughAge) || age + 3) }) : null; const claimSummary = cancer ? `癌症：${ageLabel(cancer.events.at(-1).ageMonths)}累計 ${cancer.events.at(-1).cumulativePercent}%；延續保障餘額 ${cancer.remainingPercent}%。` : dementia ? `腦退化症：到 ${dementia.events.at(-1).age} 歲累計 ${dementia.events.at(-1).cumulativePercent}%；其後按已確認規則每年延續，終身。` : scenario === 'heart' ? '心臟病／中風：官方規則欄位待修正，金額與時間線 VERIFY REQUIRED。' : ''; render(`<section class="hero presentation"><span class="eyebrow">Customer Presentation</span><h1>你的生活支援預備金</h1><p class="support">重大疾病發生時，治療、康復時間和生活開支會同時存在。</p><section class="grid"><article class="card metric"><small>希望準備</small><strong>HK$${money(s.desired)}</strong><span>${flow().desiredMonths} 個月 × 每月 HK$${money(flow().monthlyNeed)}</span></article><article class="card metric"><small>現有保障約等於</small><strong>${s.months.toFixed(1)} 個月</strong><span>現有 HK$${money(s.existing)}</span></article></section><div class="card"><h2>一次與延續</h2><p>一次保障：首次賠償後合約完結。延續保障：首次賠償後，符合條件可繼續獲得保障。</p><p>現有保障支持約 ${s.months.toFixed(1)} / ${flow().desiredMonths} 個月。</p></div>${chosen.length ? `<div class="card"><h2>實際方案比較</h2><p>${chosen.map(p => escapeHtml(planName(p))).join('、')}</p><p><strong>兩個方案主要危疾保障算術合計 HK$${money(result.total)}</strong>${result.months === null ? '' : ` · 約 ${result.months.toFixed(1)} 個月生活需要`}</p><small>只作展示兩種保障規模；不同保單或事件不一定同時賠付。</small></div>` : ''}${claimSummary ? `<div class="card"><h2>多重賠償情境</h2><p>${claimSummary}</p></div>` : ''}<div class="card"><h2>方案保費</h2><p class="verify">年度、月度及總保費尚待官方映射與計算次序核實。</p></div><div class="actions"><a class="button primary" href="#/comparison">查看方案比較</a><a class="button secondary" href="#/plans">返回方案</a><a class="button secondary" href="#/flow">返回 Guided Flow</a></div></section>`, 'presentation'); }
 
-function editDraft() { return { introTitle: document.querySelector('#intro-title').value.trim(), introSubtitle: document.querySelector('#intro-subtitle').value.trim(), introSupport: document.querySelector('#intro-support').value.trim(), showIntro: document.querySelector('#show-intro').checked }; }
-function saveEditDraft() { state.user.pagePreferences = editDraft(); persistUser(); }
 function returnContext() { return resolveAvaReturnContext({ referrer: document.referrer, currentUrl: location.href }); }
-function returnToAva(event) { event?.preventDefault(); const context = returnContext(); window.location.assign(context || 'https://ivancww.github.io/avaplatform/'); }
-
-function editPage() { if (!canEdit) return home(); const p = state.user.pagePreferences || {}; render(`<section class="hero" data-ava-mode="edit"><span class="eyebrow">User Editing</span><h1>編輯 Frontstage</h1><p class="support">只保存 User/Local Layer；官方產品、計算、保費、理賠規則保持受保護。</p><article class="card"><div class="field"><label for="intro-title">主訊息</label><input id="intro-title" value="${escapeHtml(p.introTitle || '')}"></div><div class="field"><label for="intro-subtitle">標題</label><input id="intro-subtitle" value="${escapeHtml(p.introSubtitle || '')}"></div><div class="field"><label for="intro-support">Supporting text</label><textarea id="intro-support">${escapeHtml(p.introSupport || '')}</textarea></div><label><input id="show-intro" type="checkbox" ${p.showIntro !== false ? 'checked' : ''}> 顯示首頁介紹</label><div class="actions"><button class="primary" id="preview-edit">Preview</button><button class="secondary" id="save-edit">Save Local</button><a class="button subtle" href="#/">取消</a><button class="subtle" id="backup-user">下載結構化 Backup</button><label class="button subtle file-button" for="restore-user">還原 Backup</label><input id="restore-user" type="file" accept="application/json" hidden></div></article>${pagesEditorMarkup()}</section>`, 'edit'); bindEdit(); }
-function pagesEditorMarkup() { return `<article class="card"><h2>User-created Pages</h2><p class="muted">最多 6 張圖片；影片最多 1 段。二進位媒體只可上載至 Cloud Storage。</p><div class="field"><label for="page-type">Page type</label><select id="page-type"><option value="content">Content Page</option><option value="image">Image Page</option><option value="video">Video Page</option></select></div><div class="field"><label for="page-title">標題</label><input id="page-title"></div><div class="field"><label for="page-content">內容</label><textarea id="page-content"></textarea></div><button class="secondary" id="create-page">新增頁面</button>${state.user.pages.map((p, i) => `<div class="user-page-row"><span>${escapeHtml(p.title)} · ${p.type} · ${p.visible ? '顯示' : '隱藏'}</span><span><button class="subtle" data-toggle-page="${escapeHtml(p.id)}">${p.visible ? '隱藏' : '顯示'}</button><button class="subtle" data-move-page="${escapeHtml(p.id)}" data-direction="-1" ${i === 0 ? 'disabled' : ''}>↑</button><button class="subtle" data-move-page="${escapeHtml(p.id)}" data-direction="1" ${i === state.user.pages.length - 1 ? 'disabled' : ''}>↓</button><button class="subtle" data-delete-page="${escapeHtml(p.id)}">刪除</button>${p.type !== 'content' ? `<input class="media-input" data-media-page="${escapeHtml(p.id)}" type="file" accept="${p.type === 'image' ? 'image/*' : 'video/*'}" ${p.type === 'image' ? 'multiple' : ''}>` : ''}</span></div>`).join('')}</article>`; }
-function bindEdit() { document.querySelector('#preview-edit')?.addEventListener('click', () => { const draft = editDraft(); state.user.pagePreferences = draft; const intro = draft.showIntro === false ? '' : `<section class="hero ava-concept"><span class="eyebrow">Preview</span><h1>${escapeHtml(draft.introSubtitle || '生活支援預備金')}</h1><p class="support">${escapeHtml(draft.introTitle || '一場大病，需要面對嘅往往唔只係醫療費。')}</p><div class="concept-flow"><span>治療</span><b>＋</b><span>需要時間休養</span><b>＋</b><span>生活仍然繼續</span><b>→</b><strong>一筆可以靈活運用嘅生活支援預備金</strong></div><p class="support">${escapeHtml(draft.introSupport || '由你希望保留的時間開始，慢慢理解保障。')}</p><div class="actions"><a class="button secondary" href="#/edit">返回編輯</a><button class="primary" id="save-preview">Save Local</button></div></section>`; render(`${intro}${userPagesMarkup()}`, 'preview'); document.querySelector('#save-preview')?.addEventListener('click', () => { persistUser(); setStatus('User Override 已保存至本機。'); location.hash = '#/'; }); }); document.querySelector('#save-edit')?.addEventListener('click', () => { saveEditDraft(); setStatus('User Override 已保存至本機。'); location.hash = '#/'; }); document.querySelector('#backup-user')?.addEventListener('click', downloadBackup); document.querySelector('#restore-user')?.addEventListener('change', restoreBackup); document.querySelector('#create-page')?.addEventListener('click', createPage); document.querySelectorAll('[data-delete-page]').forEach(b => b.addEventListener('click', () => { state.user.pages = state.user.pages.filter(p => p.id !== b.dataset.deletePage); persistUser(); editPage(); })); document.querySelectorAll('[data-toggle-page]').forEach(b => b.addEventListener('click', () => { const p = state.user.pages.find(x => x.id === b.dataset.togglePage); if (p) p.visible = !p.visible; persistUser(); editPage(); })); document.querySelectorAll('[data-move-page]').forEach(b => b.addEventListener('click', () => movePage(b.dataset.movePage, Number(b.dataset.direction)))); document.querySelectorAll('[data-media-page]').forEach(i => i.addEventListener('change', () => { try { saveUserMediaReference(); } catch (e) { setStatus(`媒體暫時無法使用：${e.message}`, true); } })); }
-function createPage() { const type = document.querySelector('#page-type').value; const t = new Date().toISOString(); state.user.pages.push({ id: `ci-user-page-${Date.now()}`, type, title: document.querySelector('#page-title').value.trim() || '自訂頁面', subtitle: '', content: document.querySelector('#page-content').value.trim(), flowPosition: state.user.pages.length, sortOrder: state.user.pages.length, visible: true, createdAt: t, updatedAt: t, overrides: {}, media: [] }); persistUser(); editPage(); }
-function movePage(id, direction) { const i = state.user.pages.findIndex(p => p.id === id); const j = i + direction; if (i < 0 || j < 0 || j >= state.user.pages.length) return; [state.user.pages[i], state.user.pages[j]] = [state.user.pages[j], state.user.pages[i]]; state.user.pages.forEach((p, n) => { p.sortOrder = n; p.flowPosition = n; p.updatedAt = new Date().toISOString(); }); persistUser(); editPage(); }
+async function returnToAva(event) { event?.preventDefault(); if (dirty() && !await confirmDiscard()) return; const context = returnContext(); const fallback = canEdit ? 'https://ivancww.github.io/avaplatform/?avaSurface=user' : 'https://ivancww.github.io/avaplatform/'; window.location.assign(context || fallback); }
+function confirmDiscard() {
+  return new Promise(resolve => {
+    const previous = document.activeElement;
+    const dialog = document.createElement('dialog');
+    dialog.className = 'discard-dialog';
+    dialog.setAttribute('aria-labelledby', 'discard-heading');
+    dialog.innerHTML = `<h2 id="discard-heading">尚有未儲存的修改</h2><p>要放棄修改嗎？</p><div class="actions"><button type="button" class="secondary" data-continue>繼續編輯</button><button type="button" class="danger" data-discard>放棄修改</button></div>`;
+    document.body.append(dialog);
+    let accepted = false;
+    dialog.querySelector('[data-continue]').addEventListener('click', () => dialog.close());
+    dialog.querySelector('[data-discard]').addEventListener('click', () => { accepted = true; dialog.close(); });
+    dialog.addEventListener('close', () => { dialog.remove(); previous?.focus?.(); resolve(accepted); }, { once: true });
+    dialog.showModal(); dialog.querySelector('[data-continue]').focus();
+  });
+}
+function renderModeBar() {
+  let bar = document.querySelector('#user-mode-bar');
+  if (!bar) { bar = document.createElement('section'); bar.id = 'user-mode-bar'; document.querySelector('.app-header').after(bar); }
+  bar.hidden = !canEdit || editMode === 'use';
+  const badge = document.querySelector('#user-mode-indicator');
+  if (badge) { badge.hidden = bar.hidden; badge.textContent = editMode === 'preview' ? '預覽' : '編輯模式'; }
+  if (bar.hidden) { bar.innerHTML = ''; return; }
+  bar.className = 'ava-mode-bar';
+  bar.innerHTML = `<div class="mode-actions"><strong tabindex="-1" id="mode-heading">${editMode === 'preview' ? '預覽' : '編輯模式'}</strong>${editMode === 'edit' ? '<button type="button" class="secondary" id="preview-edit">預覽</button>' : '<button type="button" class="secondary" id="return-edit">返回編輯</button>'}<button type="button" class="primary" id="save-edit">儲存修改</button><button type="button" class="secondary" id="cancel-edit">取消修改</button></div>${editMode === 'edit' && editNotice ? '<div class="mode-notice">你可以直接喺銷售流程修改可自訂內容，例如標題、說明或指定選項。官方產品資料、保障條款、保費及計算不會改動。 <button type="button" class="subtle" id="dismiss-edit-notice">知道了</button></div>' : ''}`;
+  bar.querySelector('#dismiss-edit-notice')?.addEventListener('click', () => { editNotice = false; renderModeBar(); });
+  bar.querySelector('#preview-edit')?.addEventListener('click', () => { editMode = 'preview'; route(); document.querySelector('#mode-heading')?.focus(); });
+  bar.querySelector('#return-edit')?.addEventListener('click', () => { editMode = 'edit'; route(); document.querySelector('#mode-heading')?.focus(); });
+  bar.querySelector('#save-edit')?.addEventListener('click', saveEditDraft);
+  bar.querySelector('#cancel-edit')?.addEventListener('click', async () => { if (dirty() && !await confirmDiscard()) return; draftPages = createDraft({ pages: savedPages }); editMode = 'use'; route(); setStatus('已取消修改。'); });
+}
+function saveEditDraft() {
+  try { const saved = savePagesVerified({ storage: localStorage, user: state.user, savedPages, draft: draftPages, normalize: normalizeUserState }); state.user = normalizeUserState(saved); savedPages = createDraft(state.user); draftPages = createDraft(saved); editMode = 'use'; route(); setStatus('儲存成功。'); }
+  catch (error) { setStatus(`儲存失敗，修改仍保留，請重試：${error.message}`, true); }
+}
+function editPage() { if (location.hash !== '#/') { location.hash = '#/'; return; } home(); }
+function bindUserPages() {
+  if (!canEdit || editMode !== 'edit') return;
+  main.querySelectorAll('[data-page-field]').forEach(input => input.addEventListener('input', () => { const page = draftPages[Number(input.dataset.index)]; if (page && ['title','subtitle','content'].includes(input.dataset.pageField)) page[input.dataset.pageField] = input.value; }));
+  main.querySelectorAll('[data-page-action]').forEach(button => button.addEventListener('click', () => { const i = Number(button.dataset.index); const page = draftPages[i]; if (!page) return; const action = button.dataset.pageAction; if (action === 'toggle') page.visible = !page.visible; if (action === 'delete' && window.confirm('刪除此自訂頁面？儲存前仍可取消修改。')) draftPages.splice(i, 1); if (action === 'up' && i > 0) [draftPages[i-1], draftPages[i]] = [draftPages[i], draftPages[i-1]]; if (action === 'down' && i < draftPages.length - 1) [draftPages[i+1], draftPages[i]] = [draftPages[i], draftPages[i+1]]; draftPages.forEach((p, n) => { p.sortOrder = n; }); home(); }));
+  main.querySelector('#add-user-page')?.addEventListener('click', () => { const t = new Date().toISOString(); draftPages.push({ id: `ci-user-page-${crypto.randomUUID()}`, type: main.querySelector('#new-page-type').value, title: '自訂頁面', subtitle: '', content: '', flowPosition: draftPages.length, sortOrder: draftPages.length, visible: true, createdAt: t, updatedAt: t, overrides: {}, media: [] }); home(); });
+  main.querySelector('#backup-user')?.addEventListener('click', downloadBackup);
+  main.querySelector('#restore-user')?.addEventListener('change', restoreBackup);
+}
 function downloadBackup() { const blob = new Blob([JSON.stringify(createUserBackup(state.user), null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'ava-critical-illness-user-backup.json'; link.click(); URL.revokeObjectURL(link.href); }
-async function restoreBackup(event) { try { const file = event.target.files?.[0]; if (!file) return; state.user = restoreUserBackup(JSON.parse(await file.text())); state.user.flow = createFlowState(state.user.flow); persistUser(); setStatus('Backup 已還原；媒體只保留 Cloud references。'); editPage(); } catch (e) { setStatus(`Backup 還原失敗：${e.message}`, true); } }
+async function restoreBackup(event) { try { const file = event.target.files?.[0]; if (!file) return; if (dirty() && !await confirmDiscard()) return; const restored = restoreUserBackup(JSON.parse(await file.text())); restored.flow = createFlowState(restored.flow); const previous = localStorage.getItem('AVA_CI_USER_STATE_V1'); try { const saved = saveUserState(restored); const readback = localStorage.getItem('AVA_CI_USER_STATE_V1'); if (readback !== JSON.stringify(saved)) throw new Error('讀回不一致'); state.user = saved; } catch (e) { try { if (previous === null) localStorage.removeItem('AVA_CI_USER_STATE_V1'); else localStorage.setItem('AVA_CI_USER_STATE_V1', previous); } catch {} throw e; } savedPages = createDraft(state.user); draftPages = createDraft(state.user); setStatus('Backup 已還原；媒體只保留 Cloud references。'); home(); } catch (e) { setStatus(`Backup 還原失敗：${e.message}`, true); } }
 
 function adminValue(value) { const safe = redactOfficialValue(value); if (safe === null || safe === undefined || safe === '') return '—'; if (typeof safe === 'object') return JSON.stringify(safe); return String(safe); }
 function adminRecordIdentity(dataset, record, index) {
@@ -622,7 +677,7 @@ function registerServiceWorker() {
   }
   let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || reloading || reloadConsumed) return;
+    if (!hadController || reloading || reloadConsumed || dirty()) return;
     reloading = true;
     reloadConsumed = true;
     try { sessionStorage.setItem(reloadKey, JSON.stringify({ fromController: controllerUrl, at: Date.now() })); } catch { /* reload remains bounded by in-memory state */ }
@@ -645,6 +700,7 @@ function registerServiceWorker() {
   }).catch(() => setStatus('離線外殼未能啟用。', true));
 }
 
+window.addEventListener('beforeunload', event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } });
 document.addEventListener('click', event => { if (event.target?.id === 'retry-official') refreshOfficial(); });
 document.querySelector('[data-return-to-ava]')?.addEventListener('click', returnToAva); window.addEventListener('hashchange', route); route(); if (!state.official && canAdmin) setStatus('官方資料正在載入。'); refreshOfficial(); establishAdminAuthorization(); registerServiceWorker(); window.__AVA_CI_BOOT_OK__ = true; window.__AVA_CI_MARK_BOOT_OK__?.();
 export { supportSummary, state, verificationState };

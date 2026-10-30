@@ -1,4 +1,4 @@
-import { resolveEffectiveResource, resourceIdentity } from '../domain/resource-layer.js?v=0.6.11';
+import { resolveEffectiveResource, resourceIdentity } from '../domain/resource-layer.js?v=0.6.12';
 
 export function resourcesForProduct(productContent = [], planId) {
   const targetPlanId = String(planId ?? '').trim().toUpperCase();

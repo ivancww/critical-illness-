@@ -7,7 +7,7 @@
     <meta name="description" content="Critical Illness life support reserve planning">
     <link rel="manifest" href="./manifest.json">
     <title>生活支援預備金｜AVA Critical Illness</title>
-    <link rel="stylesheet" href="./src/styles.css?v=0.6.11">
+    <link rel="stylesheet" href="./src/styles.css?v=0.6.12">
   </head>
   <body>
     <div class="ava-shell" id="app">
@@ -16,6 +16,7 @@
           <span class="brand-mark" aria-hidden="true">CI</span>
           <span><strong>生活支援預備金</strong><small>AVA Critical Illness</small><small class="app-version" id="app-version" aria-label="App version"></small></span>
         </a>
+        <span id="user-mode-indicator" class="tag" hidden></span>
         <nav class="top-nav" aria-label="主要導航">
           <a class="return-ava" href="https://ivancww.github.io/avaplatform/" data-return-to-ava aria-label="返回 AVA">← 返回 AVA</a>
         </nav>
@@ -63,7 +64,7 @@
         window.setTimeout(() => renderFailure('Admin 初始化逾時。'), 15000);
       })();
     </script>
-    <script src="./src/integration/firebase-media-bootstrap.js?v=0.6.11"></script>
-    <script type="module" src="./src/app.js?v=0.6.11"></script>
+    <script src="./src/integration/firebase-media-bootstrap.js?v=0.6.12"></script>
+    <script type="module" src="./src/app.js?v=0.6.12"></script>
   </body>
 </html>
