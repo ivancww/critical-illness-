@@ -214,7 +214,7 @@ function payoutBreakdownMarkup(entries, type) {
   // that could expire between claims cannot be attributed to that later claim.
   const laterKnown = entries.every(({ summary }) => summary.extra.status === 'NOT_APPLICABLE');
   const later = laterKnown ? remaining : null;
-  return `<div class="claim-breakdown"><strong>賠償明細</strong>${rows}<div class="payout-path"><strong>先早期，後主要危疾 · 情境示例</strong><p>第一次 · 早期疾病賠償：HK$${money(early)}（20%）</p><p>第二次 · 主要危疾賠償：${later === null ? '未能確認（需確認較後確診時額外保障）' : `HK$${money(later)}（餘下基本保障 80%）`}</p><p>累計總賠償：${later === null ? '未能確認' : `HK$${money(early + later)}`}</p></div></div>`;
+  return `<div class="claim-breakdown"><strong>賠償明細</strong>${rows}<div class="payout-path"><strong>先早期，後主要危疾 · 情境示例</strong><p>第一次 · 早期疾病賠償：HK$${money(early)}（20%）</p><p>第二次 · 主要危疾賠償：${later === null ? `HK$${money(remaining)}（餘下基本保障 80%）；額外保障須按較後確診時間確認` : `HK$${money(later)}（餘下基本保障 80%）`}</p><p>累計總賠償：${later === null ? `基本保障合計 HK$${money(early + remaining)}；實際累計須待額外保障確認` : `HK$${money(early + later)}`}</p></div></div>`;
 }
 function combinedPostPayoutMarkup(visiblePlans, type, entries) {
   if (type === 'early') return '<div class="plan-outcome"><strong>賠償後</strong><p>早期疾病賠償後，兩份方案的餘下保障按各自產品條款繼續提供。</p></div>';

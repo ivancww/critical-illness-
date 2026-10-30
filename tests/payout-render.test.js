@@ -22,6 +22,6 @@ test('actual comparison route renders one shared payout with scenario breakdown 
   assert.doesNotMatch(main.innerHTML,/\d+\.\d{6,}%/);
   app.state.user.frontstage.diagnosisAge=45; handlers.hashchange();
   assert.match(main.innerHTML,/HK\$1,175,000/); assert.match(main.innerHTML,/額外保障 \+HK\$175,000/); assert.match(main.innerHTML,/主要危疾 100%/);
-  handlers.early(); assert.match(main.innerHTML,/第二次 · 主要危疾賠償：未能確認/); assert.match(main.innerHTML,/累計總賠償：未能確認/);
+  handlers.early(); assert.match(main.innerHTML,/第二次 · 主要危疾賠償：HK\$800,000/); assert.match(main.innerHTML,/基本保障合計 HK\$1,000,000；實際累計須待額外保障確認/);
   assert.doesNotMatch(main.innerHTML,/往後保費獲豁免/);
 });
