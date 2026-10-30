@@ -18,9 +18,9 @@ test('entry contract exposes frontend and user modes and rejects unsupported ent
 test('User flow includes Frontstage edit, Preview, and Save Local', () => {
   assert.match(app, /function editPage\(\)/);
   assert.match(app, /id="preview-edit"/);
-  assert.match(app, /id="save-preview"/);
+  assert.match(app, /id="return-edit"/);
   assert.match(app, /function saveEditDraft\(\)/);
-  assert.match(app, /persistUser\(\); setStatus\('User Override 已保存至本機。'\)/);
+  assert.match(app, /savePagesVerified/);
 });
 
 test('Return to AVA prefers caller context with a safe static fallback', () => {
