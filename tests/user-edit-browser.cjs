@@ -97,4 +97,4 @@ const fs = require('node:fs');
  assert.equal(await page.locator('[data-page-field="title"]').inputValue(),'失敗草稿');
  await page.screenshot({path:'test-screenshots/save-error.png',fullPage:true});
  await context.close(); await browser.close();
-})().catch(error => { console.error(error); process.exitCode=1; });
+})().catch(error => { console.error(error); process.exit(1); });
