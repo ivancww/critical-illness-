@@ -410,7 +410,7 @@ function saveEditDraft() {
   try { const saved = savePagesVerified({ storage: localStorage, user: state.user, savedPages, draft: draftPages, savedIntro, draftIntro, normalize: normalizeUserState }); state.user = normalizeUserState(saved); state.user.flow = createFlowState(state.user.flow); savedPages = createDraft(state.user); draftPages = createDraft(saved); savedIntro = createIntro(state.user); draftIntro = createIntro(state.user); editMode = 'use'; suppressEditExitReset = true; route(); setStatus('儲存成功。'); }
   catch (error) { setStatus(`儲存失敗，修改仍保留，請重試：${error.message}`, true); }
 }
-function editPage() { editView(); }
+function editPage() { if (!canEdit || editMode !== 'edit') return home(); editView(); }
 function inlineField(tag, field, value, label, attrs = '') {
   return `<${tag} ${attrs} class="inline-edit${tag === 'p' ? ' support' : ''}" contenteditable="plaintext-only" role="textbox" aria-label="${escapeHtml(label)}" data-inline-field="${field}" data-empty-label="${escapeHtml(label)}" spellcheck="false">${escapeHtml(value)}</${tag}>`;
 }
