@@ -1,7 +1,7 @@
 // Classic-script bootstrap keeps the Storage-only ESM graph observable and
 // avoids making app.js import Firebase Auth or several CDN modules in parallel.
 (() => {
-  const version = '0.6.12';
+  const version = '0.6.13';
   const ready = import(`./firebase-media-module.js?v=${version}`)
     .then(module => module.createFirebaseStorageClient())
     .catch(error => {

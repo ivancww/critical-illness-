@@ -1,0 +1,9 @@
+# CI User Edit v2 pilot — product-owner review required
+
+The proposed CI-only pilot departs from Mother Standard v1's Preview and continuous frontstage navigation. It does not amend the Mother Standard. User entry shows the editable sequence: (1) personal introduction in its customer presentation context; (2...) User-created pages in existing stored order, including hidden pages. Official-only flow, plan, claim and premium pages are excluded. The production Frontend retains its current home/custom-page rendering and journey routes; existing CI renders custom pages on the homepage and the pilot does not migrate their stored flowPosition.
+
+User-owned intro title, subtitle, support and personal visibility; User-page title, subtitle, content, creation, deletion, visibility and ordering are editable. Official defaults, benefit/claim/eligibility/premium data, calculations and Admin are protected. User text is visibly separate from official text; historical personal copy requires human accuracy review. Existing User media references, page IDs and raw metadata are preserved. User cloud media upload remains unavailable.
+
+One in-memory draft spans the sequence. Navigation does not save. Saving uses the existing allowlisted readback transaction; conflicts retain the draft and backup can be exported. localStorage does not provide atomic multi-tab compare-and-swap. Explicit restore remains the legacy immediate full backup restore operation, not a page edit; it replaces the local saved state, so export a backup first. Cancellation reloads last stored state; browser beforeunload and return safeguards remain, subject to host/browser lifecycle limits.
+
+Official/physical device, installed-PWA and WebView outcomes require separate verification. This is a prototype for CI only and must not be generalized or merged before product-owner review.
