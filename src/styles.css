@@ -268,3 +268,5 @@ html, body { overflow-x: hidden; }
 .premium-schedule th, .premium-schedule td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
 
 .premium-schedule-note { display: block; font-size: 0.75rem; }
+
+.premium-waived { color: #18733e; }

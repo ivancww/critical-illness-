@@ -32,13 +32,13 @@ test('monthly loading is applied once after health adjustment with two-decimal d
 
 test('actual premium route renders figures from customer state and keeps total pending', async () => {
   const main={innerHTML:'',focus(){}}; const status={textContent:'',className:''};
-  const dummy={textContent:'',addEventListener(){},classList:{toggle(){},remove(){},add(){}},setAttribute(){}};
+  const dummy={textContent:'',focus(){},addEventListener(){},classList:{toggle(){},remove(){},add(){}},setAttribute(){}};
   const handlers={}; const controls={};
   const structured={ Plans:[{plan_id:'SCE',plan_name:'SCE',rate_basis:7800,protection_style:'single',active:true},{plan_id:'OYS2',plan_name:'OYS2',rate_basis:7800,protection_style:'continuing',active:true}],Benefits:[],Claim_Rules:[],Health_Program:[{plan_id:'SCE',effect_type:'premium_multiplier',effect_value:0.9,annual_fee:430,enabled:true},{plan_id:'OYS2',effect_type:'coverage_bonus',effect_value:0.1,enabled:true}],Product_Content:[],Settings_Versions:[] };
   const cache={structured,premium:tables};
   const user={frontstage:{age:40,gender:'M',smoker:'non-smoker',payTerm:10,vitality:true,sums:{SCE:7800,OYS2:7800}}};
   globalThis.localStorage={getItem(k){return k==='AVA_CI_OFFICIAL_CACHE_V2'?JSON.stringify(cache):k==='AVA_CI_USER_STATE_V1'?JSON.stringify(user):null},setItem(){}};
-  globalThis.document={querySelector(s){ if (s==='#main-content') return main; if (s==='#status') return status; return controls[s] ||= { ...dummy, addEventListener(name, cb){ handlers[s+':'+name]=cb; } }; },querySelectorAll(){return []},body:dummy,addEventListener(){},visibilityState:'visible'};
+  globalThis.document={querySelector(s){ if (s==='#main-content') return main; if (s==='#status') return status; return controls[s] ||= { ...dummy, addEventListener(name, cb){ handlers[s+':'+name]=cb; } }; },querySelectorAll(s){return s==='[data-diagnosis-age]' ? [{addEventListener(name,cb){handlers['diagnosis:'+name]=cb}}] : []},getElementById(){return dummy},body:dummy,addEventListener(){},visibilityState:'visible'};
   globalThis.window=globalThis; globalThis.addEventListener=(name,cb)=>{handlers[name]=cb};
   globalThis.location={search:'',hash:'#/premiums',href:'https://example.test/#/premiums'};
   globalThis.history={replaceState(){}}; Object.defineProperty(globalThis,'navigator',{value:{},configurable:true});
@@ -71,7 +71,11 @@ test('actual premium route renders figures from customer state and keeps total p
   handlers['#plan-age:change']({target:{value:'41'}});
   assert.equal(app.state.user.frontstage.age,41);
   handlers['#plan-age:change']({target:{value:'40'}});
+  handlers['diagnosis:input']({target:{value:'40',id:'diagnosis-age-OYS2'}});
+  assert.equal(app.state.user.frontstage.diagnosisAge,40);
   globalThis.location.hash='#/premiums'; handlers.hashchange();
+  assert.match(main.innerHTML,/HK\$0（確診豁免保費）/);
+  app.state.user.frontstage.diagnosisAge = null;
   assert.match(main.innerHTML,/HK\$200\.00/);
   assert.equal(app.state.user.frontstage.vitality,false);
   handlers['#premium-age:change']({target:{value:'41'}});
