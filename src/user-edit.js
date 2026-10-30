@@ -17,7 +17,7 @@ export function validatePages(pages) {
 export function savePagesVerified({ storage, user, savedPages, draft, normalize }) {
   validatePages(draft);
   const oldRaw = storage.getItem(USER_KEY);
-  const raw = oldRaw === null ? normalize({}) : JSON.parse(oldRaw);
+  const raw = oldRaw === null ? normalize(user) : JSON.parse(oldRaw);
   const current = normalize(raw);
   if (draftChanged(current.pages, savedPages)) throw new Error('本機頁面已在另一個視窗變更，請先備份並重新載入。');
   // Preserve the current customer/session fields and every legacy override.

@@ -396,7 +396,7 @@ function renderModeBar() {
   bar.querySelector('#cancel-edit')?.addEventListener('click', async () => { if (dirty() && !await confirmDiscard()) return; draftPages = createDraft({ pages: savedPages }); editMode = 'use'; route(); setStatus('已取消修改。'); });
 }
 function saveEditDraft() {
-  try { const saved = savePagesVerified({ storage: localStorage, user: state.user, savedPages, draft: draftPages, normalize: normalizeUserState }); state.user = normalizeUserState(saved); savedPages = createDraft(state.user); draftPages = createDraft(saved); editMode = 'use'; route(); setStatus('儲存成功。'); }
+  try { const saved = savePagesVerified({ storage: localStorage, user: state.user, savedPages, draft: draftPages, normalize: normalizeUserState }); state.user = normalizeUserState(saved); state.user.flow = createFlowState(state.user.flow); savedPages = createDraft(state.user); draftPages = createDraft(saved); editMode = 'use'; route(); setStatus('儲存成功。'); }
   catch (error) { setStatus(`儲存失敗，修改仍保留，請重試：${error.message}`, true); }
 }
 function editPage() { if (location.hash !== '#/') { location.hash = '#/'; return; } home(); }
