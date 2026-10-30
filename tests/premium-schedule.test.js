@@ -15,7 +15,7 @@ test('SCE renewals use attained-age rows and accumulate independently', () => {
   assert.match(renderPremiumSchedule(s),/按目前官方費率推算/);
 });
 test('all three OYS2 terms project the source rate only during the chosen payment period', () => {
-  for (const [term,rate] of [[10,300],[18,200],[25,100]]) { const s=calculatePremiumSchedule({...params,term,horizon:term+2}); assert.equal(s.rows[term-1].OYS2.value,rate); assert.equal(s.rows[term].OYS2.value,null); assert.equal(s.rows[term].OYS2.reason,'所選供款期後無預定保費'); assert.equal(s.totals.OYS2,rate*term); }
+  for (const [term,rate] of [[10,300],[18,200],[25,100]]) { const s=calculatePremiumSchedule({...params,term,horizon:term+2}); assert.equal(s.rows[term-1].OYS2.value,rate); assert.equal(s.rows[term].OYS2.value,0); assert.equal(s.rows[term].OYS2.reason,'已供滿'); assert.equal(s.totals.OYS2,rate*term); }
 });
 test('gender, smoking, unavailable renewal and Vitality duration fail closed', () => {
   let s=calculatePremiumSchedule({...params,gender:'F',smoker:'smoker'}); assert.deepEqual(s.rows.map(r=>r.SCE.value),[190,210,230]);
@@ -29,4 +29,26 @@ test('source amounts scale with sum assured and missing OYS2 rate never becomes 
   assert.equal(scaled.rows[0].SCE.value,200); assert.equal(scaled.rows[1].SCE.value,240); assert.equal(scaled.totals.OYS2,1800);
   const invalid=calculatePremiumSchedule({...params,term:18,premium:{...premium,OYS2_MALE:{...premium.OYS2_MALE,values:premium.OYS2_MALE.values.map((row,i)=>i===3?[40,300,400,'',300,100,200]:row)}}});
   assert.equal(invalid.rows[0].OYS2.value,null); assert.equal(invalid.totals.OYS2,null); assert.match(invalid.rows[1].OYS2.reason,/沒有可用費率/);
+});
+
+test('major diagnosis timing is pending, early scenario and paid-up remain distinct', () => {
+  const major=calculatePremiumSchedule({...params,horizon:12,diagnosisAge:42,claimType:'major'});
+  assert.equal(major.rows[1].OYS2.cumulative,600); assert.equal(major.rows[2].OYS2.value,null); assert.equal(major.totals.OYS2,null);
+  assert.match(major.rows[2].OYS2.reason,/豁免資格及生效時間未確認/);
+  assert.equal(major.rows[10].OYS2.reason,'已供滿');
+  const early=calculatePremiumSchedule({...params,horizon:10,diagnosisAge:42,claimType:'early'}); assert.equal(early.totals.OYS2,3000);
+  const after=calculatePremiumSchedule({...params,horizon:12,diagnosisAge:52,claimType:'major'}); assert.equal(after.totals.OYS2,3000); assert.equal(after.rows[10].OYS2.reason,'已供滿');
+});
+test('monthly mode and five-year summaries use actual annual rows and correct subtotals', () => {
+  const s=calculatePremiumSchedule({...params,horizon:25,paymentMode:'monthly'});
+  assert.ok(Math.abs(s.rows[0].OYS2.value-318)<1e-9);
+  const html=renderPremiumSchedule(s); assert.match(html,/<td>21–25<\/td>/); assert.match(html,/區間小計/); assert.match(html,/HK\$0（已供滿）/);
+});
+
+test('post-20 summary subtotal sums each actual age rate rather than assuming a flat band', () => {
+  const source = { ...premium, SCE_MALE: { ...premium.SCE_MALE, values: [premium.SCE_MALE.values[0], premium.SCE_MALE.values[1], ...Array.from({length:25},(_,i)=>[40+i,100+i,200+i])] } };
+  const s=calculatePremiumSchedule({...params,premium:source,horizon:25});
+  assert.equal(s.rows[20].attainedAge,60); assert.equal(s.rows[24].attainedAge,64);
+  assert.equal(s.rows.slice(20,25).reduce((n,r)=>n+r.SCE.value,0),610);
+  const html=renderPremiumSchedule(s); assert.match(html,/21–25/); assert.match(html,/區間小計：HK\$610\.00/);
 });

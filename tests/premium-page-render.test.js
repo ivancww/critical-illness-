@@ -22,7 +22,7 @@ test('all four independent matrices map age, sex, smoking and product-specific t
 test('monthly loading is applied once after health adjustment with two-decimal display', () => {
   for (const [annual,expected] of [[1015,'89.66'],[6015,'531.33']]) {
     const q=premiumQuote({status:'AVAILABLE',annualPremium:annual},{status:'NOT_APPLICABLE'},false);
-    assert.match(renderPremiumFigures(q),new RegExp(expected.replace('.','\\.')));
+    assert.match(renderPremiumFigures(q, 'monthly'),new RegExp(expected.replace('.','\\.')));
   }
   const q=premiumQuote({status:'AVAILABLE',annualPremium:1000},{status:'VERIFIED',effectType:'premium_multiplier',premiumMultiplier:0.9},true);
   assert.equal(q.annual,900); assert.equal(q.monthly,79.5);
@@ -34,7 +34,7 @@ test('actual premium route renders figures from customer state and keeps total p
   const main={innerHTML:'',focus(){}}; const status={textContent:'',className:''};
   const dummy={textContent:'',addEventListener(){},classList:{toggle(){},remove(){},add(){}},setAttribute(){}};
   const handlers={}; const controls={};
-  const structured={ Plans:[{plan_id:'SCE',plan_name:'SCE',rate_basis:7800,protection_style:'single',active:true},{plan_id:'OYS2',plan_name:'OYS2',rate_basis:7800,protection_style:'continuing',active:true}],Benefits:[],Claim_Rules:[],Health_Program:[{plan_id:'SCE',effect_type:'premium_multiplier',effect_value:0.9,enabled:true},{plan_id:'OYS2',effect_type:'coverage_bonus',effect_value:0.1,enabled:true}],Product_Content:[],Settings_Versions:[] };
+  const structured={ Plans:[{plan_id:'SCE',plan_name:'SCE',rate_basis:7800,protection_style:'single',active:true},{plan_id:'OYS2',plan_name:'OYS2',rate_basis:7800,protection_style:'continuing',active:true}],Benefits:[],Claim_Rules:[],Health_Program:[{plan_id:'SCE',effect_type:'premium_multiplier',effect_value:0.9,annual_fee:430,enabled:true},{plan_id:'OYS2',effect_type:'coverage_bonus',effect_value:0.1,enabled:true}],Product_Content:[],Settings_Versions:[] };
   const cache={structured,premium:tables};
   const user={frontstage:{age:40,gender:'M',smoker:'non-smoker',payTerm:10,vitality:true,sums:{SCE:7800,OYS2:7800}}};
   globalThis.localStorage={getItem(k){return k==='AVA_CI_OFFICIAL_CACHE_V2'?JSON.stringify(cache):k==='AVA_CI_USER_STATE_V1'?JSON.stringify(user):null},setItem(){}};
@@ -44,35 +44,39 @@ test('actual premium route renders figures from customer state and keeps total p
   globalThis.history={replaceState(){}}; Object.defineProperty(globalThis,'navigator',{value:{},configurable:true});
   globalThis.fetch=()=>new Promise(()=>{});
   const app=await import('../src/app.js?render-test');
-  assert.match(main.innerHTML,/HK\$90\.00/); assert.match(main.innerHTML,/約 HK\$7\.95/);
-  assert.match(main.innerHTML,/HK\$300\.00/); assert.match(main.innerHTML,/約 HK\$26\.50/);
+  assert.match(main.innerHTML,/HK\$90\.00/); assert.match(main.innerHTML,/原基準年繳保費 HK\$100\.00/); assert.match(main.innerHTML,/會費另計 HK\$430／年/);
+  assert.match(main.innerHTML,/HK\$300\.00/); assert.match(main.innerHTML,/額外保障 HK\$780 · 合計 HK\$8,580/);
+  handlers['#premium-mode:change']({target:{value:'monthly'}});
+  assert.match(main.innerHTML,/HK\$7\.95/); assert.match(main.innerHTML,/HK\$26\.50/);
+  handlers['#premium-mode:change']({target:{value:'annual'}});
   assert.match(main.innerHTML,/<summary>查看逐年保費<\/summary>/);
-  assert.match(main.innerHTML,/請輸入投保年齡及顯示年數/);
-  handlers['#premium-horizon:change']({target:{value:'2'}});
-  assert.match(main.innerHTML,/<th>保單年度<\/th>/);
+  assert.doesNotMatch(main.innerHTML,/premium-horizon|顯示年數/);
+  assert.match(main.innerHTML,/每年保費及累積總保費/);
   assert.match(main.innerHTML,/按目前官方費率推算/);
-  assert.match(main.innerHTML,/HK\$600\.00/);
-  assert.match(main.innerHTML,/基礎保費|保費表沒有此投保年齡/);
-  assert.match(main.innerHTML,/所選期間預計總保費/);
   const cards = [...main.innerHTML.matchAll(/<article class="card premium-plan">([\s\S]*?)<\/article>/g)];
   assert.equal(cards.length,2);
   for (const card of cards) {
-    assert.match(card[1],/基本保額/); assert.match(card[1],/每年保費/); assert.match(card[1],/每月保費/);
-    assert.doesNotMatch(card[1],/總保費|VERIFY REQUIRED|健康程式|年供/);
+    assert.match(card[1],/基本保額/); assert.match(card[1],/每年保費/);
+    assert.doesNotMatch(card[1],/總保費|VERIFY REQUIRED|年供/);
   }
   assert.doesNotMatch(main.innerHTML,/payment-timeline|官方方案資料：|重新載入官方資料/);
   handlers['#premium-gender:change']({target:{value:'F'}});
-  assert.match(main.innerHTML,/HK\$180\.00/); assert.match(main.innerHTML,/約 HK\$15\.90/);
+  assert.match(main.innerHTML,/HK\$180\.00/);
   handlers['#premium-vitality:change']({target:{value:'no'}});
   assert.match(main.innerHTML,/HK\$200\.00/);
   globalThis.location.hash='#/plans'; handlers.hashchange();
   assert.equal((main.innerHTML.match(/data-plan-card=/g) || []).length,2);
   assert.doesNotMatch(main.innerHTML,/premium-summary|年繳保費|原年繳保費|id="health-program"/);
   assert.match(main.innerHTML,/主要危疾/); assert.match(main.innerHTML,/查看保障疾病種類/);
+  handlers['#plan-age:change']({target:{value:'41'}});
+  assert.equal(app.state.user.frontstage.age,41);
+  handlers['#plan-age:change']({target:{value:'40'}});
   globalThis.location.hash='#/premiums'; handlers.hashchange();
   assert.match(main.innerHTML,/HK\$200\.00/);
   assert.equal(app.state.user.frontstage.vitality,false);
   handlers['#premium-age:change']({target:{value:'41'}});
+  globalThis.location.hash='#/plans'; handlers.hashchange(); assert.match(main.innerHTML,/id="plan-age"[^>]*value="41"/);
+  globalThis.location.hash='#/premiums'; handlers.hashchange();
   assert.doesNotMatch(main.innerHTML,/HK\$0\.00/); assert.match(main.innerHTML,/每月保費：VERIFY REQUIRED/);
 });
 
