@@ -15,10 +15,10 @@ test('entry contract exposes frontend and user modes and rejects unsupported ent
   assert.match(html, /data-return-to-ava/);
 });
 
-test('User flow includes Frontstage edit, Preview, and Save Local', () => {
+test('CI pilot supports in-place editing and one save without preview', () => {
   assert.match(app, /function editPage\(\)/);
-  assert.match(app, /id="preview-edit"/);
-  assert.match(app, /id="return-edit"/);
+  assert.doesNotMatch(app, /id="preview-edit"/);
+  assert.match(app, /id="edit-next"/);
   assert.match(app, /function saveEditDraft\(\)/);
   assert.match(app, /savePagesVerified/);
 });

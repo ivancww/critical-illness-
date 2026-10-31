@@ -291,3 +291,19 @@ textarea:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .personal-intro p { white-space: pre-wrap; }
 .intro-toggle { display: flex; gap: 8px; align-items: center; min-height: 44px; }
 .intro-toggle input { width: 20px; height: 20px; }
+.inline-edit { min-width: 0; min-height: 44px; border: 1px dashed #94a3b8; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
+.inline-edit:focus { outline: 2px solid var(--ava-color-secondary); outline-offset: 2px; }
+.inline-edit:empty::before { content: attr(data-empty-label) ' ✎'; color: #64748b; }
+.inline-edit:not(:empty) { background-image: linear-gradient(transparent, transparent); }
+.edit-tools { margin-top: 8px; }
+.edit-tools select { min-height: 44px; max-width: 100%; }
+.ava-mode-bar:not([hidden]) { position: sticky; top: 0; z-index: 10; background: var(--ava-color-background); padding-bottom: 12px; }
+.file-button { min-height: 44px; padding: 10px 16px; border-radius: var(--ava-radius-control); cursor: pointer; }
+
+.backup-tools summary { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid var(--ava-color-primary); color: var(--ava-color-primary); border-radius: var(--ava-radius-control); cursor: pointer; }
+.backup-tools .actions { margin-top: 8px; }
+.backup-tools summary:focus-visible { outline: 2px solid var(--ava-color-secondary); outline-offset: 2px; }
+
+/* The outline marks the existing text box without changing its geometry. */
+.hero .inline-edit { padding: 0; border: 0; min-height: 0; outline: 1px dashed #94a3b8; outline-offset: 3px; border-radius: 0; }
+.hero .inline-edit:focus { outline: 2px solid var(--ava-color-secondary); outline-offset: 3px; }
