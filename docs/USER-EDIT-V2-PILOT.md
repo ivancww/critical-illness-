@@ -1,9 +1,20 @@
-# CI User Edit v2 pilot — product-owner review required
+# CI User Edit v2 — original-screen pilot
 
-The proposed CI-only pilot departs from Mother Standard v1's Preview and continuous frontstage navigation. It does not amend the Mother Standard. User entry shows the editable sequence: (1) personal introduction in its customer presentation context; (2...) User-created pages in existing stored order, including hidden pages. Official-only flow, plan, claim and premium pages are excluded. The production Frontend retains its current home/custom-page rendering and journey routes; existing CI renders custom pages on the homepage and the pilot does not migrate their stored flowPosition.
+This CI-only product-owner pilot removes the v1 preview state; it does not modify Mother Standard. The eligible sequence is the original homepage followed by the existing User-created pages in stored order. Official-only plan, claim and premium pages do not appear in edit navigation; the complete customer journey remains available in Frontend.
 
-User-owned intro title, subtitle, support and personal visibility; User-page title, subtitle, content, creation, deletion, visibility and ordering are editable. Official defaults, benefit/claim/eligibility/premium data, calculations and Admin are protected. User text is visibly separate from official text; historical personal copy requires human accuracy review. Existing User media references, page IDs and raw metadata are preserved. User cloud media upload remains unavailable.
+## Homepage ownership and mapping
 
-One in-memory draft spans the sequence. Navigation does not save. Saving uses the existing allowlisted readback transaction; conflicts retain the draft and backup can be exported. localStorage does not provide atomic multi-tab compare-and-swap. Explicit restore remains the legacy immediate full backup restore operation, not a page edit; it replaces the local saved state, so export a backup first. Cancellation reloads last stored state; browser beforeunload and return safeguards remain, subject to host/browser lifecycle limits.
+| Display position | Existing User setting | Classification |
+| --- | --- | --- |
+| Original `生活支援預備金` heading | `introSubtitle` | User-overridable sales presentation |
+| Original introductory paragraph | `introTitle` | User-overridable sales presentation |
+| Original support paragraph | `introSupport` | User-overridable sales presentation |
+| Display choice | `showIntro` | Enables User overrides; false displays fixed defaults without deleting any saved text |
+| Fixed treatment / recovery / living-expense illustration | None | Read-only fixed content |
+| Benefits, eligibility, terms, premiums, claims, calculations | None | Protected; never edited here |
 
-Official/physical device, installed-PWA and WebView outcomes require separate verification. This is a prototype for CI only and must not be generalized or merged before product-owner review.
+User and Frontend use the same homepage rendering function. Nonempty enabled User text replaces the default at its original position; empty values fall back to the original. The Official/default source stays unchanged. This maps the existing fields directly without changing storage schema or rewriting legacy values. Historical User text remains retained, but it may contain statements requiring human review for accuracy; User-origin text is not validated as official fact. A disabled User override can be re-enabled without losing the stored values.
+
+User-created pages retain IDs, order, flowPosition, media references and backup compatibility. The existing CI customer frontstage renders those pages after the homepage; the pilot does not relocate them. Save validates and verifies the existing local-storage transaction; cancel, write/readback failure, and cross-tab conflict retain their established handling. localStorage is not an atomic compare-and-swap. Backup export includes the working draft. Explicit full backup restore remains the previous immediate restore operation and replaces local saved data; export a backup first.
+
+Physical devices, installed PWA, embedded WebView, and live production integrations remain separate checks. Product-owner visual review is required before merge or any cross-App standardization.
