@@ -3,6 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 (async () => {
  const browser=await chromium.launch({headless:true}); fs.mkdirSync('test-screenshots',{recursive:true});
+ // Clean, real before/edit/after screenshots without creating a custom page.
+ const visual=await browser.newContext({viewport:{width:820,height:1180},serviceWorkers:'block'});
+ const vp=await visual.newPage(); await vp.route('https://script.google.com/**',r=>r.abort());
+ await vp.goto('http://127.0.0.1:8765/?avaEntry=frontend'); await vp.waitForSelector('.hero h1');
+ await vp.screenshot({path:'test-screenshots/clean-before.png',fullPage:true});
+ await vp.goto('http://127.0.0.1:8765/?avaEntry=user'); await vp.waitForSelector('[data-inline-field="introSubtitle"]');
+ await vp.locator('[data-inline-field="introSubtitle"]').fill('客戶自訂標題'); await vp.locator('[data-inline-field="introTitle"]').fill('我的介紹');
+ await vp.screenshot({path:'test-screenshots/clean-edit.png',fullPage:true}); await vp.locator('#save-edit').click();
+ await vp.goto('http://127.0.0.1:8765/?avaEntry=frontend'); await vp.waitForFunction(()=>document.querySelector('.hero h1')?.textContent==='客戶自訂標題');
+ assert.equal(await vp.locator('.user-page, .personal-intro').count(),0); await vp.screenshot({path:'test-screenshots/clean-after.png',fullPage:true}); await visual.close();
  for (const [name,width,height] of [['ipad-portrait',820,1180],['ipad-landscape',1180,820],['fold-unfolded',790,720],['fold-folded',393,852],['mobile',375,812],['desktop',1440,900],['boundary-650',650,900],['boundary-651',651,900]]) {
   const ctx=await browser.newContext({viewport:{width,height},serviceWorkers:'block'}); const page=await ctx.newPage();
   await page.route('https://script.google.com/**',r=>r.abort());
