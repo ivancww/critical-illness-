@@ -88,7 +88,8 @@ test('rendered schedule has four columns and bottom totals include hidden years'
   const source = { ...premium, SCE_MALE: { ...premium.SCE_MALE, values: [premium.SCE_MALE.values[0], premium.SCE_MALE.values[1], ...Array.from({length:25},(_,i)=>[40+i,100+i,200+i])] } };
   const s=calculatePremiumSchedule({...params,premium:source,horizon:25});
   const html=renderPremiumSchedule(s);
-  assert.equal((html.match(/<th>/g)||[]).length,4);
+  assert.equal((html.match(/<th>/g)||[]).length,8);
+  assert.match(html, /<details class="premium-schedule-later">/);
   assert.doesNotMatch(html,/簡護累積<\/th>|愛伴航2累積<\/th>|區間小計/);
   assert.match(html,new RegExp(`簡護累積總保費：HK\\$${s.totals.SCE.toLocaleString('en-HK')}\\.00`));
   assert.match(html,/兩份方案累積總保費：HK\$/);
@@ -99,7 +100,9 @@ test('rendered schedule has four columns and bottom totals include hidden years'
 test('through-age-100 schedule preserves missing rates and final partial group', () => {
   const s=calculatePremiumSchedule({...params,issueAge:40,horizon:61});
   assert.equal(s.rows.at(-1).attainedAge,100);
-  assert.equal(s.rows.at(-1).SCE.value,null);
+  assert.equal(s.rows.at(-1).SCE.beyondSceHorizon,true);
+  assert.equal(s.rows[40].attainedAge,80); assert.notEqual(s.rows[40].SCE.beyondSceHorizon,true);
+  assert.equal(s.rows[41].SCE.beyondSceHorizon,true);
   assert.equal(s.totals.SCE,null);
   assert.match(renderPremiumSchedule(s),/<td>61<\/td><td>100<\/td>/);
   assert.match(renderPremiumSchedule(s),/兩份方案累積總保費：未能確認/);
