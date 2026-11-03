@@ -52,7 +52,8 @@ test('actual premium route renders figures from customer state and keeps total p
   assert.match(main.innerHTML,/<summary>查看逐年保費<\/summary>/);
   assert.doesNotMatch(main.innerHTML,/premium-horizon|顯示年數/);
   assert.match(main.innerHTML,/每年保費及累積總保費/);
-  assert.match(main.innerHTML,/按目前官方費率推算/);
+  assert.doesNotMatch(main.innerHTML,/按目前官方費率推算/);
+  assert.match(main.innerHTML, /<td>61<\/td><td>100<\/td>/);
   const cards = [...main.innerHTML.matchAll(/<article class="card premium-plan">([\s\S]*?)<\/article>/g)];
   assert.equal(cards.length,2);
   for (const card of cards) {

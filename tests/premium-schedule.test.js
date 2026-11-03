@@ -12,7 +12,7 @@ const params = { issueAge:40, horizon:3, term:10, vitality:false, premium, gende
 test('SCE renewals use issue-age five-policy-year blocks and accumulate independently', () => {
   const s = calculatePremiumSchedule(params); assert.deepEqual(s.rows.map(r=>r.SCE.value),[100,100,100]); assert.deepEqual(s.rows.map(r=>r.SCE.cumulative),[100,200,300]); assert.equal(s.totals.SCE,300);
   assert.deepEqual(s.rows.map(r=>r.OYS2.value),[300,300,300]); assert.equal(s.totals.OYS2,900);
-  assert.match(renderPremiumSchedule(s),/按目前官方費率推算/);
+  assert.doesNotMatch(renderPremiumSchedule(s),/按目前官方費率推算/);
 });
 test('all three OYS2 terms project the source rate only during the chosen payment period', () => {
   for (const [term,rate] of [[10,300],[18,200],[25,100]]) { const s=calculatePremiumSchedule({...params,term,horizon:term+2}); assert.equal(s.rows[term-1].OYS2.value,rate); assert.equal(s.rows[term].OYS2.value,0); assert.equal(s.rows[term].OYS2.reason,'已供滿'); assert.equal(s.totals.OYS2,rate*term); }
@@ -94,4 +94,15 @@ test('rendered schedule has four columns and bottom totals include hidden years'
   assert.match(html,/兩份方案累積總保費：HK\$/);
   const missing=calculatePremiumSchedule({...params,horizon:25});
   assert.match(renderPremiumSchedule(missing),/兩份方案累積總保費：未能確認/);
+});
+
+test('through-age-100 schedule preserves missing rates and final partial group', () => {
+  const s=calculatePremiumSchedule({...params,issueAge:40,horizon:61});
+  assert.equal(s.rows.at(-1).attainedAge,100);
+  assert.equal(s.rows.at(-1).SCE.value,null);
+  assert.equal(s.totals.SCE,null);
+  assert.match(renderPremiumSchedule(s),/<td>61<\/td><td>100<\/td>/);
+  assert.match(renderPremiumSchedule(s),/兩份方案累積總保費：未能確認/);
+  const a=calculatePremiumSchedule({...params,issueAge:42,horizon:11});
+  assert.equal(a.rows[10].SCE.value,220);
 });
