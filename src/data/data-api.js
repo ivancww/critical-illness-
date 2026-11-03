@@ -66,19 +66,28 @@ function validatePremiumPayload(data) {
   return normalizePremiumData(data);
 }
 
+// The adjustment contract is intentionally inactive until the deployed schema,
+// currency basis, rate units, and applicability rules are independently verified.
+export function adjustmentAvailability(data) {
+  if (!data || !Object.prototype.hasOwnProperty.call(data, 'OYS2_ADJUSTMENT')) return 'MISSING';
+  const value = data.OYS2_ADJUSTMENT;
+  if (!(Array.isArray(value) ? value.length : Array.isArray(value?.values) && value.values.length)) return 'MALFORMED_OR_EMPTY';
+  return 'PRESENT_UNVERIFIED';
+}
+
 // Per-dataset timestamps do not imply an atomic, version-matched snapshot.
 export async function refreshOfficialData(previous = null, fetchImpl = fetch, now = () => new Date().toISOString()) {
   const outcomes = await Promise.allSettled([
     fetchDataset('all', fetchImpl).then(validateStructuredPayload),
-    fetchDataset('premiumSheets', fetchImpl).then(validatePremiumPayload)
+    fetchDataset('premiumSheets', fetchImpl).then(data => ({ matrices: validatePremiumPayload(data), adjustmentStatus: adjustmentAvailability(data) }))
   ]);
   const keys = ['structured', 'premium'];
   const result = { ...(previous || {}), freshness: { ...(previous?.freshness || {}) } };
   keys.forEach((key, i) => {
     const outcome = outcomes[i];
     if (outcome.status === 'fulfilled') {
-      result[key] = outcome.value;
-      result.freshness[key] = { status: 'fresh', fetchedAt: now(), error: null };
+      result[key] = key === 'premium' ? outcome.value.matrices : outcome.value;
+      result.freshness[key] = { ...(key === 'premium' ? { adjustmentStatus: outcome.value.adjustmentStatus, adjustmentCalculation: 'INACTIVE_UNVERIFIED' } : {}), status: 'fresh', fetchedAt: now(), error: null };
     } else {
       result.freshness[key] = { status: result[key] ? 'stale' : 'unavailable', fetchedAt: previous?.freshness ? (previous.freshness[key]?.fetchedAt || null) : (previous?.fetchedAt || null), error: outcome.reason?.code || 'NETWORK_ERROR' };
     }
