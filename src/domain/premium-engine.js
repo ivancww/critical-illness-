@@ -81,6 +81,7 @@ export function calculatePremiumSchedule({ issueAge, horizon, term, vitality, pr
       const plan = plans.find(p => (p.plan_id ?? p.plan_key) === id);
       let value = null, reason = '';
       if (!plan) reason = '方案資料未提供';
+      else if (id === 'SCE' && attainedAge > 80) { item[id] = { value: 0, cumulative: complete[id] ? totals[id] : null, reason: '超過80歲', beyondSceHorizon: true }; continue; }
       else if (id === 'OYS2' && ![10,18,25].includes(payTerm)) reason = '供款期未確認';
       else if (id === 'OYS2' && year > payTerm) { item[id] = { value: 0, cumulative: complete[id] ? totals[id] : null, reason: '已供滿', afterTerm: true }; continue; }
       else if (id === 'OYS2' && claimType === 'major' && Number.isInteger(diagnosisAge) && diagnosisAge >= age && attainedAge >= diagnosisAge) {
@@ -118,11 +119,13 @@ export function renderPremiumSchedule(schedule) {
   if (!schedule.rows.length) return `<p>未有可用的費率範圍。</p>`;
   const money = n => n === null ? '未能確認' : `HK$${Number(n).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const cell = v => v.value === null ? esc(v.reason || '未能確認') : v.afterTerm ? 'HK$0（已供滿）' : v.waived ? '<span class="premium-waived">HK$0（確診豁免保費）</span>' : `${money(v.value)}${v.reason ? `<small class="premium-schedule-note">${esc(v.reason)}</small>` : ''}`;
+  const cell = v => v.value === null ? esc(v.reason || '未能確認') : v.beyondSceHorizon ? '—' : v.afterTerm ? 'HK$0（已供滿）' : v.waived ? '<span class="premium-waived">HK$0（確診豁免保費）</span>' : money(v.value);
   const groups = [];
   for (let i = 0; i < schedule.rows.length;) { const n = i < 20 ? 1 : Math.min(5, schedule.rows.length - i); groups.push(schedule.rows.slice(i, i+n)); i += n; }
-  const subtotal = (group, id) => group.every(r => r[id].value !== null) ? group.reduce((a,r) => a+r[id].value,0) : null;
-  const detail = (g,id) => g.length === 1 ? cell(g[0][id]) : `每年：${g.map(r=>`${r.attainedAge}歲 ${cell(r[id])}`).join('；')}<br>區間小計：${money(subtotal(g,id))}`;
-  const body = groups.map(g => { const first=g[0], last=g.at(-1); return `<tr><td>${first.year === last.year ? first.year : `${first.year}–${last.year}`}</td><td>${first.attainedAge === last.attainedAge ? first.attainedAge : `${first.attainedAge}–${last.attainedAge}`}</td><td>${detail(g,'SCE')}</td><td>${money(last.SCE.cumulative)}</td><td>${detail(g,'OYS2')}</td><td>${money(last.OYS2.cumulative)}</td></tr>`; }).join('');
-  return `<h2>每年保費及累積總保費</h2><p>按目前官方費率推算，實際保費以保單及保險公司當時適用安排為準；顯示範圍不代表保障終止年齡。${schedule.paymentMode === 'monthly' ? '表內每年金額為月繳 × 12。' : ''}簡護按每五個保單年度重設來源費率；續年未確認折扣時以基礎保費計算。確診豁免由確診年齡該行開始作情境推算，不代表已確認年內繳費或退款。</p><div class="premium-schedule-scroll"><table class="premium-schedule"><thead><tr><th>保單年度</th><th>當時年齡</th><th>簡護保費／區間小計</th><th>簡護累積</th><th>愛伴航2保費／區間小計</th><th>愛伴航2累積</th></tr></thead><tbody>${body}</tbody></table></div><p>合計總保費（顯示範圍）：簡護 ${money(schedule.totals.SCE)}；愛伴航2 ${money(schedule.totals.OYS2)}</p>`;
+  const detail = (g,id) => g.length === 1 ? cell(g[0][id]) : g.map(r => `<div>${r.attainedAge}歲 ${cell(r[id])}</div>`).join('');
+  const row = g => { const first=g[0], last=g.at(-1); return `<tr><td>${first.year === last.year ? first.year : `${first.year}–${last.year}`}</td><td>${first.attainedAge === last.attainedAge ? first.attainedAge : `${first.attainedAge}–${last.attainedAge}`}</td><td>${detail(g,'SCE')}</td><td>${detail(g,'OYS2')}</td></tr>`; };
+  const body = groups.slice(0,20).map(row).join('');
+  const later = groups.slice(20).map(row).join('');
+  const total = schedule.totals.SCE == null || schedule.totals.OYS2 == null ? null : schedule.totals.SCE + schedule.totals.OYS2;
+  return `<h2>每年保費及累積總保費</h2><div class="premium-schedule-scroll"><table class="premium-schedule"><thead><tr><th>保單年度</th><th>當時年齡</th><th>簡護每年保費</th><th>愛伴航2每年保費</th></tr></thead><tbody>${body}</tbody></table></div>${later ? `<details class="premium-schedule-later"><summary>查看第21年後保費</summary><div class="premium-schedule-scroll"><table class="premium-schedule"><thead><tr><th>保單年度</th><th>當時年齡</th><th>簡護每年保費</th><th>愛伴航2每年保費</th></tr></thead><tbody>${later}</tbody></table></div></details>` : ''}<div class="premium-schedule-total"><p>簡護累積總保費：${money(schedule.totals.SCE)}</p><p>愛伴航2累積總保費：${money(schedule.totals.OYS2)}</p><p>兩份方案累積總保費：${money(total)}</p></div>`;
 }

@@ -1,19 +1,19 @@
-import { createDraft, createIntro, draftChanged, savePagesVerified, saveScenario } from './user-edit.js?v=0.6.13';
-import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, premiumMatrixHasExpectedHeaders, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.13';
-import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.13';
-import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.13';
-import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.13';
-import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.13';
-import { verificationState } from './domain/verification.js?v=0.6.13';
-import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.13';
-import { claimOutcome, healthProgramEffect, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.13';
-import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.13';
-import { premiumQuote, renderPremiumFigures, calculatePremiumSchedule, renderPremiumSchedule } from './domain/premium-engine.js?v=0.6.13';
-import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.13';
-import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.13';
-import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.13';
-import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.13';
-import { APP_VERSION } from './version.js?v=0.6.13';
+import { createDraft, createIntro, draftChanged, savePagesVerified, saveScenario } from './user-edit.js?v=0.6.14';
+import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, premiumMatrixHasExpectedHeaders, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.14';
+import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.14';
+import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.14';
+import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.14';
+import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.14';
+import { verificationState } from './domain/verification.js?v=0.6.14';
+import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.14';
+import { claimOutcome, healthProgramEffect, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.14';
+import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.14';
+import { premiumQuote, renderPremiumFigures, calculatePremiumSchedule, renderPremiumSchedule } from './domain/premium-engine.js?v=0.6.14';
+import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.14';
+import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.14';
+import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.14';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.14';
+import { APP_VERSION } from './version.js?v=0.6.14';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -71,7 +71,7 @@ function formatMoneyInput(input) {
   try { input.setSelectionRange(caret, caret); } catch { /* non-text input */ }
   return digits ? Number(digits) : 0;
 }
-function setStatus(message, error = false) { status.textContent = message; status.className = `status is-visible${error ? ' is-error' : ''}`; window.clearTimeout(setStatus.timer); setStatus.timer = window.setTimeout(() => { status.className = 'status'; }, 4000); }
+function setStatus(message, error = false, kind = '') { setStatus.kind = kind; status.textContent = message; status.className = `status is-visible${error ? ' is-error' : ''}`; window.clearTimeout(setStatus.timer); setStatus.timer = window.setTimeout(() => { status.className = 'status'; }, 4000); }
 function persistUser() { try { saveScenario({ storage: localStorage, user: state.user }); } catch (error) { setStatus(`客戶資料未能儲存：${error.message}`, true); } }
 function render(html, mode = 'use') {
   const effectiveMode = canEdit && editMode !== 'use' && mode !== 'admin' ? editMode : mode;
@@ -345,6 +345,7 @@ function claimPage() {
 
 function premiumMoney(value) { return Number(value).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function premiumPage() {
+  if (setStatus.kind === 'offline-shell') { status.className = 'status'; setStatus.kind = ''; }
   const age = savedAge(); const gender = frontstage().gender === 'F' ? 'F' : 'M'; const smoker = frontstage().smoker === 'smoker' ? 'smoker' : 'non-smoker';
   const term = [10,18,25].includes(Number(frontstage().payTerm)) ? Number(frontstage().payTerm) : 18;
   const mode = frontstage().premiumPaymentMode === 'monthly' ? 'monthly' : 'annual';
@@ -358,11 +359,7 @@ function premiumPage() {
       if (id === 'OYS2' && health.effectType === 'coverage_bonus') benefit = `<small>Vitality 額外保障 +${money((health.coverageMultiplier - 1) * 100)}%</small><small>額外保障 HK$${money(health.coverageBonusAmount)} · 合計 HK$${money(sum * health.coverageMultiplier)}</small>`;
     }
     return `<article class="card premium-plan"><h2>${escapeHtml(planName(plan))}</h2><p>基本保額 ${sum ? `HK$${money(sum)}` : '待輸入'}</p>${renderPremiumFigures(quote, mode)}${benefit}</article>`; }).join('');
-  const matrixKey = `SCE_${gender === 'F' ? 'FEMALE' : 'MALE'}`;
-  const matrix = state.official?.premium?.[matrixKey]?.values || [];
-  const rateColumn = smoker === 'smoker' ? 2 : 1;
-  const ages = premiumMatrixHasExpectedHeaders(matrixKey, matrix) ? matrix.filter(row => Array.isArray(row) && row[0] !== '' && row[0] !== null && Number.isInteger(Number(row[0])) && Number(row[0]) >= age && Number(row[rateColumn]) > 0).map(row => Number(row[0])) : [];
-  const horizon = age && ages.length ? Math.min(100, Math.max(...ages) - age + 1) : 0;
+  const horizon = Number.isInteger(age) && age >= 1 && age <= 100 ? 101 - age : 0;
   const schedule = calculatePremiumSchedule({ issueAge: age, horizon, term, vitality: healthProgramParticipating(), premium: state.official?.premium, plans: plans(), sums: frontstage().sums, healthProgram: datasets().Health_Program, gender, smoker, lookup: premiumEvidence, healthEffect: healthProgramEffect, diagnosisAge: savedDiagnosisAge(), claimType: selectedClaimType(), paymentMode: mode });
   render(`<section class="hero"><span class="eyebrow">方案保費</span><h1>並排看保障與供款</h1>${experienceNav()}</section><section class="premium-inputs card"><div class="field"><label for="premium-age">投保年齡</label><input id="premium-age" type="number" min="1" step="1" value="${age || ''}"></div><div class="field"><label for="premium-gender">性別</label><select id="premium-gender"><option value="M" ${gender === 'M' ? 'selected' : ''}>男</option><option value="F" ${gender === 'F' ? 'selected' : ''}>女</option></select></div><div class="field"><label for="premium-smoker">吸煙狀態</label><select id="premium-smoker"><option value="non-smoker" ${smoker === 'non-smoker' ? 'selected' : ''}>非吸煙</option><option value="smoker" ${smoker === 'smoker' ? 'selected' : ''}>吸煙</option></select></div><div class="field"><label for="premium-vitality">AIA Vitality</label><select id="premium-vitality"><option value="no" ${!frontstage().vitality ? 'selected' : ''}>未參加</option><option value="yes" ${frontstage().vitality ? 'selected' : ''}>參加</option></select></div><div class="field"><label for="premium-term">愛伴航2供款期</label><select id="premium-term">${[10,18,25].map(years => `<option value="${years}" ${term === years ? 'selected' : ''}>${years} 年</option>`).join('')}</select></div><div class="field"><label for="premium-mode">付款方式</label><select id="premium-mode"><option value="annual" ${mode === 'annual' ? 'selected' : ''}>年繳</option><option value="monthly" ${mode === 'monthly' ? 'selected' : ''}>月繳</option></select></div></section><section class="ava-comparison experience-grid">${cards || '<p class="empty">官方方案資料尚未提供。</p>'}</section><details class="card" id="premium-schedule" ${frontstage().premiumScheduleOpen ? 'open' : ''}><summary>查看逐年保費</summary>${renderPremiumSchedule(schedule)}</details>`);
   document.querySelector('#premium-schedule')?.addEventListener('toggle', event => { frontstage().premiumScheduleOpen = event.target.open; persistUser(); });
@@ -723,7 +720,10 @@ function registerServiceWorker() {
     });
     window.setInterval(updateRegistration, 5 * 60 * 1000);
     return updateRegistration();
-  }).catch(() => setStatus('離線外殼未能啟用。', true));
+  }).catch(() => {
+    console.warn('離線外殼未能啟用。');
+    if (location.hash !== '#/premiums') setStatus('離線外殼未能啟用。', true, 'offline-shell');
+  });
 }
 
 window.addEventListener('beforeunload', event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } });

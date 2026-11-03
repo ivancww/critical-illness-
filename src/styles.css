@@ -263,8 +263,8 @@ button:disabled, a.button[aria-disabled="true"] { cursor: not-allowed; opacity: 
 }
 
 .premium-schedule-scroll { overflow-x: auto; max-width: 100%; }
-.premium-schedule { width: 100%; border-collapse: collapse; }
-.premium-schedule th, .premium-schedule td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+.premium-schedule { width: 100%; margin-inline: auto; border-collapse: collapse; table-layout: auto; }
+.premium-schedule th, .premium-schedule td { padding: 8px; text-align: center; border-bottom: 1px solid #ddd; }
 
 .premium-schedule-note { display: block; font-size: 0.75rem; }
 

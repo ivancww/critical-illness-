@@ -40,7 +40,7 @@ test('registration checks for updates and bounds controllerchange reload across 
 
 test('rendering and entry routing do not depend on worker success', () => {
   assert.ok(app.indexOf('route();') < app.indexOf('registerServiceWorker();'));
-  assert.match(app, /\.catch\(\(\) => setStatus\('離線外殼未能啟用。', true\)\)/);
+  assert.match(app, /setStatus\('離線外殼未能啟用。', true, 'offline-shell'\)/);
   assert.match(app, /const appEntry = requestedEntry \|\| 'frontend'/);
   assert.match(app, /!\['frontend', 'user', 'admin'\]\.includes\(requestedEntry\)/);
   assert.match(app, /registration\.update\(\)/);
