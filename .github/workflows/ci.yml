@@ -32,6 +32,7 @@ jobs:
         run: |
           python3 -m http.server 8765 > /tmp/ci-http.log 2>&1 &
           node tests/user-edit-browser.cjs
+          node tests/premium-table-browser.cjs
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v4

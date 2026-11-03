@@ -42,7 +42,7 @@ test('major diagnosis projection waives, early scenario and paid-up remain disti
 test('monthly mode and five-year summaries use actual annual rows and correct subtotals', () => {
   const s=calculatePremiumSchedule({...params,horizon:25,paymentMode:'monthly'});
   assert.ok(Math.abs(s.rows[0].OYS2.value-318)<1e-9);
-  const html=renderPremiumSchedule(s); assert.match(html,/<td>21–25<\/td>/); assert.match(html,/區間小計/); assert.match(html,/HK\$0（已供滿）/);
+  const html=renderPremiumSchedule(s); assert.match(html,/<td>21–25<\/td>/); assert.doesNotMatch(html,/區間小計/); assert.match(html,/HK\$0（已供滿）/);
 });
 
 test('post-20 summary subtotal sums all annual block rates', () => {
@@ -50,7 +50,7 @@ test('post-20 summary subtotal sums all annual block rates', () => {
   const s=calculatePremiumSchedule({...params,premium:source,horizon:25});
   assert.equal(s.rows[20].attainedAge,60); assert.equal(s.rows[24].attainedAge,64);
   assert.equal(s.rows.slice(20,25).reduce((n,r)=>n+r.SCE.value,0),600);
-  const html=renderPremiumSchedule(s); assert.match(html,/21–25/); assert.match(html,/區間小計：HK\$600\.00/);
+  const html=renderPremiumSchedule(s); assert.match(html,/21–25/); assert.doesNotMatch(html,/區間小計/);
 });
 
 test('owner-approved SCE repricing is tied to policy years and issue age', () => {
@@ -67,7 +67,7 @@ test('waiver projection handles first, final and within-interval transitions', (
   const last=calculatePremiumSchedule({...params,horizon:12,diagnosisAge:49,claimType:'major'});
   assert.equal(last.totals.OYS2,2700); assert.equal(last.rows[9].OYS2.value,0);
   const interval=calculatePremiumSchedule({...params,horizon:25,term:25,diagnosisAge:62,claimType:'major'});
-  assert.equal(interval.totals.OYS2,2200); assert.match(renderPremiumSchedule(interval),/區間小計：HK\$200\.00/);
+  assert.equal(interval.totals.OYS2,2200); assert.match(renderPremiumSchedule(interval),/愛伴航2累積總保費：HK\$2,200\.00/);
 });
 
 test('missing repricing row remains pending throughout its five-year block', () => {
@@ -81,4 +81,17 @@ test('waiver does not disguise an absent source rate as a zero quote', () => {
  const p={...premium,OYS2_MALE:{...premium.OYS2_MALE,values:premium.OYS2_MALE.values.map((row,i)=>i===3?[40,'',400,200,300,100,200]:row)}};
  const s=calculatePremiumSchedule({...params,premium:p,diagnosisAge:40,horizon:2});
  assert.equal(s.rows[0].OYS2.value,null); assert.equal(s.totals.OYS2,null);
+});
+
+
+test('rendered schedule has four columns and bottom totals include hidden years', () => {
+  const source = { ...premium, SCE_MALE: { ...premium.SCE_MALE, values: [premium.SCE_MALE.values[0], premium.SCE_MALE.values[1], ...Array.from({length:25},(_,i)=>[40+i,100+i,200+i])] } };
+  const s=calculatePremiumSchedule({...params,premium:source,horizon:25});
+  const html=renderPremiumSchedule(s);
+  assert.equal((html.match(/<th>/g)||[]).length,4);
+  assert.doesNotMatch(html,/簡護累積<\/th>|愛伴航2累積<\/th>|區間小計/);
+  assert.match(html,new RegExp(`簡護累積總保費：HK\\$${s.totals.SCE.toLocaleString('en-HK')}\\.00`));
+  assert.match(html,/兩份方案累積總保費：HK\$/);
+  const missing=calculatePremiumSchedule({...params,horizon:25});
+  assert.match(renderPremiumSchedule(missing),/兩份方案累積總保費：未能確認/);
 });
