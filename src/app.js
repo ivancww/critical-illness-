@@ -71,7 +71,7 @@ function formatMoneyInput(input) {
   try { input.setSelectionRange(caret, caret); } catch { /* non-text input */ }
   return digits ? Number(digits) : 0;
 }
-function setStatus(message, error = false) { status.textContent = message; status.className = `status is-visible${error ? ' is-error' : ''}`; window.clearTimeout(setStatus.timer); setStatus.timer = window.setTimeout(() => { status.className = 'status'; }, 4000); }
+function setStatus(message, error = false, kind = '') { setStatus.kind = kind; status.textContent = message; status.className = `status is-visible${error ? ' is-error' : ''}`; window.clearTimeout(setStatus.timer); setStatus.timer = window.setTimeout(() => { status.className = 'status'; }, 4000); }
 function persistUser() { try { saveScenario({ storage: localStorage, user: state.user }); } catch (error) { setStatus(`客戶資料未能儲存：${error.message}`, true); } }
 function render(html, mode = 'use') {
   const effectiveMode = canEdit && editMode !== 'use' && mode !== 'admin' ? editMode : mode;
@@ -345,6 +345,7 @@ function claimPage() {
 
 function premiumMoney(value) { return Number(value).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function premiumPage() {
+  if (setStatus.kind === 'offline-shell') { status.className = 'status'; setStatus.kind = ''; }
   const age = savedAge(); const gender = frontstage().gender === 'F' ? 'F' : 'M'; const smoker = frontstage().smoker === 'smoker' ? 'smoker' : 'non-smoker';
   const term = [10,18,25].includes(Number(frontstage().payTerm)) ? Number(frontstage().payTerm) : 18;
   const mode = frontstage().premiumPaymentMode === 'monthly' ? 'monthly' : 'annual';
@@ -719,7 +720,10 @@ function registerServiceWorker() {
     });
     window.setInterval(updateRegistration, 5 * 60 * 1000);
     return updateRegistration();
-  }).catch(() => setStatus('離線外殼未能啟用。', true));
+  }).catch(() => {
+    console.warn('離線外殼未能啟用。');
+    if (location.hash !== '#/premiums') setStatus('離線外殼未能啟用。', true, 'offline-shell');
+  });
 }
 
 window.addEventListener('beforeunload', event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } });

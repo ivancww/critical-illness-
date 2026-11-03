@@ -95,3 +95,12 @@ test('bad source identity, swapped columns, blank coordinates and cross-product 
   assert.equal(healthProgramEffect([{plan_id:'OYS2',effect_type:'premium_multiplier',effect_value:0.9}], 'OYS2', true).status,'VERIFY_REQUIRED');
   assert.equal(healthProgramEffect([{plan_id:'SCE',effect_type:'coverage_bonus',effect_value:0.1}], 'SCE', true).status,'VERIFY_REQUIRED');
 });
+
+test('offline-shell warning does not obscure premium while genuine error notifications remain available', async () => {
+  const fs = await import('node:fs');
+  const app = fs.readFileSync('src/app.js','utf8');
+  assert.match(app, /if \(setStatus\.kind === 'offline-shell'\)/);
+  assert.match(app, /location\.hash !== '#\/premiums'/);
+  assert.match(app, /客戶資料未能儲存/);
+  assert.match(app, /儲存失敗，修改仍保留/);
+});
