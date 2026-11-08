@@ -52,3 +52,11 @@ test('HTTP and GAS errors are distinct and missing fetch time is not borrowed', 
   const gas = await refreshOfficialData(old, fetcher(response(structured), {ok:true,json:async()=>({success:false})}), now);
   assert.equal(gas.freshness.premium.error, 'GAS_REMOTE_ERROR');
 });
+
+
+test('OYS2 adjustment remains inactive without a verified deployed contract', async () => {
+ const { adjustmentAvailability } = await import('../src/data/data-api.js');
+ assert.equal(adjustmentAvailability({}), 'MISSING');
+ assert.equal(adjustmentAvailability({OYS2_ADJUSTMENT: []}), 'MALFORMED_OR_EMPTY');
+ assert.equal(adjustmentAvailability({OYS2_ADJUSTMENT: [['synthetic fixture']]}), 'MALFORMED_OR_EMPTY');
+});

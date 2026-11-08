@@ -70,3 +70,10 @@ test('user backup preserves structured pages and excludes media binary', () => {
 test('media upload fails safely until a cloud provider is configured', () => {
   assert.throws(() => saveUserMediaReference(), error => error.code === 'CLOUD_STORAGE_UNAVAILABLE');
 });
+
+test('issue age zero survives User state save and reload, distinct from empty age', async () => {
+  const {saveUserState,loadUserState}=await import('../src/data/storage.js');
+  const map=new Map();const storage={setItem:(k,v)=>map.set(k,v),getItem:k=>map.get(k)??null};
+  saveUserState({frontstage:{age:0}},storage);assert.equal(loadUserState(storage).frontstage.age,0);
+  saveUserState({frontstage:{age:null}},storage);assert.equal(loadUserState(storage).frontstage.age,null);
+});

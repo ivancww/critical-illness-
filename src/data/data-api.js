@@ -66,19 +66,28 @@ function validatePremiumPayload(data) {
   return normalizePremiumData(data);
 }
 
+// Validate units and the complete, non-overlapping source bands before use.
+export function adjustmentAvailability(data) {
+  const a = data?.OYS2_ADJUSTMENT;
+  if (a === undefined) return 'MISSING';
+  const edges = [10000,20000,40000,80000,130000,250000,500000];
+  if (!a || a.status !== 'AVAILABLE' || a.adjustmentCurrency !== 'USD' || a.baseRateCurrency !== 'HKD' || a.hkdPerUsd !== 7.8 || a.rateBasisHkd !== 7800 || a.bandMaxExclusive !== true || !Array.isArray(a.rows) || a.rows.length !== 7 || !a.rows.every((r,i) => r && r.minUsd === edges[i] && r.maxUsd === (edges[i+1] ?? null) && ['pay10','pay18','pay25'].every(k => r[k] === null || (typeof r[k] === 'number' && Number.isFinite(r[k]))))) return 'MALFORMED_OR_EMPTY';
+  return 'AVAILABLE';
+}
+
 // Per-dataset timestamps do not imply an atomic, version-matched snapshot.
 export async function refreshOfficialData(previous = null, fetchImpl = fetch, now = () => new Date().toISOString()) {
   const outcomes = await Promise.allSettled([
     fetchDataset('all', fetchImpl).then(validateStructuredPayload),
-    fetchDataset('premiumSheets', fetchImpl).then(validatePremiumPayload)
+    fetchDataset('premiumSheets', fetchImpl).then(data => ({ matrices: validatePremiumPayload(data), adjustmentStatus: adjustmentAvailability(data) }))
   ]);
   const keys = ['structured', 'premium'];
   const result = { ...(previous || {}), freshness: { ...(previous?.freshness || {}) } };
   keys.forEach((key, i) => {
     const outcome = outcomes[i];
     if (outcome.status === 'fulfilled') {
-      result[key] = outcome.value;
-      result.freshness[key] = { status: 'fresh', fetchedAt: now(), error: null };
+      result[key] = key === 'premium' ? outcome.value.matrices : outcome.value;
+      result.freshness[key] = { ...(key === 'premium' ? { adjustmentStatus: outcome.value.adjustmentStatus, adjustmentCalculation: outcome.value.adjustmentStatus === 'AVAILABLE' ? 'AVAILABLE' : 'INACTIVE_UNVERIFIED' } : {}), status: 'fresh', fetchedAt: now(), error: null };
     } else {
       result.freshness[key] = { status: result[key] ? 'stale' : 'unavailable', fetchedAt: previous?.freshness ? (previous.freshness[key]?.fetchedAt || null) : (previous?.fetchedAt || null), error: outcome.reason?.code || 'NETWORK_ERROR' };
     }
@@ -99,11 +108,13 @@ export async function loadOfficialData(fetchImpl = fetch) {
 // source name explicit in the browser-owned normalized shape so presentation
 // code does not infer it from a display label or from matrix contents.
 export function normalizePremiumData(premium = {}) {
-  return Object.fromEntries(Object.entries(PREMIUM_SOURCE_NAMES).map(([key, sheetName]) => {
+  const result = Object.fromEntries(Object.entries(PREMIUM_SOURCE_NAMES).map(([key, sheetName]) => {
     const raw = premium?.[key];
     const values = Array.isArray(raw) ? raw : Array.isArray(raw?.values) ? raw.values : [];
     return [key, { sheetName, values }];
   }));
+  if (adjustmentAvailability(premium) === 'AVAILABLE') result.OYS2_ADJUSTMENT = premium.OYS2_ADJUSTMENT;
+  return result;
 }
 
 const PLATFORM_ORIGIN = 'https://ivancww.github.io';

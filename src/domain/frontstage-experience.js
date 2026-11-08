@@ -1,7 +1,7 @@
-import { premiumMatrixHasExpectedHeaders } from '../data/data-api.js?v=0.6.14';
-import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.14';
-import { translateProtectionToMonths } from './flow-state.js?v=0.6.14';
-import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.14';
+import { premiumMatrixHasExpectedHeaders, adjustmentAvailability } from '../data/data-api.js?v=0.6.15';
+import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.15';
+import { translateProtectionToMonths } from './flow-state.js?v=0.6.15';
+import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.15';
 
 const positive = value => Number.isFinite(Number(value)) && Number(value) > 0;
 const active = row => row?.enabled !== false && row?.active !== false;
@@ -181,13 +181,23 @@ export function premiumEvidence(premium, plan, gender, age, smokerStatus, paymen
   if (!positive(rate)) return { status: 'VERIFY_REQUIRED', reason: '此年齡、吸煙狀態及供款期沒有可用費率', source: premium[key]?.sheetName };
   if (basis !== 7800) return { status: 'VERIFY_REQUIRED', reason: '官方費率基準未確認', source: premium[key]?.sheetName };
   if (!positive(sumAssured)) return { status: 'VERIFY_REQUIRED', reason: '請先輸入有效基本保額', source: premium[key]?.sheetName, rawRate: rate, rateBasis: basis };
+  let adjustedRate = rate;
+  if (id === 'OYS2') {
+    if (adjustmentAvailability(premium) !== 'AVAILABLE') return {status:'VERIFY_REQUIRED', reason:'官方保額調整表或幣別未確認'};
+    const a = premium.OYS2_ADJUSTMENT, usd = Number(sumAssured) / a.hkdPerUsd;
+    const band = a.rows.find(r => usd >= r.minUsd && (r.maxUsd === null || usd < r.maxUsd));
+    const adjustment = band?.[`pay${Number(paymentTerm)}`];
+    if (typeof adjustment !== 'number' || !Number.isFinite(adjustment)) return {status:'VERIFY_REQUIRED', reason:'此保額及供款期調整未確認或不適用'};
+    adjustedRate = rate + adjustment * a.hkdPerUsd;
+    if (!(adjustedRate > 0)) return {status:'VERIFY_REQUIRED', reason:'調整後費率無效'};
+  }
   return {
     status: 'AVAILABLE',
     source: premium[key].sheetName,
     rawRate: rate,
     rateBasis: basis,
     sumAssured: Number(sumAssured),
-    annualPremium: Number(sumAssured) / basis * rate,
+    annualPremium: Number(sumAssured) / basis * adjustedRate,
     reason: '按已配置官方保費表及方案保額基準計算；未填補缺失費率。'
   };
 }

@@ -73,7 +73,7 @@ export function renderPremiumFigures(quote, mode = 'annual') {
 // Schedules use a chosen display horizon; the horizon does not assert coverage termination.
 export function calculatePremiumSchedule({ issueAge, horizon, term, vitality, premium, plans, sums, healthProgram, gender, smoker, lookup, healthEffect, vitalityDurationYears = null, diagnosisAge = null, claimType = 'major', paymentMode = 'annual' }) {
   const age = Number(issueAge), years = Number(horizon), payTerm = Number(term);
-  if (issueAge === null || issueAge === undefined || issueAge === '' || !Number.isInteger(age) || age < 0 || !Number.isInteger(years) || years < 1 || years > 100) return { rows: [], reason: '請輸入投保年齡及顯示年數（1至100年）。', totals: {} };
+  if (issueAge === null || issueAge === undefined || issueAge === '' || !Number.isInteger(age) || age < 0 || !Number.isInteger(years) || years < 1 || years > 101) return { rows: [], reason: '請輸入投保年齡及顯示年數（1至101年）。', totals: {} };
   const rows = [], totals = { SCE: 0, OYS2: 0 }, complete = { SCE: true, OYS2: true };
   for (let year = 1; year <= years; year++) {
     const attainedAge = age + year - 1, item = { year, attainedAge };

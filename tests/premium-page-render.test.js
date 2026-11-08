@@ -1,3 +1,4 @@
+import { syntheticAdjustment } from './adjustment-fixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizePremiumData } from '../src/data/data-api.js';
@@ -6,15 +7,15 @@ import { healthProgramEffect } from '../src/domain/plan-experience.js';
 import { premiumQuote, renderPremiumFigures } from '../src/domain/premium-engine.js';
 
 // Synthetic rates deliberately do not represent official production rates.
-const tables = normalizePremiumData({
-  SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age', 'Non-Smoker','Smoker'], [40, 100, 110]],
-  SCE_FEMALE: [['Simple Care Essence - Female (per hk$7800)'], ['Age', 'Non-Smoker','Smoker'], [40, 200, 210]],
-  OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['', 'Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], [40,300,310,320,330,340,350]],
-  OYS2_FEMALE: [['OYS2 Premium Rate Table (Per hk$7800) - Female'], ['Age', '10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['', 'Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], [40,400,410,420,430,440,450]]
+const tables = normalizePremiumData({ OYS2_ADJUSTMENT:syntheticAdjustment,
+  SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age', 'Non-Smoker','Smoker'], [0, 100, 110], [40, 100, 110]],
+  SCE_FEMALE: [['Simple Care Essence - Female (per hk$7800)'], ['Age', 'Non-Smoker','Smoker'], [0, 200, 210], [40, 200, 210]],
+  OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['', 'Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], [0,300,310,320,330,340,350], [40,300,310,320,330,340,350]],
+  OYS2_FEMALE: [['OYS2 Premium Rate Table (Per hk$7800) - Female'], ['Age', '10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['', 'Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], [0,400,410,420,430,440,450], [40,400,410,420,430,440,450]]
 });
 test('all four independent matrices map age, sex, smoking and product-specific terms', () => {
   for (const [id,sex,smoker,term,rate] of [['SCE','M','non-smoker',10,100],['SCE','F','smoker',25,210],['OYS2','M','smoker',18,330],['OYS2','F','non-smoker',25,440]]) {
-    const x=premiumEvidence(tables,{plan_id:id,rate_basis:7800},sex,40,smoker,term,7800); assert.equal(x.rawRate,rate); assert.equal(x.annualPremium,rate);
+    const x=premiumEvidence(tables,{plan_id:id,rate_basis:7800},sex,40,smoker,term,id==='OYS2'?78000:7800); assert.equal(x.rawRate,rate); assert.equal(x.annualPremium,id==='OYS2'?rate*10:rate);
   }
   assert.equal(premiumEvidence(tables,{plan_id:'OYS2',rate_basis:7800},'F',40,'smoker',99,7800).status,'VERIFY_REQUIRED');
   assert.equal(premiumEvidence(tables,{plan_id:'SCE',rate_basis:7800},'M',null,'smoker',10,7800).status,'VERIFY_REQUIRED');
@@ -36,7 +37,7 @@ test('actual premium route renders figures from customer state and keeps total p
   const handlers={}; const controls={};
   const structured={ Plans:[{plan_id:'SCE',plan_name:'SCE',rate_basis:7800,protection_style:'single',active:true},{plan_id:'OYS2',plan_name:'OYS2',rate_basis:7800,protection_style:'continuing',active:true}],Benefits:[],Claim_Rules:[],Health_Program:[{plan_id:'SCE',effect_type:'premium_multiplier',effect_value:0.9,annual_fee:430,enabled:true},{plan_id:'OYS2',effect_type:'coverage_bonus',effect_value:0.1,enabled:true}],Product_Content:[],Settings_Versions:[] };
   const cache={structured,premium:tables};
-  const user={frontstage:{age:40,gender:'M',smoker:'non-smoker',payTerm:10,vitality:true,sums:{SCE:7800,OYS2:7800}}};
+  const user={frontstage:{age:40,gender:'M',smoker:'non-smoker',payTerm:10,vitality:true,sums:{SCE:7800,OYS2:78000}}};
   globalThis.localStorage={getItem(k){return k==='AVA_CI_OFFICIAL_CACHE_V2'?JSON.stringify(cache):k==='AVA_CI_USER_STATE_V1'?JSON.stringify(user):null},setItem(){}};
   globalThis.document={querySelector(s){ if (s==='#main-content') return main; if (s==='#status') return status; return controls[s] ||= { ...dummy, addEventListener(name, cb){ handlers[s+':'+name]=cb; } }; },querySelectorAll(s){return s==='[data-diagnosis-age]' ? [{addEventListener(name,cb){handlers['diagnosis:'+name]=cb}}] : []},getElementById(){return dummy},body:dummy,addEventListener(){},visibilityState:'visible'};
   globalThis.window=globalThis; globalThis.addEventListener=(name,cb)=>{handlers[name]=cb};
@@ -45,9 +46,9 @@ test('actual premium route renders figures from customer state and keeps total p
   globalThis.fetch=()=>new Promise(()=>{});
   const app=await import('../src/app.js?render-test');
   assert.match(main.innerHTML,/HK\$90\.00/); assert.match(main.innerHTML,/原基準年繳保費 HK\$100\.00/); assert.match(main.innerHTML,/會費另計 HK\$430／年/);
-  assert.match(main.innerHTML,/HK\$300\.00/); assert.match(main.innerHTML,/額外保障 HK\$780 · 合計 HK\$8,580/);
+  assert.match(main.innerHTML,/HK\$3,000\.00/); assert.match(main.innerHTML,/額外保障 HK\$7,800 · 合計 HK\$85,800/);
   handlers['#premium-mode:change']({target:{value:'monthly'}});
-  assert.match(main.innerHTML,/HK\$7\.95/); assert.match(main.innerHTML,/HK\$26\.50/);
+  assert.match(main.innerHTML,/HK\$7\.95/); assert.match(main.innerHTML,/HK\$265\.00/);
   handlers['#premium-mode:change']({target:{value:'annual'}});
   assert.match(main.innerHTML,/<summary>查看逐年保費<\/summary>/);
   assert.doesNotMatch(main.innerHTML,/premium-horizon|顯示年數/);
@@ -79,6 +80,10 @@ test('actual premium route renders figures from customer state and keeps total p
   app.state.user.frontstage.diagnosisAge = null;
   assert.match(main.innerHTML,/HK\$200\.00/);
   assert.equal(app.state.user.frontstage.vitality,false);
+  handlers['#premium-age:change']({target:{value:'0'}});
+  assert.equal(app.state.user.frontstage.age,0); assert.match(main.innerHTML,/id="premium-age"[^>]*value="0"/); assert.match(main.innerHTML, /<td>101<\/td><td>100<\/td>/);
+  handlers['#premium-mode:change']({target:{value:'monthly'}}); assert.match(main.innerHTML,/id="premium-age"[^>]*value="0"/);
+  handlers['#premium-age:change']({target:{value:''}}); assert.equal(app.state.user.frontstage.age,null); assert.match(main.innerHTML,/id="premium-age"[^>]*value=""/);
   handlers['#premium-age:change']({target:{value:'41'}});
   globalThis.location.hash='#/plans'; handlers.hashchange(); assert.match(main.innerHTML,/id="plan-age"[^>]*value="41"/);
   globalThis.location.hash='#/premiums'; handlers.hashchange();
