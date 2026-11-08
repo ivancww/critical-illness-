@@ -58,5 +58,5 @@ test('OYS2 adjustment remains inactive without a verified deployed contract', as
  const { adjustmentAvailability } = await import('../src/data/data-api.js');
  assert.equal(adjustmentAvailability({}), 'MISSING');
  assert.equal(adjustmentAvailability({OYS2_ADJUSTMENT: []}), 'MALFORMED_OR_EMPTY');
- assert.equal(adjustmentAvailability({OYS2_ADJUSTMENT: [['synthetic fixture']]}), 'PRESENT_UNVERIFIED');
+ assert.equal(adjustmentAvailability({OYS2_ADJUSTMENT: [['synthetic fixture']]}), 'MALFORMED_OR_EMPTY');
 });

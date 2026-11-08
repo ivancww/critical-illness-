@@ -1,3 +1,4 @@
+import { syntheticAdjustment } from './adjustment-fixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -104,6 +105,7 @@ test('production Health_Program rows drive distinct SCE and OYS2 effects', () =>
 
 test('valid official Sheet premium data is displayable without a secondary approval flag', () => {
   const premium = normalizePremiumData({
+    OYS2_ADJUSTMENT:syntheticAdjustment,
     SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age', 'Non-Smoker', 'Smoker'], [40, 15.8, 20]],
     OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [40, 188.5, 0, 115, 0, 91.6, 0]]
   });

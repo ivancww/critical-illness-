@@ -1,3 +1,4 @@
+import { syntheticAdjustment } from './adjustment-fixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cancerEvidence, cancerTimeline, dementiaTimeline, heartStrokeEvidence, heartStrokeTimeline, paymentEndAge, premiumEvidence, selectedProtection } from '../src/domain/frontstage-experience.js';
@@ -69,31 +70,31 @@ test('heart/stroke runs only with a well-formed Official rule and uses customer 
 });
 
 test('premium normalizes the actual GAS matrix payload and looks up all production mappings', () => {
-  const gasPremium = {
+  const gasPremium = { OYS2_ADJUSTMENT:syntheticAdjustment,
     OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [25, 44.2, 55, 27.5, 33, 18.5, 22]],
     OYS2_FEMALE: [['OYS2 Premium Rate Table (Per hk$7800) - Female'], ['Age', '10-Year Pay', '', '18-Year Pay', '', '25-Year Pay', ''], ['', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker', 'Non-Smoker', 'Smoker'], [25, 45.2, 56, 28.5, 34, 19.5, 23]],
     SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age (年齡)', 'Non-Smoker (非吸煙者)', 'Smoker (吸煙者)'], ['25', 15.8, 20.1]],
     SCE_FEMALE: [['Simple Care Essence - Female (per hk$7800)'], ['Age (年齡)', 'Non-Smoker (非吸煙者)', 'Smoker (吸煙者)'], ['25', 15.3, 19.6]]
   };
   const premium = normalizePremiumData(gasPremium);
-  assert.deepEqual(Object.keys(premium), ['OYS2_MALE', 'OYS2_FEMALE', 'SCE_MALE', 'SCE_FEMALE']);
+  assert.deepEqual(Object.keys(premium), ['OYS2_MALE', 'OYS2_FEMALE', 'SCE_MALE', 'SCE_FEMALE', 'OYS2_ADJUSTMENT']);
   assert.equal(premium.OYS2_MALE.sheetName, '男愛伴航2保費');
   assert.equal(premium.SCE_FEMALE.sheetName, '女簡護危疾保保費');
   for (const [key, gender, planId, rate] of [
     ['OYS2_MALE', 'M', 'OYS2', 44.2], ['OYS2_FEMALE', 'F', 'OYS2', 45.2],
     ['SCE_MALE', 'M', 'SCE', 15.8], ['SCE_FEMALE', 'F', 'SCE', 15.3]
   ]) {
-    const result = premiumEvidence(premium, { plan_id: planId, rate_basis: 7800 }, gender, 25, 'non-smoker', planId === 'OYS2' ? 10 : 18, 500000);
+    const result = premiumEvidence(premium, { plan_id: planId, rate_basis: 7800 }, gender, 25, 'non-smoker', planId === 'OYS2' ? 10 : 18, 780000);
     assert.equal(result.status, 'AVAILABLE', key);
     assert.equal(result.rawRate, rate, key);
   }
-  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'smoker', 18, 500000).rawRate, 33);
-  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'non-smoker', 25, 500000).rawRate, 18.5);
-  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'non-smoker', 18, 500000).annualPremium, 500000 / 7800 * 27.5);
-  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 26, 'non-smoker', 18, 500000).status, 'VERIFY_REQUIRED');
+  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'smoker', 18, 780000).rawRate, 33);
+  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'non-smoker', 25, 780000).rawRate, 18.5);
+  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'non-smoker', 18, 780000).annualPremium, 780000 / 7800 * 27.5);
+  assert.equal(premiumEvidence(premium, { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 26, 'non-smoker', 18, 780000).status, 'VERIFY_REQUIRED');
   const missingRate = { ...gasPremium, OYS2_MALE: gasPremium.OYS2_MALE.map(row => row.slice()) };
   missingRate.OYS2_MALE[3][3] = '';
-  assert.equal(premiumEvidence(normalizePremiumData(missingRate), { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'non-smoker', 18, 500000).status, 'VERIFY_REQUIRED');
+  assert.equal(premiumEvidence(normalizePremiumData(missingRate), { plan_id: 'OYS2', rate_basis: 7800 }, 'M', 25, 'non-smoker', 18, 780000).status, 'VERIFY_REQUIRED');
   assert.equal(paymentEndAge(25, 18), 43);
   assert.equal(paymentEndAge(25, 99), null);
 });

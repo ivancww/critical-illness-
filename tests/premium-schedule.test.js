@@ -1,3 +1,4 @@
+import { syntheticAdjustment } from './adjustment-fixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculatePremiumSchedule, renderPremiumSchedule } from '../src/domain/premium-engine.js';
@@ -6,9 +7,9 @@ import { healthProgramEffect } from '../src/domain/plan-experience.js';
 import { normalizePremiumData } from '../src/data/data-api.js';
 // Synthetic fixtures, not production insurance quotations.
 const makeSce = (g, values) => [[`Simple Care Essence - ${g} (per hk$7800)`], ['Age','Non-Smoker','Smoker'], ...values];
-const makeOys = (g, row) => [[`OYS2 Premium Rate Table (Per hk$7800) - ${g}`], ['Age','10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['','Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], row];
-const premium = normalizePremiumData({ SCE_MALE:makeSce('Male',[[40,100,200],[41,120,220],[42,140,''],[45,150,''],[47,170,270],[50,200,300],[52,220,320]]), SCE_FEMALE:makeSce('Female',[[40,90,190],[41,110,210],[42,130,230],[45,140,240],[47,160,260],[50,190,290],[52,210,310]]), OYS2_MALE:makeOys('Male',[40,300,400,200,300,100,200]), OYS2_FEMALE:makeOys('Female',[40,310,410,210,310,110,210]) });
-const params = { issueAge:40, horizon:3, term:10, vitality:false, premium, gender:'M', smoker:'non-smoker', plans:[{plan_id:'SCE',rate_basis:7800},{plan_id:'OYS2',rate_basis:7800}], sums:{SCE:7800,OYS2:7800}, healthProgram:[], lookup:premiumEvidence, healthEffect:healthProgramEffect };
+const makeOys = (g, row) => [[`OYS2 Premium Rate Table (Per hk$7800) - ${g}`], ['Age','10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['','Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], row.map((v,i)=>i===0?v:v/10)];
+const premium = normalizePremiumData({ OYS2_ADJUSTMENT:syntheticAdjustment, SCE_MALE:makeSce('Male',[[40,100,200],[41,120,220],[42,140,''],[45,150,''],[47,170,270],[50,200,300],[52,220,320]]), SCE_FEMALE:makeSce('Female',[[40,90,190],[41,110,210],[42,130,230],[45,140,240],[47,160,260],[50,190,290],[52,210,310]]), OYS2_MALE:makeOys('Male',[40,300,400,200,300,100,200]), OYS2_FEMALE:makeOys('Female',[40,310,410,210,310,110,210]) });
+const params = { issueAge:40, horizon:3, term:10, vitality:false, premium, gender:'M', smoker:'non-smoker', plans:[{plan_id:'SCE',rate_basis:7800},{plan_id:'OYS2',rate_basis:7800}], sums:{SCE:7800,OYS2:78000}, healthProgram:[], lookup:premiumEvidence, healthEffect:healthProgramEffect };
 test('SCE renewals use issue-age five-policy-year blocks and accumulate independently', () => {
   const s = calculatePremiumSchedule(params); assert.deepEqual(s.rows.map(r=>r.SCE.value),[100,100,100]); assert.deepEqual(s.rows.map(r=>r.SCE.cumulative),[100,200,300]); assert.equal(s.totals.SCE,300);
   assert.deepEqual(s.rows.map(r=>r.OYS2.value),[300,300,300]); assert.equal(s.totals.OYS2,900);
@@ -25,9 +26,9 @@ test('gender, smoking, unavailable renewal and Vitality duration fail closed', (
 });
 
 test('source amounts scale with sum assured and missing OYS2 rate never becomes zero', () => {
-  const scaled=calculatePremiumSchedule({...params,sums:{SCE:15600,OYS2:15600}});
+  const scaled=calculatePremiumSchedule({...params,sums:{SCE:15600,OYS2:156000}});
   assert.equal(scaled.rows[0].SCE.value,200); assert.equal(scaled.rows[1].SCE.value,200); assert.equal(scaled.totals.OYS2,1800);
-  const invalid=calculatePremiumSchedule({...params,term:18,premium:{...premium,OYS2_MALE:{...premium.OYS2_MALE,values:premium.OYS2_MALE.values.map((row,i)=>i===3?[40,300,400,'',300,100,200]:row)}}});
+  const invalid=calculatePremiumSchedule({...params,term:18,premium:{...premium,OYS2_MALE:{...premium.OYS2_MALE,values:premium.OYS2_MALE.values.map((row,i)=>i===3?[40,30,40,'',30,10,20]:row)}}});
   assert.equal(invalid.rows[0].OYS2.value,null); assert.equal(invalid.totals.OYS2,null); assert.match(invalid.rows[1].OYS2.reason,/沒有可用費率/);
 });
 
@@ -56,7 +57,7 @@ test('post-20 summary subtotal sums all annual block rates', () => {
 test('owner-approved SCE repricing is tied to policy years and issue age', () => {
   const a=calculatePremiumSchedule({...params,horizon:10});
   assert.deepEqual(a.rows.map(r=>r.SCE.value),[100,100,100,100,100,150,150,150,150,150]);
-  const other = {...premium, OYS2_MALE: {...premium.OYS2_MALE, values: [...premium.OYS2_MALE.values,[42,300,400,200,300,100,200]]}};
+  const other = {...premium, OYS2_MALE: {...premium.OYS2_MALE, values: [...premium.OYS2_MALE.values,[42,30,40,20,30,10,20]]}};
   const b=calculatePremiumSchedule({...params,issueAge:42,horizon:10,premium:other});
   assert.deepEqual(b.rows.map(r=>r.SCE.value),[140,140,140,140,140,170,170,170,170,170]);
   assert.equal(b.totals.SCE,1550);
@@ -78,7 +79,7 @@ test('missing repricing row remains pending throughout its five-year block', () 
  assert.deepEqual(m.rows.slice(5,10).map(r=>r.SCE.value),[null,null,null,null,null]); assert.equal(m.totals.SCE,null);
 });
 test('waiver does not disguise an absent source rate as a zero quote', () => {
- const p={...premium,OYS2_MALE:{...premium.OYS2_MALE,values:premium.OYS2_MALE.values.map((row,i)=>i===3?[40,'',400,200,300,100,200]:row)}};
+ const p={...premium,OYS2_MALE:{...premium.OYS2_MALE,values:premium.OYS2_MALE.values.map((row,i)=>i===3?[40,'',40,20,30,10,20]:row)}};
  const s=calculatePremiumSchedule({...params,premium:p,diagnosisAge:40,horizon:2});
  assert.equal(s.rows[0].OYS2.value,null); assert.equal(s.totals.OYS2,null);
 });
