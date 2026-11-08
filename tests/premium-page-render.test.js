@@ -8,10 +8,10 @@ import { premiumQuote, renderPremiumFigures } from '../src/domain/premium-engine
 
 // Synthetic rates deliberately do not represent official production rates.
 const tables = normalizePremiumData({ OYS2_ADJUSTMENT:syntheticAdjustment,
-  SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age', 'Non-Smoker','Smoker'], [40, 100, 110]],
-  SCE_FEMALE: [['Simple Care Essence - Female (per hk$7800)'], ['Age', 'Non-Smoker','Smoker'], [40, 200, 210]],
-  OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['', 'Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], [40,300,310,320,330,340,350]],
-  OYS2_FEMALE: [['OYS2 Premium Rate Table (Per hk$7800) - Female'], ['Age', '10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['', 'Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], [40,400,410,420,430,440,450]]
+  SCE_MALE: [['Simple Care Essence - Male (per hk$7800)'], ['Age', 'Non-Smoker','Smoker'], [0, 100, 110], [40, 100, 110]],
+  SCE_FEMALE: [['Simple Care Essence - Female (per hk$7800)'], ['Age', 'Non-Smoker','Smoker'], [0, 200, 210], [40, 200, 210]],
+  OYS2_MALE: [['OYS2 Premium Rate Table (Per hk$7800) - Male'], ['Age', '10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['', 'Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], [0,300,310,320,330,340,350], [40,300,310,320,330,340,350]],
+  OYS2_FEMALE: [['OYS2 Premium Rate Table (Per hk$7800) - Female'], ['Age', '10-Year Pay','','18-Year Pay','','25-Year Pay',''], ['', 'Non-Smoker','Smoker','Non-Smoker','Smoker','Non-Smoker','Smoker'], [0,400,410,420,430,440,450], [40,400,410,420,430,440,450]]
 });
 test('all four independent matrices map age, sex, smoking and product-specific terms', () => {
   for (const [id,sex,smoker,term,rate] of [['SCE','M','non-smoker',10,100],['SCE','F','smoker',25,210],['OYS2','M','smoker',18,330],['OYS2','F','non-smoker',25,440]]) {
@@ -80,6 +80,10 @@ test('actual premium route renders figures from customer state and keeps total p
   app.state.user.frontstage.diagnosisAge = null;
   assert.match(main.innerHTML,/HK\$200\.00/);
   assert.equal(app.state.user.frontstage.vitality,false);
+  handlers['#premium-age:change']({target:{value:'0'}});
+  assert.equal(app.state.user.frontstage.age,0); assert.match(main.innerHTML,/id="premium-age"[^>]*value="0"/); assert.match(main.innerHTML, /<td>101<\/td><td>100<\/td>/);
+  handlers['#premium-mode:change']({target:{value:'monthly'}}); assert.match(main.innerHTML,/id="premium-age"[^>]*value="0"/);
+  handlers['#premium-age:change']({target:{value:''}}); assert.equal(app.state.user.frontstage.age,null); assert.match(main.innerHTML,/id="premium-age"[^>]*value=""/);
   handlers['#premium-age:change']({target:{value:'41'}});
   globalThis.location.hash='#/plans'; handlers.hashchange(); assert.match(main.innerHTML,/id="plan-age"[^>]*value="41"/);
   globalThis.location.hash='#/premiums'; handlers.hashchange();
