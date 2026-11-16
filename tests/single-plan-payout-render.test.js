@@ -15,10 +15,10 @@ test('single-plan route simulates verified base payout when enhancement expires 
   globalThis.window = globalThis; globalThis.addEventListener = (name, cb) => { handlers[name] = cb; }; globalThis.location = { search: '', hash: '#/plans/OYS2/claim', href: 'https://example.test/#/plans/OYS2/claim' }; globalThis.history = { replaceState() {} }; Object.defineProperty(globalThis, 'navigator', { value: {}, configurable: true }); globalThis.fetch = () => new Promise(() => {});
   const app = await import('../src/app.js?single-plan-payout-render');
   const assertReady = () => { assert.match(main.innerHTML, /data-full-claim="OYS2"\s*>/); assert.match(main.innerHTML, /HK\$500,000/); assert.doesNotMatch(main.innerHTML, /HK\$675,000/); };
-  assertReady(); assert.doesNotMatch(main.innerHTML, /額外保障資格待確認/);
-  handlers.claim(); assert.match(main.innerHTML, /data-claim-state="continuing"/); assert.match(main.innerHTML, /HK\$500,000/); assert.doesNotMatch(main.innerHTML, /額外保障資格待確認/);
+  assertReady(); assert.match(main.innerHTML, /額外保障資格待確認/);
+  handlers.claim(); assert.match(main.innerHTML, /data-claim-state="continuing"/); assert.match(main.innerHTML, /HK\$500,000/); assert.match(main.innerHTML, /額外保障資格待確認/);
   app.state.user.frontstage.claimDemo = {}; app.state.user.frontstage.diagnosisAge = 50; handlers.hashchange();
   assertReady(); assert.match(main.innerHTML, /此金額只包括已核實的基本保障；額外保障資格待確認，並未計入/);
   handlers.claim(); assert.match(main.innerHTML, /data-claim-state="continuing"/); assert.match(main.innerHTML, /HK\$500,000/); assert.match(main.innerHTML, /額外保障資格待確認/); assert.doesNotMatch(main.innerHTML, /HK\$675,000/);
-  app.state.user.frontstage.claimDemo = {}; app.state.user.frontstage.diagnosisAge = 45; handlers.hashchange(); assert.match(main.innerHTML, /HK\$675,000/); handlers.claim(); assert.match(main.innerHTML, /HK\$675,000/); assert.match(main.innerHTML, /額外保障/);
+  app.state.user.frontstage.claimDemo = {}; app.state.user.frontstage.diagnosisAge = 45; handlers.hashchange(); assert.match(main.innerHTML, /HK\$500,000/); handlers.claim(); assert.match(main.innerHTML, /HK\$500,000/); assert.match(main.innerHTML, /額外保障/);
 });

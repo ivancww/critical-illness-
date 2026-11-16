@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FLOW_STEP_COUNT, createFlowState } from '../src/domain/flow-state.js';
-import { ageDependentEnhancement, claimOutcome, diagnosisTiming, healthProgramEffect, planProtectionSummary, premiumWaiverText, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout } from '../src/domain/plan-experience.js';
+import { ageDependentEnhancement, claimOutcome, diagnosisTiming, enhancementEligibility, healthProgramEffect, planProtectionSummary, premiumWaiverText, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout } from '../src/domain/plan-experience.js';
 import { claimCaseResourcesForProduct, diseaseResourcesForProduct, productBrochureForProduct, resourceKind } from '../src/data/content.js';
 import { combinedPlanPayout, cumulativePayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, multiClaimGrandTotal, multiClaimGrandTotalFromSimulation, premiumEvidence } from '../src/domain/frontstage-experience.js';
 import { normalizeUserState } from '../src/data/storage.js';
@@ -45,7 +45,7 @@ test('guided flow ends at P9 and P2 has no age field', () => {
 test('age-dependent and early-illness amounts use verified benefit rows', () => {
   assert.equal(ageDependentEnhancement(benefits, 'OYS2', 25).percent, 50);
   assert.equal(ageDependentEnhancement(benefits, 'OYS2', 31).percent, 35);
-  const young = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 25, diagnosisAge: 30 });
+  const young = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 25, diagnosisAge: 30, verifiedEnhancementDecision: 'VERIFIED_APPLICABLE' });
   assert.equal(young.baseAmount, 500000);
   assert.equal(young.extra.percent, 50);
   assert.equal(young.extra.amount, 250000);
@@ -72,7 +72,7 @@ test('age-dependent and early-illness amounts use verified benefit rows', () => 
   assert.equal(missingDiagnosis.extra.amount, null);
   assert.equal(missingDiagnosis.totalApplicable, null);
   assert.equal(missingDiagnosis.major.status, 'VERIFIED');
-  const age31 = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 40 });
+  const age31 = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 40, verifiedEnhancementDecision: 'VERIFIED_APPLICABLE' });
   assert.equal(age31.extra.percent, 35);
   assert.equal(age31.extra.amount, 175000);
   assert.equal(age31.totalApplicable, 675000);
@@ -132,8 +132,11 @@ test('health program feeds the combined payout through the same plan summaries',
   ], 'major');
   assert.equal(combined.status, 'VERIFIED');
   assert.equal(sce.baseAmount + oys2.baseAmount, 1050000, 'base combined protection reflects OYS2 health coverage bonus');
-  assert.equal(combined.amount, 1242500, 'existing OYS2 +35% enhancement applies after the health-adjusted base');
-  assert.equal(supportMonthsForPayout(combined.amount, 30000), 1242500 / 30000);
+  assert.equal(combined.amount, 1050000, 'unverified enhancement is excluded');
+  assert.equal(supportMonthsForPayout(combined.amount, 30000), 1050000 / 30000);
+  const verified = planProtectionSummary({ plan: plans[1], benefits, healthProgram: health, healthProgramParticipating: true, sumAssured: 500000, age: 40, verifiedEnhancementDecision: 'VERIFIED_APPLICABLE' });
+  assert.equal(verified.extra.amount, 175000, 'enhancement is based on original sum assured');
+  assert.equal(claimOutcome(verified).amount, 725000);
 });
 
 test('customer plan UX removes the comparison basket and hides backend rule fields', () => {
@@ -373,41 +376,30 @@ test('missing OYS2 diagnosis age stays pending instead of becoming zero support'
   assert.match(app, /首10年升級保障：請輸入確診歲數/);
 });
 
-test('issue age chooses enhancement band while diagnosis age only controls first-ten-year timing', () => {
-  assert.equal(ageDependentEnhancement(benefits, 'OYS2', 30).percent, 50);
-  assert.equal(ageDependentEnhancement(benefits, 'OYS2', 31).percent, 35);
-  assert.deepEqual(diagnosisTiming(45, 50), { status: 'APPLICABLE', elapsedYears: 5, reason: '仍在首10年保障期內。' });
-  assert.equal(diagnosisTiming(45, 54).status, 'APPLICABLE');
-  assert.equal(diagnosisTiming(45, 56).status, 'NOT_APPLICABLE');
-  assert.equal(diagnosisTiming(45, 55).status, 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY');
-  const inPeriod = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 40 });
-  const afterPeriod = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 42 });
-  assert.equal(inPeriod.extra.percent, 35);
-  assert.equal(inPeriod.extra.amount, 175000);
-  assert.equal(inPeriod.major.status, 'VERIFIED');
-  assert.equal(claimOutcome(inPeriod, 'major').amount, 675000);
-  assert.equal(afterPeriod.extra.status, 'NOT_APPLICABLE');
-  assert.equal(afterPeriod.extra.amount, 0);
-  assert.equal(afterPeriod.totalApplicable, 500000);
-  assert.equal(afterPeriod.major.status, 'VERIFIED');
-  assert.equal(claimOutcome(afterPeriod, 'major').status, 'VERIFIED');
-  const boundary = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 41 });
-  assert.equal(boundary.diagnosis.status, 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY');
-  assert.equal(boundary.extra.amount, null);
-  assert.equal(boundary.totalApplicable, null);
-  assert.equal(boundary.major.status, 'VERIFIED');
-  assert.equal(claimOutcome(boundary, 'major').status, 'VERIFIED');
-  const sce = planProtectionSummary({ plan: plans[0], benefits, sumAssured: 500000, age: 45, diagnosisAge: 50 });
-  assert.equal(sce.diagnosis.visible, false);
-  assert.equal(sce.extra.status, 'NOT_APPLICABLE');
-  assert.equal(sce.major.status, 'VERIFIED');
-  assert.equal(sce.totalApplicable, 500000);
-  assert.equal(claimOutcome(sce, 'major').amount, 500000);
-  assert.equal(claimOutcome(sce, 'major').status, 'VERIFIED');
-  assert.match(app, /summary\.diagnosis\?\.visible !== false/);
-  assert.match(app, /確診歲數/);
-  assert.doesNotMatch(app.slice(app.indexOf('function planComparisonCard'), app.indexOf('function bindPlanInputs')), /現時可享保障/);
-  assert.doesNotMatch(app, /globalThis\.__ciCumulativeCard/);
+test('age selects the percentage but cannot establish contractual eligibility', () => {
+  for (const [age, percent] of [[0, 50], [30, 50], [31, 35], [40, 35]]) {
+    assert.equal(ageDependentEnhancement(benefits, 'OYS2', age).percent, percent);
+    for (const diagnosisAge of [age + 9, age + 10, age + 11]) {
+      const summary = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, diagnosisAge });
+      assert.equal(summary.enhancementEligibility.status, 'PENDING_POLICY_DATE');
+      assert.equal(claimOutcome(summary).amount, 500000);
+      assert.equal(claimOutcome(summary).enhancementPending, true);
+      assert.equal(claimOutcome(summary, 'early').amount, 100000);
+    }
+    const verified = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, verifiedEnhancementDecision: 'VERIFIED_APPLICABLE' });
+    assert.equal(claimOutcome(verified).amount, 500000 * (1 + percent / 100));
+    const expired = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, verifiedEnhancementDecision: 'VERIFIED_EXPIRED' });
+    assert.equal(expired.extra.amount, 0);
+    assert.equal(claimOutcome(expired).amount, 500000);
+    assert.equal(claimOutcome(expired).enhancementPending, false);
+  }
+  assert.equal(enhancementEligibility({hasEnhancement: false}).status, 'NOT_APPLICABLE');
+  assert.equal(enhancementEligibility({hasEnhancement: true, paymentDate: '2030-01-01'}).status, 'PENDING_POLICY_DATE');
+  assert.equal(enhancementEligibility({hasEnhancement: true, policyDate: '2020-01-01'}).status, 'PENDING_PAYMENT_DATE');
+  for (const paymentDate of ['2029-12-31', '2030-01-01', '2030-01-02']) {
+    assert.equal(enhancementEligibility({hasEnhancement: true, policyDate: '2020-01-01', paymentDate}).status, 'PENDING_PAYMENT_DATE');
+  }
+  assert.equal(diagnosisTiming(40, 45).status, 'PENDING_POLICY_DATE');
 });
 
 test('cumulative payout is derived from scenario events', () => {
@@ -540,22 +532,12 @@ test('P9 information cards are display-only and the three choices route directly
   assert.doesNotMatch(p9, /查看方案|直接查看方案/);
 });
 
-test('expired and uncertain enhancements retain independently verified base payout', () => {
-  for (const age of [0, 30, 40]) {
-    const before = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, diagnosisAge: age + 9 });
-    const boundary = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, diagnosisAge: age + 10 });
-    const after = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, diagnosisAge: age + 11 });
-    assert.equal(before.extra.status, 'VERIFIED');
-    assert.equal(boundary.extra.status, 'VERIFY_REQUIRED');
-    assert.equal(boundary.totalApplicable, null);
-    assert.equal(claimOutcome(boundary).amount, 500000);
-    assert.equal(claimOutcome(boundary).enhancementPending, true);
-    assert.equal(after.extra.status, 'NOT_APPLICABLE');
-    assert.equal(after.extra.amount, 0);
-    assert.equal(claimOutcome(after).amount, 500000);
-    assert.equal(claimOutcome(after, 'early').amount, 100000);
-    assert.equal(supportMonthsForPayout(claimOutcome(after).amount, 25000), 20);
+test('expired and pending enhancements preserve the verified base and support months', () => {
+  for (const decision of [undefined, 'VERIFIED_EXPIRED']) {
+    const summary = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 40, verifiedEnhancementDecision: decision });
+    assert.equal(summary.major.status, 'VERIFIED');
+    assert.equal(claimOutcome(summary).amount, 500000);
+    assert.equal(supportMonthsForPayout(claimOutcome(summary).amount, 25000), 20);
+    assert.equal(claimOutcome(summary).enhancementPending, !decision);
   }
-  assert.equal(diagnosisTiming(null, 40).status, 'VERIFY_REQUIRED');
-  assert.equal(diagnosisTiming(0, '').status, 'VERIFY_REQUIRED');
 });
