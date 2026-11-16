@@ -1,0 +1,33 @@
+// Browser regression; run against a local app server at CI_TEST_URL (default port 8765).
+// Rates and benefits below are synthetic fixtures, not official product data.
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+(async () => {
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined });
+  try {
+    const benefits = ['SCE', 'OYS2'].flatMap(id => [{ plan_id: id, benefit_type: 'major_ci', payout_percent: 100 }, { plan_id: id, benefit_type: 'early_ci', payout_percent: 20 }]);
+    benefits.push({ plan_id: 'OYS2', benefit_type: 'first_10_year_bonus', payout_percent: 35, age_min: 0, age_max: 120 }, { plan_id: 'OYS2', benefit_type: 'premium_waiver', display_text: '合資格豁免' });
+    const cache = { structured: { Plans: [{ plan_id: 'SCE', plan_name: '簡護危疾保', protection_style: 'single' }, { plan_id: 'OYS2', plan_name: '愛伴航2', protection_style: 'continuing' }], Benefits: benefits, Claim_Rules: [], Health_Program: [], Product_Content: [], Settings_Versions: [] }, premium: {} };
+    for (const [name, width, height] of [['ipad-portrait', 820, 1180], ['ipad-landscape', 1180, 820], ['honor-unfolded-like', 790, 720], ['mobile', 390, 844]]) {
+      for (const diagnosisAge of [50, 51]) {
+        const page = await browser.newPage({ viewport: { width, height }, serviceWorkers: 'block' });
+        await page.addInitScript(({ cache, diagnosisAge }) => {
+          localStorage.setItem('AVA_CI_OFFICIAL_CACHE_V2', JSON.stringify(cache));
+          localStorage.setItem('AVA_CI_USER_STATE_V1', JSON.stringify({ flow: { monthlyNeed: 30000, desiredMonths: 24, protectionStyle: 'compare' }, frontstage: { age: 40, diagnosisAge, sums: { SCE: 500000, OYS2: 500000 } } }));
+        }, { cache, diagnosisAge });
+        await page.route('https://script.google.com/**', route => route.abort());
+        await page.goto(`${process.env.CI_TEST_URL || 'http://127.0.0.1:8765'}/?avaEntry=frontend#/plans/OYS2/claim`);
+        const button = page.locator('[data-full-claim="OYS2"]');
+        await button.waitFor(); assert.equal(await button.isEnabled(), true); assert.match(await button.innerText(), /HK\$500,000/);
+        if (diagnosisAge === 50) assert.match(await page.locator('#main-content').innerText(), /額外保障資格待確認，並未計入/);
+        await button.click();
+        const result = page.locator('[data-claim-state="continuing"]'); await result.waitFor();
+        const text = await result.innerText(); assert.match(text, /HK\$500,000/); assert.doesNotMatch(text, /HK\$675,000/);
+        if (diagnosisAge === 50) assert.match(text, /額外保障資格待確認，並未計入/); else assert.doesNotMatch(text, /額外保障資格待確認/);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true, `${name}: page overflow`);
+        await page.close();
+      }
+      console.log(`${name}: passed`);
+    }
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });
