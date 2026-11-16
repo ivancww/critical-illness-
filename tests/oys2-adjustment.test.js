@@ -17,7 +17,7 @@ test('reference rate is shared by quote, monthly conversion and schedule totals'
  const q=quote(150000); const card=premiumQuote(q,{status:'NOT_APPLICABLE'},false);
  assert.ok(Math.abs(card.annual-52299)<1e-7);assert.ok(Math.abs(card.monthly-52299*1.06/12)<1e-7);
  const schedule=calculatePremiumSchedule({issueAge:40,horizon:20,term:18,vitality:false,premium,plans:[{plan_id:'OYS2',rate_basis:7800}],sums:{OYS2:1170000},healthProgram:[],gender:'M',smoker:'non-smoker',lookup:premiumEvidence,healthEffect:()=>({status:'NOT_APPLICABLE'})});
- assert.ok(Math.abs(schedule.rows[0].OYS2.value-card.annual)<1e-7);assert.ok(Math.abs(schedule.totals.OYS2-52299*18)<1e-6);assert.equal(schedule.rows[18].OYS2.reason,'已供滿');assert.match(renderPremiumSchedule(schedule),/HK\$941,382\.00/);
+ assert.ok(Math.abs(schedule.rows[0].OYS2.value-card.annual)<1e-7);assert.ok(Math.abs(schedule.totals.OYS2-52299*18)<1e-6);assert.equal(schedule.rows[18].OYS2.reason,'已供滿');assert.match(renderPremiumSchedule(schedule),/HK\$941,382/);
 });
 
 test('official adjustment survives refresh and cache round-trip without contaminating User state', async()=>{

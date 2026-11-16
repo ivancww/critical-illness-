@@ -34,6 +34,7 @@ jobs:
           node tests/user-edit-browser.cjs
           node tests/premium-table-browser.cjs
           node tests/single-plan-browser.cjs
+          node tests/live-sum-browser.cjs
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
