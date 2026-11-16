@@ -1,7 +1,7 @@
-import { premiumMatrixHasExpectedHeaders, adjustmentAvailability } from '../data/data-api.js?v=0.6.15';
-import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.15';
-import { translateProtectionToMonths } from './flow-state.js?v=0.6.15';
-import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.15';
+import { premiumMatrixHasExpectedHeaders, adjustmentAvailability } from '../data/data-api.js?v=0.6.16';
+import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.16';
+import { translateProtectionToMonths } from './flow-state.js?v=0.6.16';
+import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.16';
 
 const positive = value => Number.isFinite(Number(value)) && Number(value) > 0;
 const active = row => row?.enabled !== false && row?.active !== false;
@@ -132,7 +132,8 @@ export function combinedPlanPayout(results = [], claimType = 'major') {
     percent: null,
     remainingAmount: null,
     remainingPercent: null,
-    includesEnhancement: valid.some(entry => entry.outcome?.includesEnhancement)
+    includesEnhancement: valid.some(entry => entry.outcome?.includesEnhancement),
+    enhancementPending: valid.some(entry => entry.outcome?.enhancementPending)
   };
   const baseTotal = baseAmounts.reduce((total, amount) => total + amount, 0);
   result.percent = result.amount / baseTotal * 100;

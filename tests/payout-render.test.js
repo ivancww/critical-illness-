@@ -16,12 +16,17 @@ test('actual comparison route renders one shared payout with scenario breakdown 
   assert.equal((main.innerHTML.match(/data-shared-payout-card/g)||[]).length,1);
   assert.equal((main.innerHTML.match(/role="img" aria-label="早期疾病/g)||[]).length,1);
   assert.match(main.innerHTML,/HK\$200,000/); assert.match(main.innerHTML,/HK\$800,000/); assert.match(main.innerHTML,/累計總賠償：HK\$1,000,000/); assert.match(main.innerHTML,/可支持約 7 個月/);
+  assert.doesNotMatch(main.innerHTML, /<span>額外保障<\/span>/);
+  assert.doesNotMatch(main.innerHTML, /<span>首10年升級保障<\/span>/);
   handlers.major();
   assert.equal((main.innerHTML.match(/data-shared-payout-card/g)||[]).length,1);
   assert.match(main.innerHTML,/主要危疾 100%/);assert.match(main.innerHTML,/HK\$1,000,000/);assert.match(main.innerHTML,/合約完結/);assert.match(main.innerHTML,/往後保費獲豁免/);
   assert.doesNotMatch(main.innerHTML,/\d+\.\d{6,}%/);
   app.state.user.frontstage.diagnosisAge=45; handlers.hashchange();
   assert.match(main.innerHTML,/HK\$1,175,000/); assert.match(main.innerHTML,/額外保障 \+HK\$175,000/); assert.match(main.innerHTML,/主要危疾 100%/);
+  app.state.user.frontstage.diagnosisAge=50; handlers.hashchange();
+  assert.match(main.innerHTML,/HK\$1,000,000/);
+  assert.match(main.innerHTML,/額外保障待確認，並未計入此金額及支持月份/);
   handlers.early(); assert.match(main.innerHTML,/第二次 · 主要危疾賠償：HK\$800,000/); assert.match(main.innerHTML,/基本保障合計 HK\$1,000,000；實際累計須待額外保障確認/);
   assert.doesNotMatch(main.innerHTML,/往後保費獲豁免/);
 });

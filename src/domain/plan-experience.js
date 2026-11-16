@@ -1,4 +1,4 @@
-import { resolveBenefits } from './product-engine.js?v=0.6.15';
+import { resolveBenefits } from './product-engine.js?v=0.6.16';
 
 const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const active = row => row?.enabled !== false && row?.active !== false;
@@ -31,8 +31,8 @@ export function ageDependentEnhancement(benefits = [], id, age) {
 }
 
 export function diagnosisTiming(issueAge, diagnosisAge, years = 10) {
-  const issue = Number(issueAge);
-  const diagnosis = Number(diagnosisAge);
+  const issue = issueAge === null || issueAge === undefined || issueAge === '' ? NaN : Number(issueAge);
+  const diagnosis = diagnosisAge === null || diagnosisAge === undefined || diagnosisAge === '' ? NaN : Number(diagnosisAge);
   if (!Number.isInteger(issue) || issue < 0 || !Number.isInteger(diagnosis) || diagnosis < issue) {
     return { status: 'VERIFY_REQUIRED', reason: '請輸入不早於投保年齡的確診歲數。', elapsedYears: null };
   }
@@ -76,9 +76,10 @@ export function claimOutcome(summary, claimType = 'major') {
   return {
     claimType: 'major',
     status: summary?.major?.status || 'VERIFY_REQUIRED',
-    amount: summary?.totalApplicable ?? null,
+    amount: summary?.totalApplicable ?? (summary?.major?.status === 'VERIFIED' ? summary.baseAmount : null),
     percent: summary?.basePercent ?? null,
-    includesEnhancement: summary?.extra?.status === 'VERIFIED' && Number(summary.extra.percent) > 0
+    includesEnhancement: summary?.extra?.status === 'VERIFIED' && Number(summary.extra.percent) > 0,
+    enhancementPending: summary?.extra?.status === 'VERIFY_REQUIRED'
   };
 }
 
@@ -120,7 +121,9 @@ export function planProtectionSummary({ plan, benefits = [], healthProgram = [],
   const timingResolved = !firstTenRows.length || ['APPLICABLE', 'NOT_APPLICABLE'].includes(timing.status);
   const effectiveEnhancement = !firstTenRows.length
     ? { ...enhancement, status: 'NOT_APPLICABLE', amount: 0, reason: timing.reason }
-    : !bandResolved || !timingResolved
+    : timing.status === 'NOT_APPLICABLE'
+      ? { ...enhancement, status: 'NOT_APPLICABLE', amount: 0, reason: timing.reason }
+      : !bandResolved || !timingResolved
       ? { ...enhancement, status: 'VERIFY_REQUIRED', amount: null, reason: timing.reason || enhancement.reason }
       : timing.status === 'NOT_APPLICABLE'
         ? { ...enhancement, status: 'NOT_APPLICABLE', amount: 0, reason: timing.reason }
@@ -132,8 +135,8 @@ export function planProtectionSummary({ plan, benefits = [], healthProgram = [],
     : base !== null && effectiveEnhancement.status === 'NOT_APPLICABLE' ? 0 : null;
   const earlyPercent = number(early?.payout_percent);
   const earlyAmount = base !== null && earlyPercent !== null ? base * earlyPercent / 100 : null;
-  const majorVerified = Boolean(base !== null && major && timingResolved && bandResolved);
-  const total = majorVerified ? base + (extraAmount || 0) : null;
+  const majorVerified = Boolean(base !== null && major);
+  const total = majorVerified && extraAmount !== null ? base + extraAmount : null;
 
   return {
     planId: id,

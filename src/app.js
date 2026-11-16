@@ -1,19 +1,19 @@
-import { createDraft, createIntro, draftChanged, savePagesVerified, saveScenario } from './user-edit.js?v=0.6.15';
-import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, premiumMatrixHasExpectedHeaders, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.15';
-import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.15';
-import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.15';
-import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.15';
-import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.15';
-import { verificationState } from './domain/verification.js?v=0.6.15';
-import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.15';
-import { claimOutcome, healthProgramEffect, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.15';
-import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.15';
-import { premiumQuote, renderPremiumFigures, calculatePremiumSchedule, renderPremiumSchedule } from './domain/premium-engine.js?v=0.6.15';
-import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.15';
-import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.15';
-import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.15';
-import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.15';
-import { APP_VERSION } from './version.js?v=0.6.15';
+import { createDraft, createIntro, draftChanged, savePagesVerified, saveScenario } from './user-edit.js?v=0.6.16';
+import { CI_APP_ID, GAS_DATA_API_URL, exchangeAdminLaunch, loadOfficialData, refreshOfficialData, premiumMatrixHasExpectedHeaders, normalizeStructuredData, validateOfficialData, writeOfficialData } from './data/data-api.js?v=0.6.16';
+import { createUserBackup, loadOfficialCache, loadUserState, normalizeUserState, restoreUserBackup, saveOfficialCache, saveUserMediaReference, saveUserState } from './data/storage.js?v=0.6.16';
+import { diseaseResourcesForProduct, firebaseResourceUrl, productBrochureForProduct, resourceKind } from './data/content.js?v=0.6.16';
+import { calculateSupportReserve, createFlowState, nextFlowStep, previousFlowStep, translateProtectionToMonths } from './domain/flow-state.js?v=0.6.16';
+import { getActivePlans, resolveClaimRules } from './domain/product-engine.js?v=0.6.16';
+import { verificationState } from './domain/verification.js?v=0.6.16';
+import { cancerTimeline, dementiaTimeline, heartStrokeTimeline, multiClaimGrandTotalFromSimulation, combinedPlanPayout, emptyMultiClaimSimulation, isNewMultiClaimEntry, paymentEndAge, premiumEvidence, selectedProtection } from './domain/frontstage-experience.js?v=0.6.16';
+import { claimOutcome, healthProgramEffect, planProtectionSummary as basePlanProtectionSummary, remainingMajorProtectionAfterEarlyClaim, supportMonthsForPayout, verifiedPlanBenefits } from './domain/plan-experience.js?v=0.6.16';
+import { formatMoneyText, parseMoneyText } from './domain/input-format.js?v=0.6.16';
+import { premiumQuote, renderPremiumFigures, calculatePremiumSchedule, renderPremiumSchedule } from './domain/premium-engine.js?v=0.6.16';
+import { renderBrochureAction, renderPlanComparisonLayout } from './domain/frontstage-render.js?v=0.6.16';
+import { resolveAvaReturnContext } from './integration/return-context.js?v=0.6.16';
+import { uploadOfficialMedia, validateMediaFile } from './integration/firebase-media.js?v=0.6.16';
+import { ADMIN_SECTION_DEFINITIONS, ADMIN_SECTION_META, adminEditableFields, adminFieldLabel, adminFieldType, adminPersistenceStatus, adminRecordId, adminRecordVersion, composeOfficialAndUser, createAdminWriteRequest, officialRecords, premiumSheetStatus, redactOfficialValue, resourceStatus } from './admin/official-config.js?v=0.6.16';
+import { APP_VERSION } from './version.js?v=0.6.16';
 
 const main = document.querySelector('#main-content');
 const status = document.querySelector('#status');
@@ -142,9 +142,9 @@ function protectionRows(summary) {
   const extra = summary.extra.status === 'VERIFIED'
     ? `<div class="protection-row"><span>額外保障</span><strong>+${summary.extra.percent}%<small>+${protectionAmount(summary.extra.amount)}</small></strong></div>`
     : summary.extra.status === 'NOT_APPLICABLE'
-      ? '<div class="protection-row"><span>額外保障</span><strong>不適用</strong></div>'
+      ? ''
       : `<div class="protection-row"><span>額外保障</span><strong class="verify">VERIFY REQUIRED<small>${escapeHtml(summary.extra.reason || '請先輸入投保年齡')}</small></strong></div>`;
-  return `<div class="protection-rows"><div class="protection-row"><span>基本保額</span><strong>${protectionAmount(summary.baseAmount)}</strong></div>${extra}${summary.diagnosis?.visible !== false && summary.diagnosis?.status && summary.diagnosis.status !== 'NOT_PROVIDED' ? `<div class="protection-row"><span>首10年升級保障</span><strong>${summary.diagnosis.status === 'APPLICABLE' ? '生效' : summary.diagnosis.status === 'NOT_APPLICABLE' ? '不適用' : 'VERIFY REQUIRED'}</strong></div>` : ''}</div>`;
+  return `<div class="protection-rows"><div class="protection-row"><span>基本保額</span><strong>${protectionAmount(summary.baseAmount)}</strong></div>${extra}${summary.diagnosis?.visible !== false && summary.diagnosis?.status && !['NOT_PROVIDED', 'NOT_APPLICABLE'].includes(summary.diagnosis.status) ? `<div class="protection-row"><span>首10年升級保障</span><strong>${summary.diagnosis.status === 'APPLICABLE' ? '生效' : summary.diagnosis.status === 'NOT_APPLICABLE' ? '不適用' : 'VERIFY REQUIRED'}</strong></div>` : ''}</div>`;
 }
 function claimPayout(summary, continuing) {
   const hasExtra = summary.extra.status === 'VERIFIED' && Number(summary.extra.percent) > 0 && Number(summary.extra.amount) > 0;
@@ -225,7 +225,7 @@ function sharedPayoutEffectCard(visiblePlans, age, diagnosisAge) {
 }
 function combinedClaimAmountMarkup(result, type) {
   if (type === 'early') return `<div class="claim-result"><span class="tag">早期疾病賠償</span><strong>HK$${money(result.amount)}</strong><p>${Math.round(result.percent)}% 基本保障 · 兩份方案合計</p><p>餘下主要危疾基本保障：HK$${money(result.remainingAmount)}（${Math.round(result.remainingPercent)}%）</p></div>`;
-  return `<div class="claim-result"><span class="tag">主要危疾賠償</span><strong>HK$${money(result.amount)}</strong><p>100% 基本保障 · 另加適用額外保障</p></div>`;
+  return `<div class="claim-result"><span class="tag">主要危疾賠償</span><strong>HK$${money(result.amount)}</strong><p>${result.enhancementPending ? '100% 基本保障；額外保障待確認，並未計入此金額及支持月份。' : '100% 基本保障 · 另加適用額外保障'}</p></div>`;
 }
 function combinedPayoutEffectBarMarkup(result, type) {
   if (type === 'early') return `<div class="payout-effect-bar payout-effect-bar--segmented" role="img" aria-label="早期疾病 ${Math.round(result.percent)}% 已支付，餘下主要危疾保障 ${Math.round(result.remainingPercent)}%"><span class="payout-segment payout-segment--early" style="width:${result.percent / (result.percent + result.remainingPercent) * 100}%">已支付 ${Math.round(result.percent)}%</span><span class="payout-segment payout-segment--remaining" style="width:${result.remainingPercent / (result.percent + result.remainingPercent) * 100}%">餘下 ${Math.round(result.remainingPercent)}%</span></div>`;

@@ -65,13 +65,13 @@ test('age-dependent and early-illness amounts use verified benefit rows', () => 
   assert.equal(noAge.extra.status, 'VERIFY_REQUIRED');
   assert.equal(noAge.extra.amount, null);
   assert.equal(noAge.totalApplicable, null);
-  assert.equal(noAge.major.status, 'VERIFY_REQUIRED');
-  assert.equal(claimOutcome(noAge, 'major').status, 'VERIFY_REQUIRED');
+  assert.equal(noAge.major.status, 'VERIFIED');
+  assert.equal(claimOutcome(noAge, 'major').status, 'VERIFIED');
   const missingDiagnosis = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31 });
   assert.equal(missingDiagnosis.extra.percent, 35);
   assert.equal(missingDiagnosis.extra.amount, null);
   assert.equal(missingDiagnosis.totalApplicable, null);
-  assert.equal(missingDiagnosis.major.status, 'VERIFY_REQUIRED');
+  assert.equal(missingDiagnosis.major.status, 'VERIFIED');
   const age31 = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age: 31, diagnosisAge: 40 });
   assert.equal(age31.extra.percent, 35);
   assert.equal(age31.extra.amount, 175000);
@@ -395,8 +395,8 @@ test('issue age chooses enhancement band while diagnosis age only controls first
   assert.equal(boundary.diagnosis.status, 'BOUNDARY_REQUIRES_POLICY_ANNIVERSARY');
   assert.equal(boundary.extra.amount, null);
   assert.equal(boundary.totalApplicable, null);
-  assert.equal(boundary.major.status, 'VERIFY_REQUIRED');
-  assert.equal(claimOutcome(boundary, 'major').status, 'VERIFY_REQUIRED');
+  assert.equal(boundary.major.status, 'VERIFIED');
+  assert.equal(claimOutcome(boundary, 'major').status, 'VERIFIED');
   const sce = planProtectionSummary({ plan: plans[0], benefits, sumAssured: 500000, age: 45, diagnosisAge: 50 });
   assert.equal(sce.diagnosis.visible, false);
   assert.equal(sce.extra.status, 'NOT_APPLICABLE');
@@ -538,4 +538,24 @@ test('P9 information cards are display-only and the three choices route directly
   assert.match(app, /mode === 'single'.*planKey\(plan\) === 'SCE'/s);
   assert.match(app, /mode === 'continuing'.*planKey\(plan\) === 'OYS2'/s);
   assert.doesNotMatch(p9, /查看方案|直接查看方案/);
+});
+
+test('expired and uncertain enhancements retain independently verified base payout', () => {
+  for (const age of [0, 30, 40]) {
+    const before = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, diagnosisAge: age + 9 });
+    const boundary = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, diagnosisAge: age + 10 });
+    const after = planProtectionSummary({ plan: plans[1], benefits, sumAssured: 500000, age, diagnosisAge: age + 11 });
+    assert.equal(before.extra.status, 'VERIFIED');
+    assert.equal(boundary.extra.status, 'VERIFY_REQUIRED');
+    assert.equal(boundary.totalApplicable, null);
+    assert.equal(claimOutcome(boundary).amount, 500000);
+    assert.equal(claimOutcome(boundary).enhancementPending, true);
+    assert.equal(after.extra.status, 'NOT_APPLICABLE');
+    assert.equal(after.extra.amount, 0);
+    assert.equal(claimOutcome(after).amount, 500000);
+    assert.equal(claimOutcome(after, 'early').amount, 100000);
+    assert.equal(supportMonthsForPayout(claimOutcome(after).amount, 25000), 20);
+  }
+  assert.equal(diagnosisTiming(null, 40).status, 'VERIFY_REQUIRED');
+  assert.equal(diagnosisTiming(0, '').status, 'VERIFY_REQUIRED');
 });
