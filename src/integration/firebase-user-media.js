@@ -1,5 +1,5 @@
-import { validateMediaFile } from './firebase-media.js?v=0.6.15';
-import { canonicalUserScope, userResourcePath } from '../domain/resource-layer.js?v=0.6.15';
+import { validateMediaFile } from './firebase-media.js?v=0.6.16';
+import { canonicalUserScope, userResourcePath } from '../domain/resource-layer.js?v=0.6.16';
 
 export function createFirebaseUserCloudProvider({ storageSdk, storage, authAdapter, userBinding } = {}) {
   const scope = canonicalUserScope(userBinding);
