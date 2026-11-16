@@ -51,7 +51,7 @@ const assert = require('node:assert/strict');
           assert.equal((protectionText.match(/額外保障/g) || []).length, 1);
           assert.equal((protectionText.match(/情境示範/g) || []).length, 1);
         } else {
-          assert.doesNotMatch(protectionText, /額外保障|首10年升級保障|情境示範/);
+          assert.match(protectionText, /情境示範：因10年後才確診，所以未能享用免費升級保障。/); assert.doesNotMatch(protectionText, /額外保障資格待確認/);
         }
         const sce = await page.locator('[data-plan-card="SCE"]').innerText();
         assert.doesNotMatch(sce, /額外保障|首10年升級保障/);

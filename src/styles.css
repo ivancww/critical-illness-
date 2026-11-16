@@ -307,3 +307,11 @@ textarea:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 /* The outline marks the existing text box without changing its geometry. */
 .hero .inline-edit { padding: 0; border: 0; min-height: 0; outline: 1px dashed #94a3b8; outline-offset: 3px; border-radius: 0; }
 .hero .inline-edit:focus { outline: 2px solid var(--ava-color-secondary); outline-offset: 3px; }
+
+.premium-normal-toggle { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.premium-normal-label { cursor: pointer; font-size: .75rem; white-space: nowrap; }
+.premium-normal-toggle:focus-visible ~ .premium-schedule-scroll .premium-normal-label { outline: 2px solid currentColor; }
+.premium-normal { display: none; color: #666; font-size: .8em; white-space: nowrap; }
+.premium-normal-toggle:checked ~ .premium-schedule-scroll .premium-normal, .premium-normal-toggle:checked ~ .premium-schedule-later .premium-normal { display: inline; }
+
+.premium-pair { white-space: nowrap; }

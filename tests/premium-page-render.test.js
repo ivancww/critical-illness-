@@ -20,8 +20,8 @@ test('all four independent matrices map age, sex, smoking and product-specific t
   assert.equal(premiumEvidence(tables,{plan_id:'OYS2',rate_basis:7800},'F',40,'smoker',99,7800).status,'VERIFY_REQUIRED');
   assert.equal(premiumEvidence(tables,{plan_id:'SCE',rate_basis:7800},'M',null,'smoker',10,7800).status,'VERIFY_REQUIRED');
 });
-test('monthly loading is applied once after health adjustment with two-decimal display', () => {
-  for (const [annual,expected] of [[1015,'89.66'],[6015,'531.33']]) {
+test('monthly loading is applied once after health adjustment with whole-dollar display', () => {
+  for (const [annual,expected] of [[1015,'90'],[6015,'531']]) {
     const q=premiumQuote({status:'AVAILABLE',annualPremium:annual},{status:'NOT_APPLICABLE'},false);
     assert.match(renderPremiumFigures(q, 'monthly'),new RegExp(expected.replace('.','\\.')));
   }
@@ -45,10 +45,10 @@ test('actual premium route renders figures from customer state and keeps total p
   globalThis.history={replaceState(){}}; Object.defineProperty(globalThis,'navigator',{value:{},configurable:true});
   globalThis.fetch=()=>new Promise(()=>{});
   const app=await import('../src/app.js?render-test');
-  assert.match(main.innerHTML,/HK\$90\.00/); assert.match(main.innerHTML,/原基準年繳保費 HK\$100\.00/); assert.match(main.innerHTML,/會費另計 HK\$430／年/);
-  assert.match(main.innerHTML,/HK\$3,000\.00/); assert.match(main.innerHTML,/額外保障 HK\$7,800 · 合計 HK\$85,800/);
+  assert.match(main.innerHTML,/HK\$90/); assert.match(main.innerHTML,/原基準年繳保費 HK\$100/); assert.match(main.innerHTML,/會費另計 HK\$430／年/);
+  assert.match(main.innerHTML,/HK\$3,000/); assert.match(main.innerHTML,/額外保障 HK\$7,800 · 合計 HK\$85,800/);
   handlers['#premium-mode:change']({target:{value:'monthly'}});
-  assert.match(main.innerHTML,/HK\$7\.95/); assert.match(main.innerHTML,/HK\$265\.00/);
+  assert.match(main.innerHTML,/HK\$8/); assert.match(main.innerHTML,/HK\$265/);
   handlers['#premium-mode:change']({target:{value:'annual'}});
   assert.match(main.innerHTML,/<summary>查看逐年保費<\/summary>/);
   assert.doesNotMatch(main.innerHTML,/premium-horizon|顯示年數/);
@@ -63,9 +63,9 @@ test('actual premium route renders figures from customer state and keeps total p
   }
   assert.doesNotMatch(main.innerHTML,/payment-timeline|官方方案資料：|重新載入官方資料/);
   handlers['#premium-gender:change']({target:{value:'F'}});
-  assert.match(main.innerHTML,/HK\$180\.00/);
+  assert.match(main.innerHTML,/HK\$180/);
   handlers['#premium-vitality:change']({target:{value:'no'}});
-  assert.match(main.innerHTML,/HK\$200\.00/);
+  assert.match(main.innerHTML,/HK\$200/);
   globalThis.location.hash='#/plans'; handlers.hashchange();
   assert.equal((main.innerHTML.match(/data-plan-card=/g) || []).length,2);
   assert.doesNotMatch(main.innerHTML,/premium-summary|年繳保費|原年繳保費|id="health-program"/);
@@ -78,7 +78,7 @@ test('actual premium route renders figures from customer state and keeps total p
   globalThis.location.hash='#/premiums'; handlers.hashchange();
   assert.match(main.innerHTML,/HK\$0（確診豁免保費）/);
   app.state.user.frontstage.diagnosisAge = null;
-  assert.match(main.innerHTML,/HK\$200\.00/);
+  assert.match(main.innerHTML,/HK\$200/);
   assert.equal(app.state.user.frontstage.vitality,false);
   handlers['#premium-age:change']({target:{value:'0'}});
   assert.equal(app.state.user.frontstage.age,0); assert.match(main.innerHTML,/id="premium-age"[^>]*value="0"/); assert.match(main.innerHTML, /<td>101<\/td><td>100<\/td>/);
@@ -87,7 +87,7 @@ test('actual premium route renders figures from customer state and keeps total p
   handlers['#premium-age:change']({target:{value:'41'}});
   globalThis.location.hash='#/plans'; handlers.hashchange(); assert.match(main.innerHTML,/id="plan-age"[^>]*value="41"/);
   globalThis.location.hash='#/premiums'; handlers.hashchange();
-  assert.doesNotMatch(main.innerHTML,/HK\$0\.00/); assert.match(main.innerHTML,/每月保費：VERIFY REQUIRED/);
+  assert.match(main.innerHTML,/每月保費：VERIFY REQUIRED/);
 });
 
 test('bad source identity, swapped columns, blank coordinates and cross-product health rules fail closed', () => {

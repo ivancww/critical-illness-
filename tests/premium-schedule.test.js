@@ -68,7 +68,7 @@ test('waiver projection handles first, final and within-interval transitions', (
   const last=calculatePremiumSchedule({...params,horizon:12,diagnosisAge:49,claimType:'major'});
   assert.equal(last.totals.OYS2,2700); assert.equal(last.rows[9].OYS2.value,0);
   const interval=calculatePremiumSchedule({...params,horizon:25,term:25,diagnosisAge:62,claimType:'major'});
-  assert.equal(interval.totals.OYS2,2200); assert.match(renderPremiumSchedule(interval),/愛伴航2累積總保費：HK\$2,200\.00/);
+  assert.equal(interval.totals.OYS2,2200); assert.match(renderPremiumSchedule(interval),/愛伴航2累積總保費：HK\$2,200/);
 });
 
 test('missing repricing row remains pending throughout its five-year block', () => {
@@ -92,7 +92,7 @@ test('rendered schedule has four columns and bottom totals include hidden years'
   assert.equal((html.match(/<th>/g)||[]).length,8);
   assert.match(html, /<details class="premium-schedule-later">/);
   assert.doesNotMatch(html,/簡護累積<\/th>|愛伴航2累積<\/th>|區間小計/);
-  assert.match(html,new RegExp(`簡護累積總保費：HK\\$${s.totals.SCE.toLocaleString('en-HK')}\\.00`));
+  assert.match(html,new RegExp(`簡護累積總保費：HK\\$${s.totals.SCE.toLocaleString('en-HK')}`));
   assert.match(html,/兩份方案累積總保費：HK\$/);
   const missing=calculatePremiumSchedule({...params,horizon:25});
   assert.match(renderPremiumSchedule(missing),/兩份方案累積總保費：未能確認/);
@@ -109,4 +109,32 @@ test('through-age-100 schedule preserves missing rates and final partial group',
   assert.match(renderPremiumSchedule(s),/兩份方案累積總保費：未能確認/);
   const a=calculatePremiumSchedule({...params,issueAge:42,horizon:11});
   assert.equal(a.rows[10].SCE.value,220);
+});
+
+test('SCE termination preserves diagnosis-year premium and never follows early CI', () => {
+  const major = calculatePremiumSchedule({...params, horizon: 8, diagnosisAge: 42, claimType: 'major'});
+  assert.deepEqual(major.rows.map(r => r.SCE.value), [100,100,100,0,0,0,0,0]);
+  assert.equal(major.totals.SCE,300);
+  assert.match(renderPremiumSchedule(major), /HK\$0（合約完結）/);
+  assert.equal(major.rows[2].OYS2.waived,true);
+  const early = calculatePremiumSchedule({...params, horizon: 8, diagnosisAge:42, claimType:'early'});
+  assert.deepEqual(early.rows.map(r=>r.SCE.value),[100,100,100,100,100,150,150,150]);
+  assert.equal(early.rows[3].OYS2.value,300);
+});
+
+test('rate-age bands, normal premium and totals preserve full precision', () => {
+  const lookup = (_p,_plan,_g,rateAge) => ({status:'AVAILABLE',annualPremium:rateAge * 7.12345});
+  for (const issueAge of [29,30,33,40]) {
+    const s=calculatePremiumSchedule({...params,issueAge,horizon:11,lookup,vitality:true,healthProgram:[{plan_id:'SCE',effect_type:'premium_multiplier',effect_value:0.9}]});
+    assert.equal(s.rows[0].SCE.normalValue,issueAge*7.12345);
+    assert.equal(s.rows[0].SCE.value,issueAge*7.12345*0.9);
+    assert.equal(s.rows[1].SCE.value,issueAge*7.12345);
+    assert.equal(s.rows[4].SCE.value,issueAge*7.12345);
+    assert.equal(s.rows[5].SCE.value,(issueAge+5)*7.12345);
+    assert.equal(s.rows[10].SCE.value,(issueAge+10)*7.12345);
+    const expected=s.rows.reduce((sum,row)=>sum+row.SCE.value,0);
+    assert.equal(s.totals.SCE,expected);
+    assert.match(renderPremiumSchedule(s),/正常保費 ▼/);
+    assert.doesNotMatch(renderPremiumSchedule(s),/對照/);
+  }
 });

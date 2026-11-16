@@ -1,7 +1,7 @@
-import { premiumMatrixHasExpectedHeaders, adjustmentAvailability } from '../data/data-api.js?v=0.6.16';
-import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.16';
-import { translateProtectionToMonths } from './flow-state.js?v=0.6.16';
-import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.16';
+import { premiumMatrixHasExpectedHeaders, adjustmentAvailability } from '../data/data-api.js?v=0.6.17';
+import { calculateDementiaParkinsonClaim, createCancerState, payCancerOptionA, payCancerOptionBMonth, payInitialCancerClaim, remainingCancerOptionBMonths } from './claim-engine.js?v=0.6.17';
+import { translateProtectionToMonths } from './flow-state.js?v=0.6.17';
+import { resolveBenefits, resolveClaimRules } from './product-engine.js?v=0.6.17';
 
 const positive = value => Number.isFinite(Number(value)) && Number(value) > 0;
 const active = row => row?.enabled !== false && row?.active !== false;
