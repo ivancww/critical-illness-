@@ -37,6 +37,18 @@ export function diagnosisTiming(issueAge, diagnosisAge) {
   return { status: 'PENDING_POLICY_DATE', elapsedYears: Number.isInteger(issue) && issue >= 0 && Number.isInteger(diagnosis) && diagnosis >= issue ? diagnosis - issue : null, reason: '額外保障須按保單生效日期及合資格賠償支付日期確認。' };
 }
 
+// This age-based scenario is illustrative only, and never drives claimOutcome.
+export function demonstrationEnhancement({ enhancement, issueAge, diagnosisAge, sumAssured, eligibility } = {}) {
+  if (eligibility?.status === 'NOT_APPLICABLE' || eligibility?.status === 'VERIFIED_EXPIRED' || eligibility?.status === 'VERIFIED_APPLICABLE') return { status: 'HIDDEN' };
+  if (enhancement?.status !== 'VERIFIED') return { status: 'UNAVAILABLE' };
+  const timing = diagnosisTiming(issueAge, diagnosisAge);
+  if (timing.elapsedYears === null) return { status: 'UNAVAILABLE' };
+  if (timing.elapsedYears > 10) return { status: 'ILLUSTRATIVE_EXPIRED' };
+  if (timing.elapsedYears === 10) return { status: 'ILLUSTRATIVE_BOUNDARY' };
+  const base = sumAssured === null || sumAssured === undefined || sumAssured === '' ? null : Number(sumAssured);
+  return { status: 'ILLUSTRATIVE', percent: enhancement.percent, amount: Number.isFinite(base) && base > 0 ? base * enhancement.percent / 100 : null };
+}
+
 // Dates alone are deliberately not evaluated: authoritative anniversary terms are
 // needed. A verified decision must come from an independent contractual review.
 export function enhancementEligibility({ hasEnhancement, policyDate, paymentDate, verifiedDecision } = {}) {
@@ -136,6 +148,7 @@ export function planProtectionSummary({ plan, benefits = [], healthProgram = [],
     extra: { status: effectiveEnhancement.status, percent: extraPercent, amount: extraAmount, row: enhancement.row, reason: effectiveEnhancement.reason, bandStatus: enhancement.status },
     diagnosis: timing,
     enhancementEligibility: eligibility,
+    demonstration: demonstrationEnhancement({ enhancement, issueAge: age, diagnosisAge, sumAssured: rawBase, eligibility }),
     totalApplicable: total,
     early: { status: early && earlyPercent !== null ? 'VERIFIED' : 'VERIFY_REQUIRED', percent: earlyPercent, amount: earlyAmount, row: early },
     major: { status: majorVerified ? 'VERIFIED' : 'VERIFY_REQUIRED', row: major },
