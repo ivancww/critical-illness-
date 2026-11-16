@@ -40,9 +40,30 @@ const assert = require('node:assert/strict');
         const oys = page.locator('[data-plan-card="OYS2"]');
         assert.equal(await oys.locator('[data-enhancement-demonstration]').count(), demoPercent ? 1 : 0);
         assert.equal(await oys.locator('[data-enhancement-boundary]').count(), boundary ? 1 : 0);
+        const protectionRows = oys.locator('.protection-rows');
+        const protectionText = await protectionRows.innerText();
+        assert.match(protectionText, /基本保額[\s\S]*HK\$500,000/);
+        assert.doesNotMatch(protectionText, /額外保障資格待確認/);
+        if (demoPercent) {
+          assert.equal((protectionText.match(/額外保障/g) || []).length, 1);
+          assert.equal((protectionText.match(/情境示範/g) || []).length, 1);
+        } else if (boundary) {
+          assert.equal((protectionText.match(/額外保障/g) || []).length, 1);
+          assert.equal((protectionText.match(/情境示範/g) || []).length, 1);
+        } else {
+          assert.doesNotMatch(protectionText, /額外保障|首10年升級保障|情境示範/);
+        }
         const sce = await page.locator('[data-plan-card="SCE"]').innerText();
         assert.doesNotMatch(sce, /額外保障|首10年升級保障/);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true, `${name}: comparison overflow`);
+        await page.goto(`${process.env.CI_TEST_URL || 'http://127.0.0.1:8765'}/?avaEntry=frontend#/plans/OYS2/protection`);
+        const detail = page.locator('.protection-rows');
+        await detail.waitFor();
+        assert.equal(await detail.innerText(), protectionText);
+        await page.goto(`${process.env.CI_TEST_URL || 'http://127.0.0.1:8765'}/?avaEntry=frontend#/plans/SCE/protection`);
+        const sceDetail = page.locator('.protection-rows');
+        await sceDetail.waitFor();
+        assert.doesNotMatch(await sceDetail.innerText(), /額外保障|首10年升級保障|情境示範/);
         await page.close();
       }
       console.log(`${name}: passed`);

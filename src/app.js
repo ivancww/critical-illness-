@@ -148,7 +148,7 @@ function demonstrationMarkup(summary) {
 export function protectionRows(summary) {
   const extra = summary.extra.status === 'VERIFIED'
     ? `<div class="protection-row"><span>額外保障</span><strong>+${summary.extra.percent}%<small>+${protectionAmount(summary.extra.amount)}</small></strong></div><div class="protection-row"><span>首10年升級保障</span><strong>已確認適用</strong></div>`
-    : summary.extra.status === 'VERIFY_REQUIRED'
+    : summary.extra.status === 'VERIFY_REQUIRED' && summary.demonstration?.status === 'UNAVAILABLE'
       ? `<p class="verify">額外保障資格待確認，並未計入賠償。</p>` : '';
   return `<div class="protection-rows"><div class="protection-row"><span>基本保額</span><strong>${protectionAmount(summary.baseAmount)}</strong></div>${extra}${demonstrationMarkup(summary)}</div>`;
 }
